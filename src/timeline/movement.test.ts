@@ -86,6 +86,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
         id: "enemy_test",
         level: 0,
         name: "測試",
+        code: null,
         moveSpeed: 1,
         motion: route.motionMode,
         levelType: "NORMAL",

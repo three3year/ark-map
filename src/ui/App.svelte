@@ -1,14 +1,16 @@
 <script lang="ts">
-  import type { Level, StageIndex } from "../level/index.ts";
+  import type { Area, Level, StageEntry, StageIndex } from "../level/index.ts";
+  import AreaList from "./AreaList.svelte";
   import LevelPage from "./LevelPage.svelte";
-  import { formatHash, parseHash, type LevelRoute } from "./route.ts";
+  import { formatHash, parseHash, type Route } from "./route.ts";
+  import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
 
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
 
   /** Write the URL first; the page renders from what the URL says. */
-  function navigate(next: LevelRoute) {
+  function navigate(next: Route) {
     history.replaceState(null, "", formatHash(next));
     hash = location.hash;
   }
@@ -32,23 +34,36 @@
     (e: unknown) => (error = String(e)),
   );
 
-  $effect(() => {
-    const first = index?.stages[0];
-    if (first && !route) navigate({ stageId: first.id, wave: 0, t: 0 });
-  });
+  const stages: Record<string, { area: Area; stage: StageEntry }> = $derived(
+    Object.fromEntries(
+      (index?.areas ?? []).flatMap((area) =>
+        area.sections.flatMap((s) => s.stages.map((stage) => [stage.id, { area, stage }])),
+      ),
+    ),
+  );
 
-  const stage = $derived(route && index?.stages.find((s) => s.id === route.stageId));
+  const area = $derived(
+    route.page === "area" ? index?.areas.find((a) => a.id === route.areaId) : undefined,
+  );
+  const found = $derived(route.page === "level" ? stages[route.stageId] : undefined);
+  const variant = $derived(
+    route.page === "level" && found
+      ? route.variant === null
+        ? found.stage.variants[0]
+        : found.stage.variants.find((v) => v.id === route.variant)
+      : undefined,
+  );
 
-  let level = $state<Level | null>(null);
-  let loadedFile: string | null = null;
+  /** The last level JSON fetched, with the file it came from. */
+  let loaded = $state<{ file: string; level: Level } | null>(null);
+  let requested: string | null = null;
   $effect(() => {
-    const file = stage?.levelFile;
-    if (!file || file === loadedFile) return;
-    loadedFile = file;
-    level = null;
+    const file = variant?.levelFile;
+    if (!file || file === requested) return;
+    requested = file;
     fetchJson<Level>(file).then(
-      (l) => {
-        if (loadedFile === file) level = l;
+      (level) => {
+        if (requested === file) loaded = { file, level };
       },
       (e: unknown) => (error = String(e)),
     );
@@ -56,24 +71,37 @@
 </script>
 
 <main>
-  <h1>{strings.siteTitle}</h1>
+  <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
   {#if error}
     <p role="alert">{strings.loadFailed}:{error}</p>
   {:else if !index}
     <p>{strings.loading}</p>
-  {:else if index.stages.length === 0}
+  {:else if index.areas.length === 0}
     <p>{strings.noStages}</p>
-  {:else if route && !stage}
+  {:else if route.page === "home"}
+    <AreaList {index} />
+  {:else if route.page === "area"}
+    {#if area}
+      <StageList {area} />
+    {:else}
+      <p>{strings.areaNotFound(route.areaId)}</p>
+    {/if}
+  {:else if !found}
     <p>{strings.stageNotFound(route.stageId)}</p>
-  {:else if route && stage && level}
+  {:else if !variant}
+    <p>{strings.variantNotFound(route.variant ?? "")}</p>
+  {:else if loaded && loaded.file === variant.levelFile}
     <LevelPage
-      {stage}
-      {level}
+      area={found.area}
+      stage={found.stage}
+      {variant}
+      level={loaded.level}
       wave={route.wave}
       t={route.t}
       onSeek={(t) => navigate({ ...route, t })}
       onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
       onJump={(wave, t) => navigate({ ...route, wave, t })}
+      onVariant={(v) => navigate({ ...route, variant: v })}
     />
   {:else}
     <p>{strings.loading}</p>
@@ -88,8 +116,11 @@
   }
   h1 {
     font-size: 1.1rem;
-    color: var(--muted);
     font-weight: 600;
     margin: 0 0 8px;
+  }
+  h1 a {
+    color: var(--muted);
+    text-decoration: none;
   }
 </style>

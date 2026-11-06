@@ -68,6 +68,8 @@ export interface Slot<T> {
 /** Enemy data as stored in the enemy database and in a level's `overwrittenData`. */
 export interface RawEnemyData {
   name?: Slot<string | null>;
+  /** The database enemy a level-local enemy (useDb false) is drawn as. */
+  prefabKey?: Slot<string | null>;
   attributes?: {
     maxHp?: Slot<number>;
     atk?: Slot<number>;
@@ -95,10 +97,13 @@ export interface RawLevel {
     moveMultiplier: number;
   };
   mapData: { map: number[][]; tiles: RawTile[] };
-  routes: RawRoute[] | null;
-  extraRoutes: RawRoute[] | null;
+  /** Older activity files have null placeholders. */
+  routes: (RawRoute | null)[] | null;
+  extraRoutes: (RawRoute | null)[] | null;
   enemyDbRefs: RawEnemyDbRef[] | null;
   waves: RawWave[];
+  /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
+  runes?: { difficultyMask: string | number; key: string }[] | null;
 }
 
 export interface RawEnemyDatabase {
@@ -106,9 +111,54 @@ export interface RawEnemyDatabase {
 }
 
 export interface RawEnemyHandbookTable {
-  enemyData: Record<string, { enemyId: string; name: string }>;
+  /** `enemyIndex` is the handbook code shown in game, e.g. "B1". */
+  enemyData: Record<string, { enemyId: string; name: string; enemyIndex: string }>;
+}
+
+export interface RawStage {
+  stageId: string;
+  /** Mixed case, e.g. "Obt/Main/level_main_01-07"; null for story-only stages. */
+  levelId: string | null;
+  zoneId: string;
+  code: string | null;
+  name: string | null;
+  stageType: string;
+  /** "NORMAL" | "FOUR_STAR" | "SIX_STAR" */
+  difficulty: string;
+  /** "NONE" | "NORMAL" | "TOUGH" | "EASY" | "ALL" */
+  diffGroup: string;
+  /** The challenge (`#f#`) entry of this stage. */
+  hardStagedId: string | null;
+  /** The six-star (`#s`) entry of this stage. */
+  sixStarStageId: string | null;
+  isStoryOnly: boolean;
 }
 
 export interface RawStageTable {
-  stages: Record<string, { stageId: string; levelId: string | null; code: string; name: string }>;
+  stages: Record<string, RawStage>;
+}
+
+export interface RawZone {
+  zoneID: string;
+  zoneIndex: number;
+  /** "MAINLINE" | "MAINLINE_ACTIVITY" | "ACTIVITY" | "CAMPAIGN" | ... */
+  type: string;
+  /** "第六章" for chapters; the English title for MAINLINE_ACTIVITY; null for activities. */
+  zoneNameFirst: string | null;
+  zoneNameSecond: string | null;
+  /** Chapter number, "06". */
+  zoneNameTitleCurrent: string | null;
+}
+
+export interface RawZoneTable {
+  zones: Record<string, RawZone>;
+}
+
+export interface RawActivityTable {
+  zoneToActivity: Record<string, string>;
+  basicInfo: Record<string, { id: string; type: string; name: string; startTime: number }>;
+}
+
+export interface RawCampaignTable {
+  campaignZones: Record<string, { id: string; name: string }>;
 }

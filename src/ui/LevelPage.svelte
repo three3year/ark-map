@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Level, StageEntry } from "../level/index.ts";
+  import type { Area, Level, StageEntry, Variant, VariantId } from "../level/index.ts";
   import {
     buildTimeline,
     spawnTable,
@@ -10,23 +10,28 @@
   } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
   import { playbackStop } from "./playback.ts";
+  import { formatHash } from "./route.ts";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings } from "./strings.ts";
 
   interface Props {
+    area: Area;
     stage: StageEntry;
+    variant: Variant;
     level: Level;
     /** 0-based wave index from the URL; out-of-range indices show the first wave. */
     wave: number;
     t: number;
     onSeek: (t: number) => void;
     onSelectWave: (wave: number) => void;
+    onVariant: (variant: VariantId) => void;
     /** Go to `t` of `wave` in one URL change. */
     onJump: (wave: number, t: number) => void;
   }
-  let { stage, level, wave, t, onSeek, onSelectWave, onJump }: Props = $props();
+  let { area, stage, variant, level, wave, t, onSeek, onSelectWave, onVariant, onJump }: Props =
+    $props();
 
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
   const timeline = $derived(buildTimeline(level, { waveIndex }));
@@ -81,7 +86,24 @@
   }
 </script>
 
+<nav>
+  <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
+</nav>
 <h2>{stage.code} {stage.name}</h2>
+{#if stage.variants.length > 1}
+  <div class="variants" role="group" aria-label={strings.variantPicker}>
+    {#each stage.variants as v (v.id)}
+      <button
+        type="button"
+        aria-pressed={v.id === variant.id}
+        data-variant={v.id}
+        onclick={() => onVariant(v.id)}
+      >
+        {strings.variants[v.id]}
+      </button>
+    {/each}
+  </div>
+{/if}
 <MapView
   map={level.map}
   routes={level.routes}
@@ -116,8 +138,11 @@
 <SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} {selected} onJump={jumpTo} />
 
 <style>
+  nav a {
+    color: var(--accent);
+  }
   h2 {
-    margin: 0 0 12px;
+    margin: 8px 0 12px;
     font-size: 1.4rem;
   }
   .selection {
@@ -136,6 +161,25 @@
     color: var(--fg);
     font: inherit;
     cursor: pointer;
+  }
+  .variants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .variants button {
+    padding: 4px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .variants button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
   }
   .counts {
     display: flex;

@@ -4,7 +4,16 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildEnemyCatalog, convertLevel } from "../pipeline/convertLevel.ts";
-import type { RawEnemyDatabase, RawEnemyHandbookTable, RawLevel } from "../pipeline/raw.ts";
+import type {
+  RawActivityTable,
+  RawCampaignTable,
+  RawEnemyDatabase,
+  RawEnemyHandbookTable,
+  RawLevel,
+  RawStageTable,
+  RawZoneTable,
+} from "../pipeline/raw.ts";
+import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level } from "../src/level/index.ts";
 
 const rawDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "raw");
@@ -24,6 +33,17 @@ export function rawEnemyDatabase(): RawEnemyDatabase {
 
 export function rawEnemyHandbook(): RawEnemyHandbookTable {
   return readJson<RawEnemyHandbookTable>("enemy_handbook_table.tw.json");
+}
+
+/** CN and TW stage, zone, activity and campaign tables, subset to a few zones. */
+export function rawTables(): StageIndexTables {
+  const tables = (suffix: string): GameTables => ({
+    stage: readJson<RawStageTable>(`stage_table${suffix}.json`),
+    zone: readJson<RawZoneTable>(`zone_table${suffix}.json`),
+    activity: readJson<RawActivityTable>(`activity_table${suffix}.json`),
+    campaign: readJson<RawCampaignTable>(`campaign_table${suffix}.json`),
+  });
+  return { cn: tables(""), tw: tables(".tw") };
 }
 
 export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {

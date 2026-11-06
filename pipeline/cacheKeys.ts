@@ -1,6 +1,6 @@
 // CI helper: for each raw-data source, print its cache directory and the upstream branch's
-// current commit. The cache never revalidates a file it already has, so CI keys each source's
-// cache on that commit: reruns reuse it, and an upstream update starts that source fresh.
+// current commit. CI keys each source's cache on that commit: reruns reuse it unchanged, and an
+// upstream update restores the previous cache, whose files the pipeline revalidates by blob sha.
 // Writes `<name>-path=` and `<name>-rev=` lines to $GITHUB_OUTPUT, or to stdout locally.
 import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";

@@ -1,0 +1,295 @@
+// Stage, zone, activity and campaign tables -> the site's stage index (區域 -> 關卡 -> 變體).
+import type {
+  Area,
+  AreaKind,
+  Difficulty,
+  StageEntry,
+  StageIndex,
+  Variant,
+  VariantId,
+} from "../src/level/index.ts";
+import type {
+  RawActivityTable,
+  RawCampaignTable,
+  RawLevel,
+  RawStage,
+  RawStageTable,
+  RawZone,
+  RawZoneTable,
+} from "./raw.ts";
+
+export interface GameTables {
+  stage: RawStageTable;
+  zone: RawZoneTable;
+  activity: RawActivityTable;
+  campaign: RawCampaignTable;
+}
+
+/** CN tables are the data; TW tables only supply names and lag CN, so every lookup falls back. */
+export interface StageIndexTables {
+  cn: GameTables;
+  tw: GameTables;
+}
+
+/** What the index needs to know about a level file that exists. */
+export interface LevelFacts {
+  /** Difficulties named by the file's 難度修正 masks. */
+  difficulties: string[];
+}
+
+/** Bit flags used by older files in place of names. */
+const maskFlags: [number, string][] = [
+  [1, "NORMAL"],
+  [2, "FOUR_STAR"],
+];
+
+function maskNames(mask: string | number): string[] {
+  if (typeof mask === "number") return maskFlags.filter(([bit]) => mask & bit).map(([, n]) => n);
+  return mask.split(/[\s,|]+/);
+}
+
+export function levelFacts(raw: RawLevel): LevelFacts {
+  const masks = (raw.runes ?? []).flatMap((r) => maskNames(r.difficultyMask));
+  return { difficulties: [...new Set(masks.filter(Boolean))] };
+}
+
+/** A stage left out of the index because its level file is missing upstream. */
+export interface SkippedStage {
+  stageId: string;
+  levelPath: string;
+}
+
+/** Raw paths are case-sensitive and lowercase upstream: "obt/main/level_main_01-07". */
+export function levelPath(levelId: string): string {
+  return levelId.toLowerCase();
+}
+
+export function siteLevelFile(path: string): string {
+  return `data/levels/${path}.json`;
+}
+
+/** Where a stage is listed: the area, and the section (zone) inside it. */
+interface Placement {
+  kind: AreaKind;
+  areaId: string;
+  sectionId: string;
+}
+
+/** Activity types out of scope (spec 範圍外): multiplayer and Garrison Protocol (衛戍協議). */
+function excludedActivity(actId: string, type: string): boolean {
+  return /^MULTIPLAY/.test(type) || /AUTOCHESS/.test(type) || /autochess/.test(actId);
+}
+
+/**
+ * Mainline chapters by zone (chapters 15+ are MAINLINE_ACTIVITY zones; early activity stages
+ * filed under a chapter zone stay there), activities by `zoneToActivity`, campaign regions by
+ * zone. Anything else is out of scope.
+ */
+function placement(tables: StageIndexTables, stage: RawStage): Placement | null {
+  const zone = tables.cn.zone.zones[stage.zoneId];
+  switch (zone?.type) {
+    case "MAINLINE":
+    case "MAINLINE_ACTIVITY":
+      return { kind: "MAINLINE", areaId: stage.zoneId, sectionId: stage.zoneId };
+    case "CAMPAIGN":
+      return { kind: "CAMPAIGN", areaId: stage.zoneId, sectionId: stage.zoneId };
+    case "ACTIVITY": {
+      const actId = tables.cn.activity.zoneToActivity[stage.zoneId];
+      const info = actId ? tables.cn.activity.basicInfo[actId] : undefined;
+      if (!info || excludedActivity(info.id, info.type)) return null;
+      return { kind: "ACTIVITY", areaId: info.id, sectionId: stage.zoneId };
+    }
+    default:
+      return null;
+  }
+}
+
+/** Stages with a level file in the areas the index covers. Story-only stages have no file. */
+function selectStages(tables: StageIndexTables): { stage: RawStage; place: Placement }[] {
+  return Object.values(tables.cn.stage.stages).flatMap((stage) => {
+    const place = stage.levelId === null ? null : placement(tables, stage);
+    return place ? [{ stage, place }] : [];
+  });
+}
+
+/** Every level file the index may point at. `easy_` entries name files that do not exist. */
+export function indexedLevelPaths(tables: StageIndexTables): string[] {
+  const links = variantLinks(tables.cn.stage.stages);
+  const paths = selectStages(tables)
+    .filter(({ stage }) => links.get(stage.stageId)?.id !== "easy")
+    .map(({ stage }) => levelPath(stage.levelId!));
+  return [...new Set(paths)];
+}
+
+interface VariantLink {
+  baseId: string;
+  id: VariantId;
+}
+
+/**
+ * Stage-table entries that are a variant of another entry. Challenge and six-star entries are
+ * named by their base (`hardStagedId`, `sixStarStageId`); `tough_X` and `easy_X` are linked
+ * by name to `X` or `main_X` in the same zone.
+ */
+function variantLinks(stages: Record<string, RawStage>): Map<string, VariantLink> {
+  const links = new Map<string, VariantLink>();
+  for (const s of Object.values(stages)) {
+    if (s.hardStagedId) links.set(s.hardStagedId, { baseId: s.stageId, id: "challenge" });
+    if (s.sixStarStageId) links.set(s.sixStarStageId, { baseId: s.stageId, id: "sixStar" });
+    const named = /^(tough|easy)_(.*)$/.exec(s.stageId);
+    if (named) {
+      const [, kind, rest] = named;
+      const baseId = [rest!, `main_${rest}`].find((id) => stages[id]?.zoneId === s.zoneId);
+      if (baseId) links.set(s.stageId, { baseId, id: kind as "tough" | "easy" });
+    }
+  }
+  return links;
+}
+
+const variantOrder: VariantId[] = ["normal", "challenge", "sixStar", "easy", "tough"];
+
+const variantDifficulty: Record<VariantId, Difficulty> = {
+  normal: "NORMAL",
+  challenge: "FOUR_STAR",
+  sixStar: "SIX_STAR",
+  easy: "EASY",
+  tough: "NORMAL",
+};
+
+const kindOrder: AreaKind[] = ["MAINLINE", "ACTIVITY", "CAMPAIGN"];
+
+const numerals = "零一二三四五六七八九";
+
+/** 17 -> "十七", 23 -> "二十三". */
+function chineseNumber(n: number): string {
+  if (n < 10) return numerals[n]!;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${tens === 1 ? "" : numerals[tens]}十${ones === 0 ? "" : numerals[ones]}`;
+}
+
+/** "第六章" from the table; chapters 15+ carry an English title there, so build it. */
+function chapterCode(zone: RawZone): string | null {
+  if (zone.zoneNameFirst && /\p{Script=Han}/u.test(zone.zoneNameFirst)) return zone.zoneNameFirst;
+  const n = Number(zone.zoneNameTitleCurrent);
+  return Number.isInteger(n) ? `第${chineseNumber(n)}章` : zone.zoneNameFirst;
+}
+
+interface AreaDraft {
+  area: Area;
+  sortKey: number;
+  sections: Map<string, StageEntry[]>;
+}
+
+export function buildStageIndex(
+  tables: StageIndexTables,
+  facts: Map<string, LevelFacts>,
+): { index: StageIndex; skipped: SkippedStage[] } {
+  const { cn, tw } = tables;
+  const links = variantLinks(cn.stage.stages);
+  const selected = selectStages(tables);
+  const derived = new Map<string, RawStage[]>();
+  for (const { stage } of selected) {
+    const link = links.get(stage.stageId);
+    if (link) derived.set(link.baseId, [...(derived.get(link.baseId) ?? []), stage]);
+  }
+  const skipped: SkippedStage[] = [];
+
+  /** null when the level file is missing; easy also needs EASY modifiers in the base file. */
+  function toVariant(stage: RawStage, id: VariantId, basePath: string): Variant | null {
+    const path = id === "easy" ? basePath : levelPath(stage.levelId!);
+    const fileFacts = facts.get(path);
+    if (!fileFacts) {
+      if (id !== "easy") skipped.push({ stageId: stage.stageId, levelPath: path });
+      return null;
+    }
+    if (id === "easy" && !fileFacts.difficulties.includes("EASY")) return null;
+    return {
+      id,
+      sourceStageId: stage.stageId,
+      levelFile: siteLevelFile(path),
+      difficulty: variantDifficulty[id],
+    };
+  }
+
+  function zoneName(zoneId: string): string | null {
+    return tw.zone.zones[zoneId]?.zoneNameSecond ?? cn.zone.zones[zoneId]?.zoneNameSecond ?? null;
+  }
+
+  function newArea({ kind, areaId }: Placement): AreaDraft {
+    const base = { id: areaId, kind, sections: [] };
+    switch (kind) {
+      case "MAINLINE": {
+        const zone = tw.zone.zones[areaId] ?? cn.zone.zones[areaId]!;
+        return {
+          area: { ...base, code: chapterCode(zone), name: zoneName(areaId) ?? areaId },
+          sortKey: Number(cn.zone.zones[areaId]!.zoneNameTitleCurrent),
+          sections: new Map(),
+        };
+      }
+      case "ACTIVITY": {
+        const name = tw.activity.basicInfo[areaId]?.name ?? cn.activity.basicInfo[areaId]!.name;
+        return {
+          area: { ...base, code: null, name },
+          sortKey: -cn.activity.basicInfo[areaId]!.startTime,
+          sections: new Map(),
+        };
+      }
+      case "CAMPAIGN": {
+        const zone = tw.campaign.campaignZones[areaId] ?? cn.campaign.campaignZones[areaId];
+        return {
+          area: { ...base, code: null, name: zone?.name ?? areaId },
+          sortKey: Number(/\d+$/.exec(areaId)?.[0] ?? 0),
+          sections: new Map(),
+        };
+      }
+    }
+  }
+
+  const drafts = new Map<string, AreaDraft>();
+  for (const { stage, place } of selected) {
+    if (links.has(stage.stageId)) continue;
+    const basePath = levelPath(stage.levelId!);
+    const baseVariant = toVariant(
+      stage,
+      stage.diffGroup === "TOUGH" ? "tough" : "normal",
+      basePath,
+    );
+    if (!baseVariant) continue;
+    const variants = [baseVariant];
+    for (const d of derived.get(stage.stageId) ?? []) {
+      const v = toVariant(d, links.get(d.stageId)!.id, basePath);
+      if (v) variants.push(v);
+    }
+    variants.sort((a, b) => variantOrder.indexOf(a.id) - variantOrder.indexOf(b.id));
+    const twStage = tw.stage.stages[stage.stageId];
+    const entry: StageEntry = {
+      id: stage.stageId,
+      code: twStage?.code ?? stage.code ?? "",
+      name: twStage?.name ?? stage.name ?? "",
+      variants,
+    };
+    let draft = drafts.get(place.areaId);
+    if (!draft) {
+      draft = newArea(place);
+      drafts.set(place.areaId, draft);
+    }
+    const section = draft.sections.get(place.sectionId) ?? [];
+    section.push(entry);
+    draft.sections.set(place.sectionId, section);
+  }
+
+  const areas = [...drafts.values()]
+    .sort(
+      (a, b) =>
+        kindOrder.indexOf(a.area.kind) - kindOrder.indexOf(b.area.kind) || a.sortKey - b.sortKey,
+    )
+    .map(({ area, sections }) => ({
+      ...area,
+      sections: [...sections].map(([zoneId, stages]) => ({
+        name: sections.size > 1 ? zoneName(zoneId) : null,
+        stages,
+      })),
+    }));
+  return { index: { areas }, skipped };
+}

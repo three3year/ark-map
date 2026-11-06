@@ -16,6 +16,8 @@ export interface EnemyCatalog {
   levels: Map<string, Map<number, RawEnemyData>>;
   /** Enemy id -> TW name. */
   twNames: Map<string, string>;
+  /** Enemy id -> TW handbook code, e.g. "B1". */
+  twCodes: Map<string, string>;
 }
 
 export function buildEnemyCatalog(
@@ -27,10 +29,11 @@ export function buildEnemyCatalog(
       db.enemies.map((e) => [e.Key, new Map(e.Value.map((v) => [v.level, v.enemyData]))]),
     ),
     twNames: new Map(Object.entries(handbook.enemyData).map(([id, e]) => [id, e.name])),
+    twCodes: new Map(Object.entries(handbook.enemyData).map(([id, e]) => [id, e.enemyIndex])),
   };
 }
 
-type EnemyStats = Omit<EnemyRef, "id" | "level" | "avatar">;
+type EnemyStats = Omit<EnemyRef, "id" | "level" | "code" | "avatar">;
 
 /** Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value. */
 function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
@@ -62,9 +65,16 @@ const emptyStats: EnemyStats = {
 
 /**
  * Level 0 is the base; level n overrides the slots it defines; the level's
- * `overwrittenData` overrides again. The TW handbook name wins over the CN name.
+ * `overwrittenData` overrides again. A level-local enemy (`useDb` false) is wholly its
+ * `overwrittenData`. The TW handbook name wins over the CN name.
  */
 export function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef): EnemyRef {
+  const name = catalog.twNames.get(ref.id);
+  const code = catalog.twCodes.get(ref.id) ?? null;
+  if (!ref.useDb && ref.overwrittenData) {
+    const stats = overlay(emptyStats, ref.overwrittenData, true);
+    return { id: ref.id, level: ref.level, ...stats, name: name ?? stats.name, code, avatar: null };
+  }
   const byLevel = catalog.levels.get(ref.id);
   const level0 = byLevel?.get(0);
   if (!byLevel || !level0) throw new Error(`敵人資料庫沒有 ${ref.id}`);
@@ -72,8 +82,7 @@ export function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef): EnemyRe
   const levelN = ref.level === 0 ? undefined : byLevel.get(ref.level);
   if (levelN) stats = overlay(stats, levelN);
   if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData);
-  const name = catalog.twNames.get(ref.id) ?? stats.name;
-  return { id: ref.id, level: ref.level, ...stats, name, avatar: null };
+  return { id: ref.id, level: ref.level, ...stats, name: name ?? stats.name, code, avatar: null };
 }
 
 function convertAction(raw: RawAction): Action {
@@ -107,7 +116,21 @@ function convertMap(raw: RawLevel["mapData"]): LevelMap {
   return { width, height, tiles };
 }
 
-function convertRoute(raw: RawRoute): Route {
+/** A null route keeps its index slot as an E_NUM placeholder. */
+const placeholderRoute: Route = {
+  motionMode: "E_NUM",
+  start: { row: 0, col: 0 },
+  end: { row: 0, col: 0 },
+  spawnOffset: { x: 0, y: 0 },
+  checkpoints: [],
+  allowDiagonalMove: false,
+  visitEveryTileCenter: false,
+  visitEveryNodeCenter: false,
+  visitEveryCheckPoint: false,
+};
+
+function convertRoute(raw: RawRoute | null): Route {
+  if (raw === null) return placeholderRoute;
   return {
     motionMode: raw.motionMode as MotionMode,
     start: raw.startPosition,
