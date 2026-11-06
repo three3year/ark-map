@@ -1,6 +1,7 @@
 // Refresh test-fixtures/raw/ from the raw-data cache: copies the listed level files, then
 // subsets the enemy database and TW handbook to the enemies referenced by every level file
-// in the fixture directory (old and new) plus any `--enemy` ids.
+// in the fixture directory (old and new), the enemies already in the subset, and any
+// `--enemy` ids.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -31,6 +32,12 @@ for (const levelPath of levelPaths) {
   if (body === null) throw new Error(`找不到關卡檔 levels/${levelPath}`);
   await writeFile(path.join(fixtureDir, path.basename(levelPath)), body);
 }
+// Keep enemies an earlier run added with `--enemy`.
+const previousDb = await readFile(path.join(fixtureDir, "enemy_database.json"), "utf8").then(
+  (text) => JSON.parse(text) as RawEnemyDatabase,
+  () => ({ enemies: [] }) as RawEnemyDatabase,
+);
+for (const enemy of previousDb.enemies) enemyIds.add(enemy.Key);
 const levelFiles = (await readdir(fixtureDir)).filter((f) => f.startsWith("level_"));
 for (const file of levelFiles) {
   const level = JSON.parse(await readFile(path.join(fixtureDir, file), "utf8")) as RawLevel;

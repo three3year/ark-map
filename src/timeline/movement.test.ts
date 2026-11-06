@@ -46,6 +46,7 @@ function level(
       {
         preDelay: 0,
         postDelay: 0,
+        timeLimit: null,
         fragments: [
           {
             preDelay: 0,

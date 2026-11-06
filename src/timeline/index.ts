@@ -8,8 +8,10 @@ import {
   type IndividualState,
   type MovementModel,
 } from "./movement.ts";
+import { scheduleWave } from "./schedule.ts";
 
 export * from "./movement.ts";
+export * from "./spawnTable.ts";
 
 export interface Individual {
   /** Stable within a timeline: "<fragment>-<action>-<k>". */
@@ -21,6 +23,8 @@ export interface Individual {
   /** k: this is the (k+1)-th individual of its action. */
   spawnIndex: number;
   spawnTime: number;
+  /** 無害單位: counts as killed, never a threat. */
+  harmless: boolean;
   leakTime: number | null;
   stateAt(t: number): IndividualState;
 }
@@ -59,10 +63,8 @@ export function timelineEnd(timeline: Timeline): number {
 }
 
 /**
- * T = 0 is the wave start. Fragment start = previous fragment end + fragment preDelay
- * (the wave preDelay is added before the first fragment). Fragment end = start + the max of
- * every action's (preDelay + (count - 1) x interval), non-spawn actions included. The k-th
- * individual of a spawn action spawns at fragment start + preDelay + k x interval.
+ * Every individual of one wave, timed by {@link scheduleWave}; T = 0 is the wave start and
+ * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
   const { waveIndex = 0, movement = nextNodeModel } = options;
@@ -70,34 +72,29 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   if (!wave) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);
   const individuals: Individual[] = [];
-  let previousEnd = wave.preDelay;
-  wave.fragments.forEach((fragment, fragmentIndex) => {
-    const start = previousEnd + fragment.preDelay;
-    let end = start;
-    fragment.actions.forEach((action, actionIndex) => {
-      end = Math.max(end, start + action.preDelay + (action.count - 1) * action.interval);
-      if (action.actionType !== "SPAWN") return;
-      const route = level.routes[action.routeIndex];
-      const enemy = level.enemies[action.key];
-      if (!route || route.motionMode === "E_NUM" || !enemy) return;
-      const speed = theoreticalSpeed(enemy, level.options);
-      for (let k = 0; k < action.count; k++) {
-        const spawnTime = start + action.preDelay + k * action.interval;
-        const trajectory = movement({ route, speed, spawnTime, fragmentStart: start, nextNode });
-        individuals.push({
-          id: `${fragmentIndex}-${actionIndex}-${k}`,
-          enemy,
-          route,
-          fragmentIndex,
-          actionIndex,
-          spawnIndex: k,
-          spawnTime,
-          leakTime: trajectory.leakTime,
-          stateAt: trajectory.stateAt,
-        });
-      }
-    });
-    previousEnd = end;
-  });
+  for (const { action, fragmentIndex, actionIndex, fragmentStart, start } of scheduleWave(wave)
+    .actions) {
+    if (action.actionType !== "SPAWN") continue;
+    const route = level.routes[action.routeIndex];
+    const enemy = level.enemies[action.key];
+    if (!route || route.motionMode === "E_NUM" || !enemy) continue;
+    const speed = theoreticalSpeed(enemy, level.options);
+    for (let k = 0; k < action.count; k++) {
+      const spawnTime = start + k * action.interval;
+      const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
+      individuals.push({
+        id: `${fragmentIndex}-${actionIndex}-${k}`,
+        enemy,
+        route,
+        fragmentIndex,
+        actionIndex,
+        spawnIndex: k,
+        spawnTime,
+        harmless: action.harmless,
+        leakTime: trajectory.leakTime,
+        stateAt: trajectory.stateAt,
+      });
+    }
+  }
   return { individuals };
 }

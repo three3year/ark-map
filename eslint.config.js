@@ -15,6 +15,8 @@ export default ts.config(
       ".scratch/",
       ".claude/",
       ".playwright-mcp/",
+      "test-results/",
+      "playwright-report/",
     ],
   },
   js.configs.recommended,
