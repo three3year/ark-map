@@ -10,6 +10,7 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRoguelikeTopicTable,
   RawStageTable,
   RawZoneTable,
 } from "../pipeline/raw.ts";
@@ -35,13 +36,14 @@ export function rawEnemyHandbook(): RawEnemyHandbookTable {
   return readJson<RawEnemyHandbookTable>("enemy_handbook_table.tw.json");
 }
 
-/** CN and TW stage, zone, activity and campaign tables, subset to a few zones. */
+/** CN and TW stage, zone, activity, campaign and roguelike topic tables, subset to a few zones. */
 export function rawTables(): StageIndexTables {
   const tables = (suffix: string): GameTables => ({
     stage: readJson<RawStageTable>(`stage_table${suffix}.json`),
     zone: readJson<RawZoneTable>(`zone_table${suffix}.json`),
     activity: readJson<RawActivityTable>(`activity_table${suffix}.json`),
     campaign: readJson<RawCampaignTable>(`campaign_table${suffix}.json`),
+    roguelike: readJson<RawRoguelikeTopicTable>(`roguelike_topic_table${suffix}.json`),
   });
   return { cn: tables(""), tw: tables(".tw") };
 }

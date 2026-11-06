@@ -162,3 +162,32 @@ export interface RawActivityTable {
 export interface RawCampaignTable {
   campaignZones: Record<string, { id: string; name: string }>;
 }
+
+export interface RawRoguelikeStage {
+  id: string;
+  /** For an emergency operation (緊急作戰, `roN_e_…`): the stage it is the harder run of. */
+  linkedStageId: string;
+  /** Mixed case, e.g. "Obt/Roguelike/RO1/level_rogue1_1-1". */
+  levelId: string;
+  /** Alternative maps (替換地圖) of the same node, as level ids. */
+  levelReplaceIds: string[];
+  code: string;
+  name: string;
+  /** The emergency operation's condition text, "附加条件：…"; null for normal nodes. */
+  eliteDesc: string | null;
+  /** "NORMAL" | "FOUR_STAR" */
+  difficulty: string;
+}
+
+export interface RawRoguelikeTopic {
+  /** Zones keyed `zone_<n>`, plus hidden and special zones; no order field. */
+  zones: Record<string, { id: string; name: string }>;
+  /** No zone or order field: normal nodes are `roN_n_<zone>_<i>`, emergencies `roN_e_…`. */
+  stages: Record<string, RawRoguelikeStage>;
+}
+
+/** 集成戰略: themes (主題) with their zones and stages. */
+export interface RawRoguelikeTopicTable {
+  topics: Record<string, { id: string; name: string; sort: number }>;
+  details: Record<string, RawRoguelikeTopic>;
+}

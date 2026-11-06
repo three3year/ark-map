@@ -1,5 +1,5 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, VariantId } from "../level/index.ts";
+import type { AreaKind, NamedVariantId, VariantId } from "../level/index.ts";
 
 export const strings = {
   siteTitle: "明日方舟時刻快照",
@@ -14,6 +14,7 @@ export const strings = {
     MAINLINE: "主線",
     ACTIVITY: "活動",
     CAMPAIGN: "剿滅作戰",
+    ROGUELIKE: "集成戰略",
   } satisfies Record<AreaKind, string>,
   variants: {
     normal: "普通",
@@ -21,7 +22,12 @@ export const strings = {
     sixStar: "六星",
     easy: "簡單",
     tough: "磨難",
-  } satisfies Record<VariantId, string>,
+    emergency: "緊急作戰",
+  } satisfies Record<NamedVariantId, string>,
+  replacement: (n: number) => `替換地圖 ${n}`,
+  /** Heading of a 集成戰略 section of stages outside the numbered zones. */
+  otherStages: "其他關卡",
+  emergencySection: (zone: string) => `${zone}・緊急作戰`,
   variantPicker: "關卡變體",
   seconds: "秒",
   play: "播放",
@@ -66,3 +72,8 @@ export const strings = {
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   deselect: "取消選取",
 } as const;
+
+export function variantLabel(id: VariantId): string {
+  const replace = /^replace(\d+)$/.exec(id);
+  return replace ? strings.replacement(Number(replace[1])) : strings.variants[id as NamedVariantId];
+}
