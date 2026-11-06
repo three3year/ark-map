@@ -1,25 +1,35 @@
 <script lang="ts">
   import type { Level, StageEntry } from "../level/index.ts";
-  import { buildTimeline, takeSnapshot, timelineEnd } from "../timeline/index.ts";
+  import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
+  import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
+  import WaveSelect from "./WaveSelect.svelte";
   import { strings } from "./strings.ts";
 
   interface Props {
     stage: StageEntry;
     level: Level;
+    /** 0-based wave index from the URL; out-of-range indices show the first wave. */
+    wave: number;
     t: number;
     onSeek: (t: number) => void;
+    onSelectWave: (wave: number) => void;
   }
-  let { stage, level, t, onSeek }: Props = $props();
+  let { stage, level, wave, t, onSeek, onSelectWave }: Props = $props();
 
-  const timeline = $derived(buildTimeline(level));
+  const waveIndex = $derived(wave < level.waves.length ? wave : 0);
+  const timeline = $derived(buildTimeline(level, { waveIndex }));
+  const rows = $derived(spawnTable(level));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const snapshot = $derived(takeSnapshot(timeline, t));
 </script>
 
 <h2>{stage.code} {stage.name}</h2>
 <MapView map={level.map} routes={level.routes} enemies={snapshot.onField} />
+{#if level.waves.length > 1}
+  <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+{/if}
 <TimelineBar {t} {end} {onSeek} />
 <dl class="counts" aria-live="polite">
   <div>
@@ -35,6 +45,7 @@
     <dd data-count="leaked">{snapshot.counts.leaked}</dd>
   </div>
 </dl>
+<SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} />
 
 <style>
   h2 {

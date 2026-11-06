@@ -34,7 +34,7 @@
 
   $effect(() => {
     const first = index?.stages[0];
-    if (first && !route) navigate({ stageId: first.id, t: 0 });
+    if (first && !route) navigate({ stageId: first.id, wave: 0, t: 0 });
   });
 
   const stage = $derived(route && index?.stages.find((s) => s.id === route.stageId));
@@ -66,7 +66,14 @@
   {:else if route && !stage}
     <p>{strings.stageNotFound(route.stageId)}</p>
   {:else if route && stage && level}
-    <LevelPage {stage} {level} t={route.t} onSeek={(t) => navigate({ ...route, t })} />
+    <LevelPage
+      {stage}
+      {level}
+      wave={route.wave}
+      t={route.t}
+      onSeek={(t) => navigate({ ...route, t })}
+      onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
+    />
   {:else}
     <p>{strings.loading}</p>
   {/if}

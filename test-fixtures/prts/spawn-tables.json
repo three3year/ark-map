@@ -1,0 +1,1562 @@
+{
+  "level_main_03-04": [
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 1,
+      "order": "1",
+      "interval": 1,
+      "time": 3,
+      "waveTime": 3,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 2,
+      "order": "2 ~ 3",
+      "interval": 1,
+      "time": 10,
+      "waveTime": 10,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 1,
+      "order": "4",
+      "interval": 1,
+      "time": 19,
+      "waveTime": 19,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 1,
+      "order": "5",
+      "interval": 1,
+      "time": 23,
+      "waveTime": 23,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 1,
+      "order": "6",
+      "interval": 1,
+      "time": 26,
+      "waveTime": 26,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 2,
+      "order": "7 ~ 8",
+      "interval": 1,
+      "time": 27,
+      "waveTime": 27,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_2",
+      "count": 1,
+      "order": "9",
+      "interval": 0.8,
+      "time": 33,
+      "waveTime": 33,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_2",
+      "count": 2,
+      "order": "10 ~ 11",
+      "interval": 0.8,
+      "time": 43,
+      "waveTime": 43,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_2",
+      "count": 2,
+      "order": "12 ~ 13",
+      "interval": 0.8,
+      "time": 44,
+      "waveTime": 44,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "14",
+      "interval": 1,
+      "time": 56.8,
+      "waveTime": 56.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "15",
+      "interval": 1,
+      "time": 63.8,
+      "waveTime": 63.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "16",
+      "interval": 1,
+      "time": 63.8,
+      "waveTime": 63.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "17",
+      "interval": 1,
+      "time": 66.8,
+      "waveTime": 66.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "18",
+      "interval": 0.8,
+      "time": 68.8,
+      "waveTime": 68.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "19",
+      "interval": 1,
+      "time": 68.8,
+      "waveTime": 68.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "20",
+      "interval": 1,
+      "time": 68.8,
+      "waveTime": 68.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "21",
+      "interval": 1,
+      "time": 73.8,
+      "waveTime": 73.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "22",
+      "interval": 1,
+      "time": 74.8,
+      "waveTime": 74.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "23",
+      "interval": 1,
+      "time": 75.8,
+      "waveTime": 75.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 1,
+      "order": "24",
+      "interval": 1,
+      "time": 81.8,
+      "waveTime": 81.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 2,
+      "order": "25 ~ 26",
+      "interval": 0.8,
+      "time": 85.8,
+      "waveTime": 85.8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_3",
+      "count": 2,
+      "order": "27 ~ 28",
+      "interval": 0.8,
+      "time": 105.6,
+      "waveTime": 105.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_3",
+      "count": 2,
+      "order": "29 ~ 30",
+      "interval": 0.8,
+      "time": 106.6,
+      "waveTime": 106.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "31",
+      "interval": 0.8,
+      "time": 106.6,
+      "waveTime": 106.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "32",
+      "interval": 0.8,
+      "time": 107.6,
+      "waveTime": 107.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 1,
+      "order": "33",
+      "interval": 0.8,
+      "time": 113.6,
+      "waveTime": 113.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 1,
+      "order": "34",
+      "interval": 0.8,
+      "time": 114.6,
+      "waveTime": 114.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_3",
+      "count": 2,
+      "order": "35 ~ 36",
+      "interval": 0.8,
+      "time": 119.6,
+      "waveTime": 119.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 1,
+      "order": "37",
+      "interval": 0.8,
+      "time": 119.6,
+      "waveTime": 119.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1007_slime_3",
+      "count": 2,
+      "order": "38 ~ 39",
+      "interval": 0.8,
+      "time": 120.6,
+      "waveTime": 120.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 1,
+      "order": "40",
+      "interval": 0.8,
+      "time": 120.6,
+      "waveTime": 120.6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 2,
+      "order": "41 ~ 42",
+      "interval": 40,
+      "time": 144.4,
+      "waveTime": 144.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1033_handax",
+      "count": 2,
+      "order": "43 ~ 44",
+      "interval": 20,
+      "time": 144.4,
+      "waveTime": 144.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1033_handax",
+      "count": 2,
+      "order": "45 ~ 46",
+      "interval": 20,
+      "time": 146.4,
+      "waveTime": 146.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 3,
+      "order": "47 ~ 49",
+      "interval": 5,
+      "time": 151.4,
+      "waveTime": 151.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 3,
+      "order": "50 ~ 52",
+      "interval": 5,
+      "time": 151.4,
+      "waveTime": 151.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 3,
+      "order": "53 ~ 55",
+      "interval": 5,
+      "time": 176.4,
+      "waveTime": 176.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 3,
+      "order": "56 ~ 58",
+      "interval": 5,
+      "time": 176.4,
+      "waveTime": 176.4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 1,
+      "order": "59",
+      "interval": 1,
+      "time": 186.4,
+      "waveTime": 186.4,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1501_demonk",
+      "count": 1,
+      "order": "60",
+      "interval": 1,
+      "time": 196.4,
+      "waveTime": 5,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 3,
+      "order": "61 ~ 63",
+      "interval": 10,
+      "time": 200.4,
+      "waveTime": 9,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1019_jshoot",
+      "count": 2,
+      "order": "64 ~ 65",
+      "interval": 15,
+      "time": 200.4,
+      "waveTime": 9,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1014_rogue",
+      "count": 3,
+      "order": "66 ~ 68",
+      "interval": 10,
+      "time": 201.4,
+      "waveTime": 10,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 1,
+      "order": "69",
+      "interval": 1,
+      "time": 202.4,
+      "waveTime": 11,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1034_laxe",
+      "count": 2,
+      "order": "70 ~ 71",
+      "interval": 15,
+      "time": 202.4,
+      "waveTime": 11,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 2,
+      "order": "72 ~ 73",
+      "interval": 1,
+      "time": 216.4,
+      "waveTime": 25,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1005_yokai_2",
+      "count": 2,
+      "order": "74 ~ 75",
+      "interval": 1,
+      "time": 216.4,
+      "waveTime": 25,
+      "marker": "击溃后继续"
+    }
+  ],
+  "level_main_04-04": [
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 6,
+      "order": "1 ~ 6",
+      "interval": 3,
+      "time": 6,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 6,
+      "order": "7 ~ 12",
+      "interval": 3,
+      "time": 18,
+      "waveTime": 18,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "13",
+      "interval": 2,
+      "time": 46,
+      "waveTime": 46,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "14",
+      "interval": 2,
+      "time": 46,
+      "waveTime": 46,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 2,
+      "order": "15 ~ 16",
+      "interval": 1,
+      "time": 56,
+      "waveTime": 56,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 2,
+      "order": "17 ~ 18",
+      "interval": 1,
+      "time": 63,
+      "waveTime": 63,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 2,
+      "order": "19 ~ 20",
+      "interval": 1,
+      "time": 68,
+      "waveTime": 68,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "21",
+      "interval": 2,
+      "time": 69,
+      "waveTime": 69,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 3,
+      "order": "22 ~ 24",
+      "interval": 1,
+      "time": 73,
+      "waveTime": 73,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1502_crowns",
+      "count": 1,
+      "order": "25",
+      "interval": 2,
+      "time": 73,
+      "waveTime": 73,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "26",
+      "interval": 1,
+      "time": 88,
+      "waveTime": 8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "27",
+      "interval": 1,
+      "time": 88,
+      "waveTime": 8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "28",
+      "interval": 1,
+      "time": 88,
+      "waveTime": 8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 2,
+      "order": "29 ~ 30",
+      "interval": 0.8,
+      "time": 93,
+      "waveTime": 13,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "31",
+      "interval": 1,
+      "time": 101,
+      "waveTime": 21,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 2,
+      "order": "32 ~ 33",
+      "interval": 0.8,
+      "time": 103,
+      "waveTime": 23,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 2,
+      "order": "34 ~ 35",
+      "interval": 1,
+      "time": 103,
+      "waveTime": 23,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 3,
+      "order": "36 ~ 38",
+      "interval": 0.8,
+      "time": 111,
+      "waveTime": 31,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 1,
+      "order": "39",
+      "interval": 1,
+      "time": 114,
+      "waveTime": 34,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1012_dcross",
+      "count": 2,
+      "order": "40 ~ 41",
+      "interval": 30,
+      "time": 137,
+      "waveTime": 57,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 5,
+      "order": "42 ~ 46",
+      "interval": 10,
+      "time": 137,
+      "waveTime": 57,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1012_dcross",
+      "count": 2,
+      "order": "47 ~ 48",
+      "interval": 30,
+      "time": 137,
+      "waveTime": 57,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 5,
+      "order": "49 ~ 53",
+      "interval": 10,
+      "time": 137.5,
+      "waveTime": 57.5,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1002_nsabr",
+      "count": 5,
+      "order": "54 ~ 58",
+      "interval": 10,
+      "time": 139,
+      "waveTime": 59,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1010_demon",
+      "count": 3,
+      "order": "59 ~ 61",
+      "interval": 13,
+      "time": 144,
+      "waveTime": 64,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1033_handax_2",
+      "count": 2,
+      "order": "62 ~ 63",
+      "interval": 18,
+      "time": 150,
+      "waveTime": 70,
+      "marker": "击溃后继续"
+    }
+  ],
+  "level_main_08-17": [
+    {
+      "enemy": "enemy_1515_bsnake",
+      "count": 1,
+      "order": "1",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 1,
+      "order": "2",
+      "interval": 1,
+      "time": 11,
+      "waveTime": 11,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 1,
+      "order": "3",
+      "interval": 1,
+      "time": 19,
+      "waveTime": 19,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "4 ~ 5",
+      "interval": 5,
+      "time": 28,
+      "waveTime": 28,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 1,
+      "order": "6",
+      "interval": 1,
+      "time": 29,
+      "waveTime": 29,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "7",
+      "interval": 1,
+      "time": 59,
+      "waveTime": 59,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "8",
+      "interval": 1,
+      "time": 64,
+      "waveTime": 64,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1110_uamord",
+      "count": 2,
+      "order": "9 ~ 10",
+      "interval": 10,
+      "time": 92,
+      "waveTime": 92,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1110_uamord",
+      "count": 2,
+      "order": "11 ~ 12",
+      "interval": 10,
+      "time": 102,
+      "waveTime": 102,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "13",
+      "interval": 1,
+      "time": 135,
+      "waveTime": 135,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "14",
+      "interval": 1,
+      "time": 145,
+      "waveTime": 145,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1110_uamord",
+      "count": 1,
+      "order": "15",
+      "interval": 1,
+      "time": 145,
+      "waveTime": 145,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1110_uamord",
+      "count": 1,
+      "order": "16",
+      "interval": 1,
+      "time": 153,
+      "waveTime": 153,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 2,
+      "order": "17 ~ 18",
+      "interval": 17,
+      "time": 171,
+      "waveTime": 171,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "19",
+      "interval": 1,
+      "time": 178,
+      "waveTime": 178,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "20 ~ 21",
+      "interval": 18,
+      "time": 200,
+      "waveTime": 5,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "22 ~ 23",
+      "interval": 16,
+      "time": 208,
+      "waveTime": 13,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 3,
+      "order": "24 ~ 26",
+      "interval": 12,
+      "time": 249,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 3,
+      "order": "27 ~ 29",
+      "interval": 11,
+      "time": 255,
+      "waveTime": 12,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 3,
+      "order": "30 ~ 32",
+      "interval": 4,
+      "time": 285,
+      "waveTime": 3,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 3,
+      "order": "33 ~ 35",
+      "interval": 5,
+      "time": 286,
+      "waveTime": 4,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "36 ~ 37",
+      "interval": 3,
+      "time": 296,
+      "waveTime": 14,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "38 ~ 39",
+      "interval": 3,
+      "time": 297,
+      "waveTime": 15,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 2,
+      "order": "40 ~ 41",
+      "interval": 6,
+      "time": 299,
+      "waveTime": 17,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1108_uterer",
+      "count": 1,
+      "order": "42",
+      "interval": 1,
+      "time": 304,
+      "waveTime": 22,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "43",
+      "interval": 1,
+      "time": 306,
+      "waveTime": 24,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1111_ucommd",
+      "count": 1,
+      "order": "44",
+      "interval": 1,
+      "time": 310,
+      "waveTime": 28,
+      "marker": "击溃后继续"
+    }
+  ],
+  "level_main_12-13": [
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "1",
+      "interval": 1,
+      "time": 3,
+      "waveTime": 3,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1071_dftman_2",
+      "count": 1,
+      "order": "2",
+      "interval": 1,
+      "time": 14,
+      "waveTime": 14,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "3",
+      "interval": 1,
+      "time": 24,
+      "waveTime": 24,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1315_wdyjd_2",
+      "count": 1,
+      "order": "4",
+      "interval": 1,
+      "time": 29,
+      "waveTime": 29,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1071_dftman_2",
+      "count": 1,
+      "order": "5",
+      "interval": 1,
+      "time": 31,
+      "waveTime": 31,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1318_wdsmgc",
+      "count": 1,
+      "order": "6",
+      "interval": 1,
+      "time": 42,
+      "waveTime": 42,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1317_wdexg",
+      "count": 1,
+      "order": "7",
+      "interval": 1,
+      "time": 53,
+      "waveTime": 53,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1319_wdfmpm",
+      "count": 1,
+      "order": "8",
+      "interval": 1,
+      "time": 64,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 2,
+      "order": "9 ~ 10",
+      "interval": 2,
+      "time": 72,
+      "waveTime": 14,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1316_wdpjd",
+      "count": 1,
+      "order": "11",
+      "interval": 1,
+      "time": 77,
+      "waveTime": 19,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1071_dftman_2",
+      "count": 1,
+      "order": "12",
+      "interval": 1,
+      "time": 92,
+      "waveTime": 34,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1317_wdexg",
+      "count": 1,
+      "order": "13",
+      "interval": 1,
+      "time": 95,
+      "waveTime": 37,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1318_wdsmgc",
+      "count": 1,
+      "order": "14",
+      "interval": 1,
+      "time": 107,
+      "waveTime": 49,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1319_wdfmpm",
+      "count": 1,
+      "order": "15",
+      "interval": 1,
+      "time": 124,
+      "waveTime": 66,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1319_wdfmpm_2",
+      "count": 1,
+      "order": "16",
+      "interval": 1,
+      "time": 126,
+      "waveTime": 68,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "17",
+      "interval": 1,
+      "time": 134,
+      "waveTime": 76,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1315_wdyjd_2",
+      "count": 1,
+      "order": "18",
+      "interval": 1,
+      "time": 137,
+      "waveTime": 79,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1316_wdpjd",
+      "count": 1,
+      "order": "19",
+      "interval": 1,
+      "time": 140,
+      "waveTime": 82,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1071_dftman_2",
+      "count": 2,
+      "order": "20 ~ 21",
+      "interval": 2,
+      "time": 155,
+      "waveTime": 97,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1317_wdexg",
+      "count": 2,
+      "order": "22 ~ 23",
+      "interval": 4,
+      "time": 162,
+      "waveTime": 104,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1318_wdsmgc",
+      "count": 2,
+      "order": "24 ~ 25",
+      "interval": 3,
+      "time": 178,
+      "waveTime": 120,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1316_wdpjd",
+      "count": 1,
+      "order": "26",
+      "interval": 1,
+      "time": 189,
+      "waveTime": 131,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1315_wdyjd_2",
+      "count": 1,
+      "order": "27",
+      "interval": 1,
+      "time": 191,
+      "waveTime": 133,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1319_wdfmpm_2",
+      "count": 2,
+      "order": "28 ~ 29",
+      "interval": 2,
+      "time": 207,
+      "waveTime": 149,
+      "marker": "击溃后继续"
+    }
+  ],
+  "level_main_12-14": [
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "1",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "2",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "3",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "4",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1540_wdncr",
+      "count": 1,
+      "order": "5",
+      "interval": 1,
+      "time": 3,
+      "waveTime": 3,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "6",
+      "interval": 1,
+      "time": 8,
+      "waveTime": 8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "7",
+      "interval": 1,
+      "time": 8,
+      "waveTime": 8,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "8",
+      "interval": 1,
+      "time": 18,
+      "waveTime": 18,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "9",
+      "interval": 1,
+      "time": 33,
+      "waveTime": 33,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "10",
+      "interval": 1,
+      "time": 53,
+      "waveTime": 53,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1313_wdfmr",
+      "count": 1,
+      "order": "11",
+      "interval": 1,
+      "time": 53,
+      "waveTime": 53,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1541_wdslms",
+      "count": 1,
+      "order": "12",
+      "interval": 1,
+      "time": 83,
+      "waveTime": 83,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "13",
+      "interval": 1,
+      "time": 85,
+      "waveTime": 85,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "14",
+      "interval": 1,
+      "time": 86,
+      "waveTime": 86,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1541_wdslms",
+      "count": 1,
+      "order": "15",
+      "interval": 1,
+      "time": 86,
+      "waveTime": 86,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "16",
+      "interval": 1,
+      "time": 88,
+      "waveTime": 88,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1541_wdslms",
+      "count": 1,
+      "order": "17",
+      "interval": 1,
+      "time": 88,
+      "waveTime": 88,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "18",
+      "interval": 1,
+      "time": 89,
+      "waveTime": 89,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1314_wdnjd",
+      "count": 1,
+      "order": "19",
+      "interval": 1,
+      "time": 90,
+      "waveTime": 90,
+      "marker": "击溃后继续"
+    },
+    {
+      "enemy": "enemy_1288_duskls",
+      "count": 1,
+      "order": "20",
+      "interval": 1,
+      "time": 101,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1316_wdpjd",
+      "count": 1,
+      "order": "21",
+      "interval": 1,
+      "time": 101,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1322_wdgyht_2",
+      "count": 1,
+      "order": "22",
+      "interval": 1,
+      "time": 111,
+      "waveTime": 16,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1317_wdexg",
+      "count": 2,
+      "order": "23 ~ 24",
+      "interval": 3,
+      "time": 120,
+      "waveTime": 25,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1322_wdgyht_2",
+      "count": 1,
+      "order": "25",
+      "interval": 3,
+      "time": 133,
+      "waveTime": 38,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1288_duskls",
+      "count": 2,
+      "order": "26 ~ 27",
+      "interval": 2,
+      "time": 140,
+      "waveTime": 45,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1317_wdexg",
+      "count": 2,
+      "order": "28 ~ 29",
+      "interval": 2,
+      "time": 146,
+      "waveTime": 51,
+      "marker": "击溃后继续"
+    }
+  ],
+  "level_main_13-11": [
+    {
+      "enemy": "enemy_1364_spnaxe",
+      "count": 1,
+      "order": "1",
+      "interval": 1,
+      "time": 0,
+      "waveTime": 0,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "2",
+      "interval": 1,
+      "time": 9,
+      "waveTime": 9,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "3",
+      "interval": 1,
+      "time": 21,
+      "waveTime": 21,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "4",
+      "interval": 1,
+      "time": 30,
+      "waveTime": 30,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "5",
+      "interval": 1,
+      "time": 43,
+      "waveTime": 43,
+      "marker": "限时70s"
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "6",
+      "interval": 1,
+      "time": 51,
+      "waveTime": 3,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "7",
+      "interval": 1,
+      "time": 54,
+      "waveTime": 6,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "8",
+      "interval": 1,
+      "time": 58,
+      "waveTime": 10,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "9",
+      "interval": 1,
+      "time": 58,
+      "waveTime": 10,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "10",
+      "interval": 1,
+      "time": 63,
+      "waveTime": 15,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "11",
+      "interval": 1,
+      "time": 63,
+      "waveTime": 15,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "12",
+      "interval": 1,
+      "time": 68,
+      "waveTime": 20,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1363_spnshd",
+      "count": 1,
+      "order": "13",
+      "interval": 1,
+      "time": 68,
+      "waveTime": 20,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1364_spnaxe",
+      "count": 1,
+      "order": "14",
+      "interval": 1,
+      "time": 78,
+      "waveTime": 30,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "15",
+      "interval": 1,
+      "time": 84,
+      "waveTime": 36,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "16",
+      "interval": 1,
+      "time": 86,
+      "waveTime": 38,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "17",
+      "interval": 1,
+      "time": 103,
+      "waveTime": 55,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 1,
+      "order": "18",
+      "interval": 1,
+      "time": 112,
+      "waveTime": 64,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 2,
+      "order": "19 ~ 20",
+      "interval": 3,
+      "time": 118,
+      "waveTime": 70,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 3,
+      "order": "21 ~ 23",
+      "interval": 12,
+      "time": 138,
+      "waveTime": 90,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 2,
+      "order": "24 ~ 25",
+      "interval": 3,
+      "time": 147,
+      "waveTime": 99,
+      "marker": null
+    },
+    {
+      "enemy": "enemy_1360_dfello",
+      "count": 3,
+      "order": "26 ~ 28",
+      "interval": 8,
+      "time": 153,
+      "waveTime": 105,
+      "marker": "击溃后继续"
+    }
+  ]
+}

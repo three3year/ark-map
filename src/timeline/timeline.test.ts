@@ -29,6 +29,24 @@ describe("spawn times", () => {
   });
 });
 
+describe("waves", () => {
+  // 08-17 has four waves; PRTS.Map's 阶段时间点 for the second: 2 x 5 s every 18 s and
+  // 2 x 13 s every 16 s. The wave's 5 s preDelay comes before its first fragment.
+  const level = loadFixtureLevel("level_main_08-17");
+
+  it("each wave starts its own T = 0; earlier waves count as cleared", () => {
+    const timeline = buildTimeline(level, { waveIndex: 1 });
+    expect(timeline.individuals.map((i) => i.spawnTime).sort((a, b) => a - b)).toEqual([
+      5, 13, 23, 29,
+    ]);
+    expect(takeSnapshot(timeline, 0).counts).toEqual({ pending: 4, onField: 0, leaked: 0 });
+  });
+
+  it("a wave index past the last wave has no individuals", () => {
+    expect(buildTimeline(level, { waveIndex: 4 }).individuals).toEqual([]);
+  });
+});
+
 describe("snapshot", () => {
   const timeline = buildTimeline(loadFixtureLevel("level_main_01-07"));
 
@@ -91,7 +109,14 @@ describe("movement model v0", () => {
         },
       ],
       extraRoutes: [],
-      waves: [{ preDelay: 0, postDelay: 0, fragments: [{ preDelay: 0, actions: [action] }] }],
+      waves: [
+        {
+          preDelay: 0,
+          postDelay: 0,
+          timeLimit: null,
+          fragments: [{ preDelay: 0, actions: [action] }],
+        },
+      ],
       enemies: {
         enemy_test: {
           id: "enemy_test",

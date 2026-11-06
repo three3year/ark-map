@@ -54,6 +54,8 @@ export interface RawAction {
 export interface RawWave {
   preDelay: number;
   postDelay: number;
+  /** -1 = the next wave waits until this one is cleared. */
+  maxTimeWaitingForNextWave: number;
   fragments: { preDelay: number; actions: RawAction[] }[];
 }
 
