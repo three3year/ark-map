@@ -82,12 +82,49 @@ describe("難度修正: challenge (突襲) move speed", () => {
     expect(distanceWalked(challenge, 0, 0.5)).toBeCloseTo(2 * distanceWalked(normal, 0, 0.5), 9);
   });
 
-  it("4-4: every challenge enemy reaches the end point in half the time", () => {
-    const walkTimes = (t: typeof normal) => t.individuals.map((i) => i.leakTime! - i.spawnTime);
+  it("4-4: every challenge enemy spends half the time walking (waits stay as they are)", () => {
+    const walkTimes = (t: typeof normal) =>
+      t.individuals.map((i) =>
+        i.path.filter((leg) => leg.kind === "move").reduce((s, leg) => s + leg.end - leg.start, 0),
+      );
     expect(normal.individuals.length).toBeGreaterThan(0);
     walkTimes(challenge).forEach((time, i) =>
       expect(time).toBeCloseTo(walkTimes(normal)[i]! / 2, 9),
     );
+  });
+});
+
+describe("4-10: waits and teleports", () => {
+  // 霜星 (attribute speed 0.5 x 0.5 = 0.25 cells/s) spawns at 3 s at (5, 0) on route 1:
+  // 2 cells to (5,2) -> 11 s, wait 20 -> 31; 4 cells to (5,6) -> 47, wait -> 67; 3 cells to
+  // (5,9) -> 79, disappear, wait -> 99, appear at (3,9); 1 cell -> 103, wait -> 123;
+  // 5 cells to (3,3) -> 143, wait -> 163; 2 cells to (3,1) -> 171, disappear, wait -> 191,
+  // appear at (1,1); 2 cells to (1,3) -> 199, wait -> 219; 7 cells to the end (1,10) -> 247.
+  const timeline = buildTimeline(loadFixtureLevel("level_main_04-10"));
+  const frostNova = timeline.individuals.find((i) => i.enemy.id === "enemy_1505_frstar")!;
+  const at = (x: number, y: number, invisible = false) => ({
+    kind: "onField",
+    position: { x, y },
+    invisible,
+  });
+
+  it("walks, waits, hides and reappears on schedule", () => {
+    expect(frostNova.spawnTime).toBe(3);
+    expect(frostNova.stateAt(7)).toEqual(at(1, 5));
+    expect(frostNova.stateAt(20)).toEqual(at(2, 5));
+    expect(frostNova.stateAt(39)).toEqual(at(4, 5));
+    expect(frostNova.stateAt(90)).toEqual(at(9, 5, true));
+    expect(frostNova.stateAt(99)).toEqual(at(9, 3));
+    expect(frostNova.stateAt(101)).toEqual(at(8.5, 3));
+    expect(frostNova.stateAt(180)).toEqual(at(1, 3, true));
+    expect(frostNova.stateAt(195)).toEqual(at(2, 1));
+    expect(frostNova.leakTime).toBe(247);
+  });
+
+  it("counts the hidden 霜星 as on field", () => {
+    const snapshot = takeSnapshot(timeline, 90);
+    const hidden = snapshot.onField.filter((e) => e.invisible);
+    expect(hidden.map((e) => e.individual.enemy.id)).toEqual(["enemy_1505_frstar"]);
   });
 });
 

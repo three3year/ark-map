@@ -15,6 +15,7 @@ import {
   theoreticalSpeed,
   type IndividualState,
   type MovementModel,
+  type PathLeg,
 } from "./movement.ts";
 import { scheduleWave } from "./schedule.ts";
 
@@ -34,6 +35,8 @@ export interface Individual {
   /** 無害單位: counts as killed, never a threat. */
   harmless: boolean;
   leakTime: number | null;
+  /** 路徑 to draw when the individual is selected. */
+  path: PathLeg[];
   stateAt(t: number): IndividualState;
 }
 
@@ -103,6 +106,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
         spawnTime,
         harmless: action.harmless,
         leakTime: trajectory.leakTime,
+        path: trajectory.path,
         stateAt: trajectory.stateAt,
       });
     }

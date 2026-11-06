@@ -57,6 +57,42 @@ describe("waves", () => {
   });
 });
 
+describe("checkpoints", () => {
+  it("4-10: route 1 (霜星) keeps its waits and two disappear / appear pairs in order", () => {
+    const level = loadFixtureLevel("level_main_04-10");
+    const at = (row: number, col: number) => ({ row, col });
+    expect(
+      level.routes[1]!.checkpoints.map(({ type, time, position }) =>
+        type === "MOVE" || type === "APPEAR_AT_POS" ? [type, position] : [type, time],
+      ),
+    ).toEqual([
+      ["MOVE", at(5, 2)],
+      ["WAIT_FOR_SECONDS", 20],
+      ["MOVE", at(5, 6)],
+      ["WAIT_FOR_SECONDS", 20],
+      ["MOVE", at(5, 9)],
+      ["DISAPPEAR", 0],
+      ["WAIT_FOR_SECONDS", 20],
+      ["APPEAR_AT_POS", at(3, 9)],
+      ["MOVE", at(3, 8)],
+      ["WAIT_FOR_SECONDS", 20],
+      ["MOVE", at(3, 3)],
+      ["WAIT_FOR_SECONDS", 20],
+      ["MOVE", at(3, 1)],
+      ["DISAPPEAR", 0],
+      ["WAIT_FOR_SECONDS", 20],
+      ["APPEAR_AT_POS", at(1, 1)],
+      ["MOVE", at(1, 3)],
+      ["WAIT_FOR_SECONDS", 20],
+    ]);
+    // Route 12: one MOVE and a 15 s wait.
+    expect(level.routes[12]!.checkpoints.map((c) => [c.type, c.time])).toEqual([
+      ["MOVE", 0],
+      ["WAIT_FOR_SECONDS", 15],
+    ]);
+  });
+});
+
 describe("1-7 level model", () => {
   const level = loadFixtureLevel("level_main_01-07");
   const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
