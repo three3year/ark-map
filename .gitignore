@@ -8,3 +8,6 @@ dist/
 # Data pipeline output
 public/data/
 .claude/
+# Playwright output
+test-results/
+playwright-report/

@@ -13,12 +13,21 @@ pnpm dev         # 本機開發伺服器,開 http://localhost:5173/#/level/main_
 pnpm test        # 單元測試(vitest)
 pnpm lint        # Prettier 檢查 + ESLint
 pnpm build       # 型別檢查(svelte-check)+ Vite 建置到 dist/
+pnpm smoke       # 煙霧測試:Playwright 開 dist/(模擬 Pages 子路徑);先跑 pnpm build
 pnpm fixtures obt/main/level_main_04-04.json   # 更新 test-fixtures/raw/ 的原始檔副本
 ```
 
 `pnpm dev` 與 `pnpm build` 之前要先跑過 `pnpm data`。
 
 原始檔下載後快取在 `.cache/raw/`(被忽略);設環境變數 `AK_RAW_CACHE` 可指到別處,讓多個工作目錄共用。
+
+第一次跑 `pnpm smoke` 前要裝瀏覽器:`pnpm exec playwright install chromium`。
+
+## CI 與部署
+
+`.github/workflows/deploy.yml`:推到 `main`、手動觸發、每週一 03:00 UTC 排程,依序跑資料管線 → 單元測試 → lint → 建置 → 煙霧測試,再部署到 GitHub Pages(repo 設定的 Pages 來源要選「GitHub Actions」)。
+
+快取只會補抓沒有的檔,不會重新驗證已抓的檔,所以 CI 每個上游來源各一份快取,key 是該來源分支當下的 commit(`pipeline/cacheKeys.ts` 查詢):同一版上游重跑直接用快取,上游有更新就重抓那個來源。
 
 ## 模組
 
