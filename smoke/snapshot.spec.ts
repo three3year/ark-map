@@ -13,11 +13,11 @@ const readSiteJson = <T>(file: string): T =>
 test("1-7 at 35 s shows as many enemy individuals as the timeline has on field", async ({
   page,
 }) => {
-  const stage = readSiteJson<StageIndex>("data/index.json").stages.find(
-    (s) => s.id === "main_01-07",
-  );
+  const stage = readSiteJson<StageIndex>("data/index.json")
+    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
+    .find((s) => s.id === "main_01-07");
   expect(stage, "the built site publishes 1-7").toBeDefined();
-  const level = readSiteJson<Level>(stage!.levelFile);
+  const level = readSiteJson<Level>(stage!.variants[0]!.levelFile);
   const expected = takeSnapshot(buildTimeline(level), 35).counts.onField;
   expect(expected, "1-7 has enemies on field at 35 s").toBeGreaterThan(0);
 

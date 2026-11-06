@@ -17,9 +17,6 @@ export const sources = {
   avatars: { repo: "yuanyan3060/ArknightsGameResource", branch: "main", root: "enemy" },
 } satisfies Record<string, RepoSource>;
 
-/** Stages the site publishes. Ticket 06 replaces this with the full stage index. */
-export const stageIds = ["main_01-07"];
-
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Raw downloads are cached here; set AK_RAW_CACHE to share a cache between checkouts. */

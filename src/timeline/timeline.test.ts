@@ -122,6 +122,7 @@ describe("movement model v0", () => {
           id: "enemy_test",
           level: 0,
           name: "測試",
+          code: null,
           moveSpeed,
           motion: "WALK",
           levelType: "NORMAL",

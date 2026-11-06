@@ -18,6 +18,12 @@
   }
   let { map, routes, enemies }: Props = $props();
 
+  /** Avatars that failed to load fall back to the enemy's code. */
+  let brokenAvatars = $state(new Set<string>());
+  function markBroken(avatar: string) {
+    brokenAvatars = new Set([...brokenAvatars, avatar]);
+  }
+
   let view = $state(loadMapView(browserStorage()));
   function toggleView() {
     view = view === "tilted" ? "flat" : "tilted";
@@ -140,7 +146,7 @@
               >{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title
             >
             <circle r="0.36" class="enemy-bg" />
-            {#if individual.enemy.avatar}
+            {#if individual.enemy.avatar && !brokenAvatars.has(individual.enemy.avatar)}
               <image
                 href={individual.enemy.avatar}
                 x="-0.34"
@@ -148,9 +154,12 @@
                 width="0.68"
                 height="0.68"
                 clip-path="circle(50%)"
+                onerror={() => markBroken(individual.enemy.avatar!)}
               />
             {:else}
-              <text class="enemy-code">{individual.enemy.name.slice(0, 1)}</text>
+              <text class="enemy-code"
+                >{individual.enemy.code ?? individual.enemy.name.slice(0, 1)}</text
+              >
             {/if}
             <circle r="0.36" class="enemy-ring" />
             {#if individual.harmless}
@@ -279,7 +288,7 @@
     stroke-width: 0.05;
   }
   .enemy-code {
-    font-size: 0.4px;
+    font-size: 0.26px;
     text-anchor: middle;
     dominant-baseline: central;
     fill: #1d1d1f;

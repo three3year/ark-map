@@ -31,8 +31,9 @@ jobs:
       - name: 安裝相依套件
         run: pnpm install --frozen-lockfile
 
-      # One cache per upstream source, keyed on that source's branch head: a rerun against the
-      # same upstream reuses the downloads, an upstream update re-downloads only that source.
+      # One cache per upstream source, keyed on that source's branch head. An upstream update
+      # restores the previous cache; the pipeline checks every file's blob sha and re-downloads
+      # only the changed ones.
       - name: 查詢上游資料版本
         id: upstream
         run: pnpm exec tsx pipeline/cacheKeys.ts
@@ -43,6 +44,7 @@ jobs:
         with:
           path: ${{ steps.upstream.outputs.cn-path }}
           key: raw-cn-${{ steps.upstream.outputs.cn-rev }}
+          restore-keys: raw-cn-
 
       - name: 還原原始檔快取(台服)
         uses: actions/cache/restore@v4
@@ -50,6 +52,7 @@ jobs:
         with:
           path: ${{ steps.upstream.outputs.tw-path }}
           key: raw-tw-${{ steps.upstream.outputs.tw-rev }}
+          restore-keys: raw-tw-
 
       - name: 還原原始檔快取(頭像)
         uses: actions/cache/restore@v4
@@ -57,9 +60,13 @@ jobs:
         with:
           path: ${{ steps.upstream.outputs.avatars-path }}
           key: raw-avatars-${{ steps.upstream.outputs.avatars-rev }}
+          restore-keys: raw-avatars-
 
       - name: 資料管線
         run: pnpm data
+        env:
+          # Lifts the trees-API limit (60 calls/hour per IP) the pipeline lists upstream files with.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Saved right after the pipeline so a later failing step doesn't discard the downloads.
       - name: 儲存原始檔快取(國服)
