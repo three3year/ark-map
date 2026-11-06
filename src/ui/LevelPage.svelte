@@ -10,6 +10,7 @@
   import LevelInfo from "./LevelInfo.svelte";
   import {
     buildTimeline,
+    individualKey,
     spawnPlan,
     spawnTable,
     switchConditional,
@@ -79,29 +80,17 @@
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
 
-  /** The selected individual: the k-th of one spawn action, in one level's wave. */
+  /** The selected individual, by {@link individualKey}, in one level's wave. */
   interface Selection {
     levelId: string;
     wave: number;
-    /** The 條件出兵 the action belongs to; null for a wave action. */
-    branchIndex: number | null;
-    fragmentIndex: number;
-    actionIndex: number;
-    spawnIndex: number;
+    individual: string;
   }
   let selection = $state<Selection | null>(null);
   const selected = $derived.by(() => {
     const s = selection;
     if (s?.levelId !== level.levelId || s.wave !== waveIndex) return null;
-    return (
-      timeline.individuals.find(
-        (i) =>
-          i.branchIndex === s.branchIndex &&
-          i.fragmentIndex === s.fragmentIndex &&
-          i.actionIndex === s.actionIndex &&
-          i.spawnIndex === s.spawnIndex,
-      ) ?? null
-    );
+    return timeline.individuals.find((i) => i.id === s.individual) ?? null;
   });
   const selectedState = $derived(selected?.stateAt(t).kind);
 
@@ -109,10 +98,7 @@
     selection = individual && {
       levelId: level.levelId,
       wave: waveIndex,
-      branchIndex: individual.branchIndex,
-      fragmentIndex: individual.fragmentIndex,
-      actionIndex: individual.actionIndex,
-      spawnIndex: individual.spawnIndex,
+      individual: individual.id,
     };
   }
 
@@ -121,10 +107,7 @@
     selection = {
       levelId: level.levelId,
       wave: row.waveIndex,
-      branchIndex: row.branchIndex,
-      fragmentIndex: row.fragmentIndex,
-      actionIndex: row.actionIndex,
-      spawnIndex: 0,
+      individual: individualKey({ ...row, spawnIndex: 0 }),
     };
     onJump(row.waveIndex, row.waveTime);
   }

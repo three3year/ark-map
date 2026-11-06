@@ -9,6 +9,7 @@ import {
   switchConditional,
   switchPick,
   takeSnapshot,
+  type SpawnSwitches,
 } from "./index.ts";
 
 describe("隱藏組: 15-12 (shown as 15-13)", () => {
@@ -67,7 +68,9 @@ describe("隨機出兵組: ro2_n_2_6", () => {
     buildTimeline(level, { waveIndex: 1, switches: { picks } }).individuals.map((i) => i.enemy.id);
 
   it("has one spawn group, whose default is the weight-85 empty candidate", () => {
-    expect(groups.map((g) => [g.waveIndex, g.fragmentIndex, g.key])).toEqual([[1, 0, "g1"]]);
+    expect(groups).toMatchObject([
+      { branchIndex: null, waveIndex: 1, fragmentIndex: 0, key: "g1" },
+    ]);
     expect(groups[0]!.candidates.map((c) => c.weight)).toEqual([85, 5, 5, 5, 5]);
     expect(groups[0]!.defaultPick).toBe(0);
     expect(enemiesOf({})).toEqual([]);
@@ -253,5 +256,56 @@ describe("條件出兵: 5-10 (device only)", () => {
   it("a device-only branch spawns nothing even when switched on", () => {
     const on = buildTimeline(level, { switches: { conditional: { 0: { wave: 0, t: 5 } } } });
     expect(on.individuals).toHaveLength(buildTimeline(level).individuals.length);
+  });
+});
+
+describe("條件出兵 with its own 隱藏組 and 隨機出兵組: act1dp_01", () => {
+  // Branch 0 "sequence" is the only thing that spawns: four single-enemy actions, all in 隱藏組
+  // "random" (no wave action uses it, no 難度修正 enables it) and in 隨機出兵組 "1", weights
+  // 4 / 2 / 2 / 6.
+  const level = loadFixtureLevel("level_act1dp_01");
+  const on = { conditional: { 0: { wave: 0, t: 10 } } };
+  const spawned = (switches: SpawnSwitches) =>
+    buildTimeline(level, { switches }).individuals.map((i) => i.enemy.id);
+
+  it("lists the branch's 隱藏組, off by default, and its 隨機出兵組, picking the heaviest", () => {
+    const groups = levelGroups(level, "NORMAL");
+    expect(groups.hidden).toEqual([{ name: "random", defaultOn: false }]);
+    expect(
+      groups.random.map((g) => [
+        g.branchIndex,
+        g.fragmentIndex,
+        g.key,
+        g.candidates.map((c) => c.weight),
+        g.defaultPick,
+      ]),
+    ).toEqual([[0, 0, "1", [4, 2, 2, 6], 3]]);
+  });
+
+  it("spawns nothing while its 隱藏組 is off; with the group on, the default candidate", () => {
+    expect(spawned(on)).toEqual([]);
+    const withGroup = switchHidden(level, "NORMAL", on, "random", true);
+    expect(withGroup).toEqual({ ...on, hiddenOn: ["random"] });
+    expect(spawned(withGroup)).toEqual(["enemy_17003_sabshp"]);
+    expect(spawned({ hiddenOn: ["random"] })).toEqual([]);
+  });
+
+  it("picking another candidate of the branch's 隨機出兵組 spawns that one instead", () => {
+    const picked = switchPick(level, { ...on, hiddenOn: ["random"] }, 0, 0);
+    expect(picked.picks).toEqual({ 0: 0 });
+    expect(spawned(picked)).toEqual(["enemy_1007_slime_2"]);
+    expect(switchPick(level, picked, 0, 3).picks).toBeUndefined();
+  });
+
+  it("the spawn table lists every candidate of the branch's group, the pick marked", () => {
+    const rows = spawnTable(level, { switches: { ...on, hiddenOn: ["random"] } });
+    expect(
+      rows.map((r) => [r.branchIndex, r.enemyId, r.random?.weight, r.random?.picked, r.firstOrder]),
+    ).toEqual([
+      [0, "enemy_1007_slime_2", 4, false, null],
+      [0, "enemy_1021_bslime", 2, false, null],
+      [0, "enemy_1350_mgcshp", 2, false, null],
+      [0, "enemy_17003_sabshp", 6, true, 1],
+    ]);
   });
 });

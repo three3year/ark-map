@@ -1,27 +1,28 @@
-// 開關狀態: which spawn actions produce individuals, given the 隱藏組 switched on and each
-// 隨機出兵組's picked candidate. Pure; no DOM or network.
+// 開關狀態: which spawn actions produce individuals, given the 隱藏組 switched on, each
+// 隨機出兵組's picked candidate and the 條件出兵 switched on. Pure; no DOM or network.
 import {
   isSpawn,
   variantModifiers,
   type Action,
-  type Branch,
   type Difficulty,
+  type Fragment,
   type Level,
 } from "../level/index.ts";
 
-/** A 隱藏組 with at least one spawn action. */
+/** A 隱藏組 with at least one spawn action, in a wave or a 條件出兵. */
 export interface HiddenGroup {
   name: string;
   /** On by default: the variant's 難度修正 enable it (level_hidden_group_enable, then _disable). */
   defaultOn: boolean;
 }
 
+/** Where a fragment sits in the level file: in a wave, or (`branchIndex` set) a 條件出兵's phase. */
+export type FragmentRef =
+  | { branchIndex: null; waveIndex: number; fragmentIndex: number }
+  | { branchIndex: number; fragmentIndex: number };
+
 /** Where an action sits in the level file. */
-export interface ActionRef {
-  waveIndex: number;
-  fragmentIndex: number;
-  actionIndex: number;
-}
+export type ActionRef = FragmentRef & { actionIndex: number };
 
 /** One way a 隨機出兵組 can go: actions that spawn together. */
 export interface RandomCandidate {
@@ -29,22 +30,23 @@ export interface RandomCandidate {
   actions: ActionRef[];
   /** Sum of the keyed actions' weights. */
   weight: number;
+  /** The weight's share of the group's total; 0 when the total is 0. */
+  share: number;
 }
 
 /**
- * 隨機出兵組: the actions of one fragment sharing a randomSpawnGroupKey. Keyed actions sharing a
- * randomSpawnGroupPackKey form one candidate, joined by the keyless actions of that pack.
+ * 隨機出兵組: the actions of one fragment (or 條件出兵 phase) sharing a randomSpawnGroupKey. Keyed
+ * actions sharing a randomSpawnGroupPackKey form one candidate, joined by the keyless actions of
+ * that pack.
  */
-export interface RandomGroup {
-  waveIndex: number;
-  fragmentIndex: number;
+export type RandomGroup = FragmentRef & {
   key: string;
   candidates: RandomCandidate[];
   /** The highest-weight candidate; the first in level-file order on ties. */
   defaultPick: number;
-}
+};
 
-/** The switches a level offers, in level-file order. */
+/** The switches a level offers, in level-file order: waves first, then 條件出兵. */
 export interface LevelGroups {
   hidden: HiddenGroup[];
   /** Groups with at least one spawn action; indices into this list name groups in URLs. */
@@ -67,58 +69,42 @@ export interface SpawnSwitches {
   conditional?: Readonly<Record<number, ConditionalTrigger>>;
 }
 
-/** A switched-on 條件出兵, run as a level of one wave: see {@link triggeredBranches}. */
-export interface TriggeredBranch {
-  branchIndex: number;
-  /** Trigger second in the wave; the branch's wave 0 starts here. */
-  t: number;
-  level: Level;
-  plan: SpawnPlan;
+/** A run of fragments: a wave's, or a 條件出兵's phases, which run like a wave's fragments. */
+interface FragmentRun {
+  fragments: Fragment[];
+  at(fragmentIndex: number): FragmentRef;
 }
 
-/**
- * The 條件出兵 switched on in `waveIndex`. Each runs as a level of one wave whose fragments are
- * the branch's phases, so its timing, 隱藏組 and 隨機出兵組 (default picks only) follow the rules
- * of a wave.
- */
-export function triggeredBranches(
-  level: Level,
-  difficulty: Difficulty,
-  switches: SpawnSwitches,
-  waveIndex: number,
-): TriggeredBranch[] {
-  return Object.entries(switches.conditional ?? {}).flatMap(([index, trigger]) => {
-    const branch: Branch | undefined = level.branches[Number(index)];
-    if (!branch || trigger.wave !== waveIndex) return [];
-    const wave = { preDelay: 0, postDelay: 0, timeLimit: null, fragments: branch.phases };
-    const sub: Level = { ...level, waves: [wave], branches: [] };
-    const plan = spawnPlan(sub, difficulty, { hiddenOn: switches.hiddenOn });
-    return [{ branchIndex: Number(index), t: trigger.t, level: sub, plan }];
-  });
+/** Every run of fragments in the level: the waves, then the 條件出兵. */
+function fragmentRuns(level: Level): FragmentRun[] {
+  return [
+    ...level.waves.map((wave, waveIndex) => ({
+      fragments: wave.fragments,
+      at: (fragmentIndex: number): FragmentRef => ({ branchIndex: null, waveIndex, fragmentIndex }),
+    })),
+    ...level.branches.map((branch, branchIndex) => ({
+      fragments: branch.phases,
+      at: (fragmentIndex: number): FragmentRef => ({ branchIndex, fragmentIndex }),
+    })),
+  ];
 }
 
-/** `switches` with 條件出兵 `branch` triggered at `trigger`, or switched off with null. */
-export function switchConditional(
-  switches: SpawnSwitches,
-  branch: number,
-  trigger: ConditionalTrigger | null,
-): SpawnSwitches {
-  const conditional = { ...switches.conditional };
-  if (trigger) conditional[branch] = trigger;
-  else delete conditional[branch];
-  const next = { ...switches };
-  delete next.conditional;
-  return Object.keys(conditional).length > 0 ? { ...next, conditional } : next;
-}
-
-function* allActions(level: Level): Generator<ActionRef & { action: Action }> {
-  for (const [waveIndex, wave] of level.waves.entries()) {
-    for (const [fragmentIndex, fragment] of wave.fragments.entries()) {
+function* allActions(level: Level): Generator<{ ref: ActionRef; action: Action }> {
+  for (const run of fragmentRuns(level)) {
+    for (const [fragmentIndex, fragment] of run.fragments.entries()) {
       for (const [actionIndex, action] of fragment.actions.entries()) {
-        yield { waveIndex, fragmentIndex, actionIndex, action };
+        yield { ref: { ...run.at(fragmentIndex), actionIndex }, action };
       }
     }
   }
+}
+
+export function actionAt(level: Level, ref: ActionRef): Action {
+  const fragments =
+    ref.branchIndex === null
+      ? level.waves[ref.waveIndex]!.fragments
+      : level.branches[ref.branchIndex]!.phases;
+  return fragments[ref.fragmentIndex]!.actions[ref.actionIndex]!;
 }
 
 function defaultHiddenOn(level: Level, difficulty: Difficulty): Set<string> {
@@ -141,20 +127,26 @@ function hiddenGroups(level: Level, difficulty: Difficulty): HiddenGroup[] {
   return [...names].map((name) => ({ name, defaultOn: on.has(name) }));
 }
 
+/** The 隱藏組 switched on: the switches' set, else the groups on by default. */
+function hiddenOnOf(groups: HiddenGroup[], switches: SpawnSwitches): Set<string> {
+  return new Set(switches.hiddenOn ?? groups.filter((g) => g.defaultOn).map((g) => g.name));
+}
+
 /** A fragment's groups, by group key, with their candidates by pack key. */
 type FragmentGroups = Map<string, { group: RandomGroup; packs: Map<string, RandomCandidate> }>;
 
 /**
  * Inferred from the level files, unverified against the game: groups are scoped to one fragment
  * (the same key in another fragment is another draw); a keyless pack member joins the
- * candidates of its pack in its own fragment, else in the nearest earlier fragment of the wave,
- * else it always spawns.
+ * candidates of its pack in its own fragment, else in the nearest earlier fragment of the wave
+ * (or 條件出兵), else it always spawns.
  */
 function randomGroups(level: Level): RandomGroup[] {
   const groups: RandomGroup[] = [];
-  level.waves.forEach((wave, waveIndex) => {
+  for (const run of fragmentRuns(level)) {
     const fragments: FragmentGroups[] = [];
-    wave.fragments.forEach((fragment, fragmentIndex) => {
+    run.fragments.forEach((fragment, fragmentIndex) => {
+      const at = run.at(fragmentIndex);
       const byKey: FragmentGroups = new Map();
       fragments.push(byKey);
       fragment.actions.forEach((action, actionIndex) => {
@@ -162,34 +154,33 @@ function randomGroups(level: Level): RandomGroup[] {
         if (!key) return;
         let entry = byKey.get(key);
         if (!entry) {
-          entry = {
-            group: { waveIndex, fragmentIndex, key, candidates: [], defaultPick: 0 },
-            packs: new Map(),
-          };
+          entry = { group: { ...at, key, candidates: [], defaultPick: 0 }, packs: new Map() };
           byKey.set(key, entry);
           groups.push(entry.group);
         }
         const pack = action.randomSpawnGroupPackKey;
         let candidate = pack === null ? undefined : entry.packs.get(pack);
         if (!candidate) {
-          candidate = { actions: [], weight: 0 };
+          candidate = { actions: [], weight: 0, share: 0 };
           entry.group.candidates.push(candidate);
           if (pack !== null) entry.packs.set(pack, candidate);
         }
-        candidate.actions.push({ waveIndex, fragmentIndex, actionIndex });
+        candidate.actions.push({ ...at, actionIndex });
         candidate.weight += action.weight;
       });
       fragment.actions.forEach((action, actionIndex) => {
         const pack = action.randomSpawnGroupPackKey;
         if (action.randomSpawnGroupKey || pack === null) return;
         for (const candidate of packCandidates(fragments, pack)) {
-          candidate.actions.push({ waveIndex, fragmentIndex, actionIndex });
+          candidate.actions.push({ ...at, actionIndex });
         }
       });
     });
-  });
+  }
   for (const group of groups) {
     const weights = group.candidates.map((c) => c.weight);
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    for (const c of group.candidates) c.share = total > 0 ? c.weight / total : 0;
     group.defaultPick = weights.indexOf(Math.max(...weights));
   }
   return groups.filter((g) =>
@@ -206,13 +197,23 @@ function packCandidates(fragments: FragmentGroups[], pack: string): RandomCandid
   return [];
 }
 
-function actionAt(level: Level, ref: ActionRef): Action {
-  return level.waves[ref.waveIndex]!.fragments[ref.fragmentIndex]!.actions[ref.actionIndex]!;
-}
-
 export function levelGroups(level: Level, difficulty: Difficulty): LevelGroups {
   return { hidden: hiddenGroups(level, difficulty), random: randomGroups(level) };
 }
+
+/** `switches` with `field` set to `value`, or dropped when `value` is undefined. */
+function withSwitch<K extends keyof SpawnSwitches>(
+  switches: SpawnSwitches,
+  field: K,
+  value: SpawnSwitches[K] | undefined,
+): SpawnSwitches {
+  const next = { ...switches };
+  delete next[field];
+  return value === undefined ? next : { ...next, [field]: value };
+}
+
+const nonEmpty = <T extends object>(record: T): T | undefined =>
+  Object.keys(record).length > 0 ? record : undefined;
 
 /**
  * `switches` with hidden group `name` switched on or off. The on-set is stored in level order,
@@ -226,15 +227,12 @@ export function switchHidden(
   on: boolean,
 ): SpawnSwitches {
   const groups = hiddenGroups(level, difficulty);
-  const current = new Set(
-    switches.hiddenOn ?? groups.filter((g) => g.defaultOn).map((g) => g.name),
-  );
+  const current = hiddenOnOf(groups, switches);
   if (on) current.add(name);
   else current.delete(name);
-  const next = { ...switches };
-  delete next.hiddenOn;
-  if (groups.every((g) => g.defaultOn === current.has(g.name))) return next;
-  return { ...next, hiddenOn: groups.map((g) => g.name).filter((n) => current.has(n)) };
+  const isDefault = groups.every((g) => g.defaultOn === current.has(g.name));
+  const hiddenOn = groups.map((g) => g.name).filter((n) => current.has(n));
+  return withSwitch(switches, "hiddenOn", isDefault ? undefined : hiddenOn);
 }
 
 /** `switches` with random group `group` picking `candidate`; default picks drop out. */
@@ -247,9 +245,19 @@ export function switchPick(
   const picks = { ...switches.picks };
   if (randomGroups(level)[group]?.defaultPick === candidate) delete picks[group];
   else picks[group] = candidate;
-  const next = { ...switches };
-  delete next.picks;
-  return Object.keys(picks).length > 0 ? { ...next, picks } : next;
+  return withSwitch(switches, "picks", nonEmpty(picks));
+}
+
+/** `switches` with 條件出兵 `branch` triggered at `trigger`, or switched off with null. */
+export function switchConditional(
+  switches: SpawnSwitches,
+  branch: number,
+  trigger: ConditionalTrigger | null,
+): SpawnSwitches {
+  const conditional = { ...switches.conditional };
+  if (trigger) conditional[branch] = trigger;
+  else delete conditional[branch];
+  return withSwitch(switches, "conditional", nonEmpty(conditional));
 }
 
 /** A random-group candidate an action belongs to. */
@@ -265,14 +273,16 @@ export interface SpawnPlan {
   hiddenOn: ReadonlySet<string>;
   /** Picked candidate of each random group, by index. */
   picks: readonly number[];
-  /** Whether the action produces individuals: its hidden group is on and its candidate picked. */
-  spawns(ref: ActionRef): boolean;
+  /** 條件出兵 switched on, by index into `Level.branches`. */
+  conditional: Readonly<Record<number, ConditionalTrigger>>;
+  /** Whether the action is in no random group, or in a picked candidate of one. */
+  picked(ref: ActionRef): boolean;
   /** The random-group candidates the action belongs to (more than one only for keyless members). */
   memberships(ref: ActionRef): Membership[];
 }
 
-const refKey = ({ waveIndex, fragmentIndex, actionIndex }: ActionRef) =>
-  `${waveIndex}/${fragmentIndex}/${actionIndex}`;
+const refKey = (ref: ActionRef) =>
+  `${ref.branchIndex === null ? `w${ref.waveIndex}` : `b${ref.branchIndex}`}/${ref.fragmentIndex}/${ref.actionIndex}`;
 
 export function spawnPlan(
   level: Level,
@@ -280,9 +290,6 @@ export function spawnPlan(
   switches: SpawnSwitches = {},
 ): SpawnPlan {
   const groups = levelGroups(level, difficulty);
-  const hiddenOn = new Set(
-    switches.hiddenOn ?? groups.hidden.filter((g) => g.defaultOn).map((g) => g.name),
-  );
   const picks = groups.random.map((g, i) => {
     const pick = switches.picks?.[i];
     return pick !== undefined && pick >= 0 && pick < g.candidates.length ? pick : g.defaultPick;
@@ -299,12 +306,11 @@ export function spawnPlan(
   const memberships = (ref: ActionRef) => members.get(refKey(ref)) ?? [];
   return {
     groups,
-    hiddenOn,
+    hiddenOn: hiddenOnOf(groups.hidden, switches),
     picks,
+    conditional: switches.conditional ?? {},
     memberships,
-    spawns(ref) {
-      const { hiddenGroup } = actionAt(level, ref);
-      if (hiddenGroup !== null && !hiddenOn.has(hiddenGroup)) return false;
+    picked(ref) {
       const of = memberships(ref);
       return of.length === 0 || of.some((m) => picks[m.group] === m.candidate);
     },

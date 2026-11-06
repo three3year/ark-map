@@ -62,8 +62,9 @@ export const strings = {
   randomGroups: "隨機出兵組",
   randomGroupsHint: "每組選一個候選上場;預設是權重最高的",
   randomGroup: (n: number) => `隨機組 ${n + 1}`,
-  randomGroupWhere: (wave: string | null, fragment: number, key: string) =>
-    `${wave ? `${wave}・` : ""}第 ${fragment + 1} 段・組鍵 ${key}`,
+  /** `source`: the wave when there are several, or the 條件出兵 the group is in. */
+  randomGroupWhere: (source: string | null, fragment: number, key: string) =>
+    `${source ? `${source}・` : ""}第 ${fragment + 1} 段・組鍵 ${key}`,
   candidateWeight: (weight: number, share: number) => `權重 ${weight}(${Math.round(share * 100)}%)`,
   noSpawn: "不出兵",
   device: (key: string) => `裝置 ${key}`,

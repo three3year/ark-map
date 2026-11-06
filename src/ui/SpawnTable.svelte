@@ -1,5 +1,11 @@
 <script lang="ts">
-  import type { Individual, SpawnRow, WaveEnd } from "../timeline/index.ts";
+  import {
+    actionKey,
+    sameAction,
+    type Individual,
+    type SpawnRow,
+    type WaveEnd,
+  } from "../timeline/index.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
@@ -19,11 +25,7 @@
   let { rows, wave, multiWave, selected, onJump, onPick, branchKeys }: Props = $props();
 
   const isSelected = (r: SpawnRow) =>
-    selected !== null &&
-    r.waveIndex === wave &&
-    r.branchIndex === selected.branchIndex &&
-    r.fragmentIndex === selected.fragmentIndex &&
-    r.actionIndex === selected.actionIndex;
+    selected !== null && r.waveIndex === wave && sameAction(r, selected);
 
   const seconds = (t: number) => `${Math.round(t * 100) / 100}`;
   const order = (r: SpawnRow) =>
@@ -53,7 +55,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row, i (`${row.waveIndex}-${row.branchIndex ?? ""}-${row.fragmentIndex}-${row.actionIndex}`)}
+        {#each rows as row, i (`${row.waveIndex}-${actionKey(row)}`)}
           {#if multiWave && (i === 0 || rows[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
               <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>

@@ -1,7 +1,6 @@
 // 基準時間軸: level model -> every enemy individual's trajectory; 時刻快照 = its value at T.
 // Pure; no DOM or network.
 import {
-  isSpawn,
   moveSpeedFactor,
   variantModifiers,
   type Difficulty,
@@ -18,29 +17,22 @@ import {
   type MovementModel,
   type PathLeg,
 } from "./movement.ts";
-import { scheduleWave } from "./schedule.ts";
-import { spawnPlan, triggeredBranches, type SpawnPlan, type SpawnSwitches } from "./switches.ts";
+import { individualKey, type IndividualId } from "./identity.ts";
+import { waveSpawns } from "./schedule.ts";
+import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 
+export * from "./identity.ts";
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
 export * from "./switches.ts";
 
-export interface Individual {
-  /** Stable within a timeline: "<fragment>-<action>-<k>". */
+export interface Individual extends IndividualId {
+  /** {@link individualKey}: stable within a timeline. */
   id: string;
   enemy: EnemyRef;
   route: Route;
-  /**
-   * The 條件出兵 (index into `Level.branches`) that spawned it, or null for a wave action. For a
-   * 條件出兵, `fragmentIndex` is the branch phase.
-   */
-  branchIndex: number | null;
-  fragmentIndex: number;
-  actionIndex: number;
-  /** k: this is the (k+1)-th individual of its action. */
-  spawnIndex: number;
   spawnTime: number;
-  /** 無害單位: counts as killed, never a threat. */
+  /** 無害敵人: counts as killed, never a threat. */
   harmless: boolean;
   leakTime: number | null;
   /** 路徑 to draw when the individual is selected. */
@@ -86,62 +78,46 @@ export function timelineEnd(timeline: Timeline): number {
 }
 
 /**
- * Every individual of one wave, timed by {@link scheduleWave}; T = 0 is the wave start and
+ * Every individual of one wave, spawned by {@link waveSpawns}; T = 0 is the wave start and
  * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
   const { waveIndex = 0, difficulty = "NORMAL", switches = {}, movement = nextNodeModel } = options;
-  const wave = level.waves[waveIndex];
-  if (!wave) return { individuals: [] };
+  if (!level.waves[waveIndex]) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);
   const modifiers = variantModifiers(level.modifiers, difficulty);
   const individuals: Individual[] = [];
-
-  /**
-   * Individuals of wave `sourceWave` of `source` (the level, or a 條件出兵 run as a level),
-   * spawning on `routes`, `offset` seconds into the wave.
-   */
-  function spawn(
-    source: Level,
-    plan: SpawnPlan,
-    sourceWave: number,
-    routes: Route[],
-    offset: number,
-    branch: number | null,
-  ) {
-    for (const scheduled of scheduleWave(source.waves[sourceWave]!).actions) {
-      const { action, fragmentIndex, actionIndex } = scheduled;
-      if (!isSpawn(action)) continue;
-      if (!plan.spawns({ waveIndex: sourceWave, fragmentIndex, actionIndex })) continue;
-      const route = routes[action.routeIndex];
-      const enemy = level.enemies[action.key];
-      if (!route || route.motionMode === "E_NUM" || !enemy) continue;
-      const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
-      const fragmentStart = offset + scheduled.fragmentStart;
-      for (let k = 0; k < action.count; k++) {
-        const spawnTime = offset + scheduled.start + k * action.interval;
-        const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
-        individuals.push({
-          id: `${branch === null ? "" : `b${branch}-`}${fragmentIndex}-${actionIndex}-${k}`,
-          enemy,
-          route,
-          branchIndex: branch,
-          fragmentIndex,
-          actionIndex,
-          spawnIndex: k,
-          spawnTime,
-          harmless: action.harmless,
-          leakTime: trajectory.leakTime,
-          path: trajectory.path,
-          stateAt: trajectory.stateAt,
-        });
-      }
+  for (const { action, ref, fragmentStart, start, picked } of waveSpawns(
+    level,
+    spawnPlan(level, difficulty, switches),
+    waveIndex,
+  )) {
+    if (!picked) continue;
+    const route = (ref.branchIndex === null ? level.routes : level.extraRoutes)[action.routeIndex];
+    const enemy = level.enemies[action.key];
+    if (!route || route.motionMode === "E_NUM" || !enemy) continue;
+    const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
+    for (let k = 0; k < action.count; k++) {
+      const spawnTime = start + k * action.interval;
+      const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
+      const id: IndividualId = {
+        branchIndex: ref.branchIndex,
+        fragmentIndex: ref.fragmentIndex,
+        actionIndex: ref.actionIndex,
+        spawnIndex: k,
+      };
+      individuals.push({
+        ...id,
+        id: individualKey(id),
+        enemy,
+        route,
+        spawnTime,
+        harmless: action.harmless,
+        leakTime: trajectory.leakTime,
+        path: trajectory.path,
+        stateAt: trajectory.stateAt,
+      });
     }
-  }
-
-  spawn(level, spawnPlan(level, difficulty, switches), waveIndex, level.routes, 0, null);
-  for (const b of triggeredBranches(level, difficulty, switches, waveIndex)) {
-    spawn(b.level, b.plan, 0, level.extraRoutes, b.t, b.branchIndex);
   }
   return { individuals };
 }
