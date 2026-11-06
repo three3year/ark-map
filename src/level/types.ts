@@ -84,6 +84,18 @@ export interface Wave {
   fragments: Fragment[];
 }
 
+/**
+ * 條件出兵: a branch of the level file, run when a device or an enemy skill triggers it. Its
+ * phases run like a wave's fragments from the trigger second; SPAWN actions' `routeIndex`
+ * points into `Level.extraRoutes`.
+ */
+export interface Branch {
+  key: string;
+  phases: Fragment[];
+  /** No SPAWN action (devices such as ballistae, or previews): listed, never on the snapshot. */
+  deviceOnly: boolean;
+}
+
 /** An 敵人 (kind + level) after level fallback and the level's `overwrittenData`. */
 export interface EnemyRef {
   id: string;
@@ -135,8 +147,11 @@ export interface Level {
   map: LevelMap;
   /** Indexed by `Action.routeIndex`; placeholder routes keep their slot. */
   routes: Route[];
+  /** Routes of 條件出兵 spawns, indexed by their actions' `routeIndex`. */
   extraRoutes: Route[];
   waves: Wave[];
+  /** 條件出兵, in level-file order. */
+  branches: Branch[];
   /** Keyed by enemy id (`Action.key`). */
   enemies: Record<string, EnemyRef>;
 }

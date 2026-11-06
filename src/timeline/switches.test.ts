@@ -1,7 +1,15 @@
 // Seam 1: level model + 開關狀態 (隱藏組, 隨機出兵組) -> baseline timeline / spawn table.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import { buildTimeline, levelGroups, spawnTable, switchHidden, switchPick } from "./index.ts";
+import {
+  buildTimeline,
+  levelGroups,
+  spawnTable,
+  switchHidden,
+  switchConditional,
+  switchPick,
+  takeSnapshot,
+} from "./index.ts";
 
 describe("隱藏組: 15-12 (shown as 15-13)", () => {
   // Normal and six-star enable group2 with level_hidden_group_enable; group1 is never enabled.
@@ -158,5 +166,92 @@ describe("隨機出兵組 packs: ro3_n_5_5", () => {
       [2, duskls],
       [2, duskls],
     ]);
+  });
+});
+
+describe("條件出兵: 11-06 (shown as 11-7)", () => {
+  // Branch route1: breaking the larva device at (4, 10) spawns one enemy_1266_nhapos on extra
+  // route 0, which starts on that cell and first waits 8 s.
+  const level = loadFixtureLevel("level_main_11-06");
+  const on30 = { conditional: { 0: { wave: 0, t: 30 } } };
+
+  it("switched on at 30 s: the 30 s snapshot has one more individual, on the extra route start", () => {
+    const off = takeSnapshot(buildTimeline(level), 30);
+    const on = takeSnapshot(buildTimeline(level, { switches: on30 }), 30);
+    expect(on.counts.onField).toBe(off.counts.onField + 1);
+    const added = on.onField.filter((e) => e.individual.branchIndex === 0);
+    expect(added.map((e) => [e.individual.enemy.id, e.position])).toEqual([
+      ["enemy_1266_nhapos", { x: 10, y: 4 }],
+    ]);
+    expect(added[0]!.individual.spawnTime).toBe(30);
+  });
+
+  it("is off by default and not there before its trigger second", () => {
+    const timeline = buildTimeline(level, { switches: on30 });
+    const added = timeline.individuals.filter((i) => i.branchIndex !== null);
+    expect(added).toHaveLength(1);
+    expect(added[0]!.stateAt(29.9).kind).toBe("pending");
+    expect(buildTimeline(level).individuals.some((i) => i.branchIndex !== null)).toBe(false);
+  });
+
+  it("the spawn table lists it at its trigger second, among the wave's rows, only while on", () => {
+    expect(spawnTable(level).some((r) => r.branchIndex !== null)).toBe(false);
+    const rows = spawnTable(level, { switches: on30 });
+    const i = rows.findIndex((r) => r.branchIndex === 0);
+    expect(rows[i]).toMatchObject({
+      enemyId: "enemy_1266_nhapos",
+      count: 1,
+      waveTime: 30,
+      absoluteTime: 30,
+    });
+    expect(rows[i - 1]!.waveTime).toBeLessThanOrEqual(30);
+    expect(rows[i + 1]!.waveTime).toBeGreaterThan(30);
+    expect(rows[i]!.firstOrder).toBe(rows[i - 1]!.lastOrder! + 1);
+  });
+});
+
+describe("條件出兵: 12-18 (shown as 12-20)", () => {
+  // branch_2 spawns enemy_1542_wdslm_2 on extra route 0 from (4, 1); branch_1 spawns
+  // enemy_1542_wdslm_3 on extra route 1 from (3, 1). Both routes start with a wait.
+  const level = loadFixtureLevel("level_main_12-18");
+  const added = (conditional: Record<number, { wave: number; t: number }>, t: number) =>
+    takeSnapshot(buildTimeline(level, { switches: { conditional } }), t)
+      .onField.filter((e) => e.individual.branchIndex !== null)
+      .map((e) => [e.individual.branchIndex, e.individual.enemy.id, e.position]);
+
+  it("each branch switches on alone, at its own second", () => {
+    expect(added({ 0: { wave: 0, t: 10 } }, 11)).toEqual([
+      [0, "enemy_1542_wdslm_2", { x: 1, y: 4 }],
+    ]);
+    expect(added({ 1: { wave: 0, t: 40 } }, 41)).toEqual([
+      [1, "enemy_1542_wdslm_3", { x: 1, y: 3 }],
+    ]);
+    expect(added({ 1: { wave: 0, t: 40 } }, 39)).toEqual([]);
+  });
+
+  it("a branch triggered in another wave stays out of this wave", () => {
+    expect(added({ 0: { wave: 1, t: 10 } }, 11)).toEqual([]);
+  });
+
+  it("both can be on together", () => {
+    const both = { 0: { wave: 0, t: 10 }, 1: { wave: 0, t: 12 } };
+    expect(added(both, 12).map(([branch]) => branch)).toEqual([0, 1]);
+  });
+
+  it("switching one off keeps the other; switching both off leaves no state", () => {
+    const one = switchConditional({}, 1, { wave: 0, t: 40 });
+    const both = switchConditional(one, 0, { wave: 0, t: 10 });
+    expect(both).toEqual({ conditional: { 0: { wave: 0, t: 10 }, 1: { wave: 0, t: 40 } } });
+    expect(switchConditional(both, 0, null)).toEqual(one);
+    expect(switchConditional(one, 1, null)).toEqual({});
+  });
+});
+
+describe("條件出兵: 5-10 (device only)", () => {
+  const level = loadFixtureLevel("level_main_05-10");
+
+  it("a device-only branch spawns nothing even when switched on", () => {
+    const on = buildTimeline(level, { switches: { conditional: { 0: { wave: 0, t: 5 } } } });
+    expect(on.individuals).toHaveLength(buildTimeline(level).individuals.length);
   });
 });

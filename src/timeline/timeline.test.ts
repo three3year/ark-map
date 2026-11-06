@@ -175,6 +175,7 @@ describe("movement model v0", () => {
         },
       ],
       extraRoutes: [],
+      branches: [],
       waves: [
         {
           preDelay: 0,

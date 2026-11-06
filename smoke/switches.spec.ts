@@ -65,3 +65,40 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
   expect(expected).toBe(1);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
 });
+
+test("11-7: a 條件出兵 switched on spawns at its second and shows its path", async ({ page }) => {
+  const level = siteLevel("main_11-06");
+  const t = 30;
+  const at = (seconds: number) => ({ switches: { conditional: { 0: { wave: 0, t: seconds } } } });
+
+  await page.goto(`#/level/main_11-06?t=${t}`);
+  const toggle = page.locator('[data-conditional="0"] input[type="checkbox"]');
+  await expect(toggle).not.toBeChecked();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, {}));
+
+  await toggle.check();
+
+  await expect(page).toHaveURL(/c=0-30(&|$)/);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, at(t)));
+  await expect(page.locator('tr[data-conditional="0"]')).toHaveCount(1);
+  await page.locator('g.enemy[data-individual="b0-0-0-0"]').click();
+  await expect(page.locator('g.path[data-path="b0-0-0-0"]')).toBeVisible();
+
+  // A later trigger second: the enemy has not spawned yet at 30 s.
+  await page.locator('[data-conditional="0"] input[type="number"]').fill("40");
+  await page.locator('[data-conditional="0"] input[type="number"]').press("Enter");
+  await expect(page).toHaveURL(/c=0-40(&|$)/);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, at(40)));
+
+  // The URL alone reproduces the state.
+  await page.goto(`#/level/main_11-06?t=45&c=0-40`);
+  await expect(page.locator('[data-conditional="0"] input[type="checkbox"]')).toBeChecked();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, 45, at(40)));
+});
+
+test("5-10: a device-only 條件出兵 is listed without a switch", async ({ page }) => {
+  await page.goto("#/level/main_05-10?t=0");
+  await expect(page.locator("[data-device-only]")).toHaveCount(1);
+  await expect(page.locator("[data-device-only]")).toContainText("faust_ballis");
+  await expect(page.locator("[data-conditional] input")).toHaveCount(0);
+});

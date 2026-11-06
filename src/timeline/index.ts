@@ -18,7 +18,7 @@ import {
   type PathLeg,
 } from "./movement.ts";
 import { scheduleWave } from "./schedule.ts";
-import { spawnPlan, type SpawnSwitches } from "./switches.ts";
+import { spawnPlan, triggeredBranches, type SpawnPlan, type SpawnSwitches } from "./switches.ts";
 
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
@@ -29,6 +29,11 @@ export interface Individual {
   id: string;
   enemy: EnemyRef;
   route: Route;
+  /**
+   * The 條件出兵 (index into `Level.branches`) that spawned it, or null for a wave action. For a
+   * 條件出兵, `fragmentIndex` is the branch phase.
+   */
+  branchIndex: number | null;
   fragmentIndex: number;
   actionIndex: number;
   /** k: this is the (k+1)-th individual of its action. */
@@ -84,38 +89,58 @@ export function timelineEnd(timeline: Timeline): number {
  * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
-  const { waveIndex = 0, difficulty = "NORMAL", switches, movement = nextNodeModel } = options;
+  const { waveIndex = 0, difficulty = "NORMAL", switches = {}, movement = nextNodeModel } = options;
   const wave = level.waves[waveIndex];
   if (!wave) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);
   const modifiers = variantModifiers(level.modifiers, difficulty);
-  const plan = spawnPlan(level, difficulty, switches);
   const individuals: Individual[] = [];
-  for (const { action, fragmentIndex, actionIndex, fragmentStart, start } of scheduleWave(wave)
-    .actions) {
-    if (action.actionType !== "SPAWN") continue;
-    if (!plan.spawns({ waveIndex, fragmentIndex, actionIndex })) continue;
-    const route = level.routes[action.routeIndex];
-    const enemy = level.enemies[action.key];
-    if (!route || route.motionMode === "E_NUM" || !enemy) continue;
-    const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
-    for (let k = 0; k < action.count; k++) {
-      const spawnTime = start + k * action.interval;
-      const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
-      individuals.push({
-        id: `${fragmentIndex}-${actionIndex}-${k}`,
-        enemy,
-        route,
-        fragmentIndex,
-        actionIndex,
-        spawnIndex: k,
-        spawnTime,
-        harmless: action.harmless,
-        leakTime: trajectory.leakTime,
-        path: trajectory.path,
-        stateAt: trajectory.stateAt,
-      });
+
+  /**
+   * Individuals of wave `sourceWave` of `source` (the level, or a 條件出兵 run as a level),
+   * spawning on `routes`, `offset` seconds into the wave.
+   */
+  function spawn(
+    source: Level,
+    plan: SpawnPlan,
+    sourceWave: number,
+    routes: Route[],
+    offset: number,
+    branch: number | null,
+  ) {
+    for (const scheduled of scheduleWave(source.waves[sourceWave]!).actions) {
+      const { action, fragmentIndex, actionIndex } = scheduled;
+      if (action.actionType !== "SPAWN") continue;
+      if (!plan.spawns({ waveIndex: sourceWave, fragmentIndex, actionIndex })) continue;
+      const route = routes[action.routeIndex];
+      const enemy = level.enemies[action.key];
+      if (!route || route.motionMode === "E_NUM" || !enemy) continue;
+      const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
+      const fragmentStart = offset + scheduled.fragmentStart;
+      for (let k = 0; k < action.count; k++) {
+        const spawnTime = offset + scheduled.start + k * action.interval;
+        const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
+        individuals.push({
+          id: `${branch === null ? "" : `b${branch}-`}${fragmentIndex}-${actionIndex}-${k}`,
+          enemy,
+          route,
+          branchIndex: branch,
+          fragmentIndex,
+          actionIndex,
+          spawnIndex: k,
+          spawnTime,
+          harmless: action.harmless,
+          leakTime: trajectory.leakTime,
+          path: trajectory.path,
+          stateAt: trajectory.stateAt,
+        });
+      }
     }
+  }
+
+  spawn(level, spawnPlan(level, difficulty, switches), waveIndex, level.routes, 0, null);
+  for (const b of triggeredBranches(level, difficulty, switches, waveIndex)) {
+    spawn(b.level, b.plan, 0, level.extraRoutes, b.t, b.branchIndex);
   }
   return { individuals };
 }
