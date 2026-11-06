@@ -161,6 +161,9 @@ export const strings = {
     map_tile_blackb_assign: "地形參數設定",
     map_tile_blackb_add: "地形參數加值",
     map_tile_blackb_mul: "地形參數倍率",
+    level_predefine_tokens_random_spawn_on_tile: "在指定地塊隨機放置裝置",
+    level_predefines_skill_replace: "預設裝置更換技能",
+    default_key: "空白修正(無效果)",
   } satisfies Record<KnownModifierKey, string>,
   /** Blackboard entry names; entries not listed show their raw key. */
   blackboardKeys: {
@@ -178,6 +181,9 @@ export const strings = {
     value: "數值",
     scale: "倍率",
     key: "對象",
+    tile: "地塊",
+    token_key: "裝置",
+    skill: "技能序號",
   } as Partial<Record<string, string>>,
   legendPath: "路徑",
   legendTeleport: "傳送",
