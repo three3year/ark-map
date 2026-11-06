@@ -37,8 +37,19 @@ export interface LevelFacts {
   difficulties: string[];
 }
 
+/** Bit flags used by older files in place of names. */
+const maskFlags: [number, string][] = [
+  [1, "NORMAL"],
+  [2, "FOUR_STAR"],
+];
+
+function maskNames(mask: string | number): string[] {
+  if (typeof mask === "number") return maskFlags.filter(([bit]) => mask & bit).map(([, n]) => n);
+  return mask.split(/[\s,|]+/);
+}
+
 export function levelFacts(raw: RawLevel): LevelFacts {
-  const masks = (raw.runes ?? []).flatMap((r) => r.difficultyMask.split(/[\s,|]+/));
+  const masks = (raw.runes ?? []).flatMap((r) => maskNames(r.difficultyMask));
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 

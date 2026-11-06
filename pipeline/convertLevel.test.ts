@@ -39,6 +39,17 @@ describe("map orientation", () => {
   });
 });
 
+describe("null routes (older activity files)", () => {
+  it("keep their slot as a placeholder that spawns nothing", () => {
+    const raw = rawFixture("level_main_01-07");
+    raw.routes![3] = null;
+    const level = convertFixture(raw);
+    expect(level.routes).toHaveLength(27);
+    expect(level.routes[3]!.motionMode).toBe("E_NUM");
+    expect(level.routes[4]).toEqual(loadFixtureLevel("level_main_01-07").routes[4]);
+  });
+});
+
 describe("1-7 level model", () => {
   const level = loadFixtureLevel("level_main_01-07");
   const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
@@ -107,6 +118,26 @@ describe("enemy resolution", () => {
     expect(worm.moveSpeed).toBe(0.6);
     expect(worm.maxHp).toBe(2050);
     expect(worm.name).toBe("源石蟲");
+  });
+
+  it("takes an enemy not in the database (useDb false) wholly from overwrittenData", () => {
+    const enemy = withRefs([
+      {
+        useDb: false,
+        id: "enemy_1122_sphond_0",
+        level: 0,
+        overwrittenData: {
+          name: { m_defined: true, m_value: "“小躁”" },
+          prefabKey: { m_defined: true, m_value: "enemy_1122_sphond" },
+          attributes: {
+            maxHp: { m_defined: true, m_value: 3200 },
+            moveSpeed: { m_defined: true, m_value: 1.9 },
+          },
+          motion: { m_defined: false, m_value: "WALK" },
+        },
+      },
+    ]).enemies["enemy_1122_sphond_0"]!;
+    expect(enemy).toMatchObject({ name: "“小躁”", maxHp: 3200, moveSpeed: 1.9, motion: "WALK" });
   });
 
   it("4-4: the level's overwrittenData raises the soldier's HP to 2200", () => {

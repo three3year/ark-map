@@ -66,6 +66,8 @@ export interface Slot<T> {
 /** Enemy data as stored in the enemy database and in a level's `overwrittenData`. */
 export interface RawEnemyData {
   name?: Slot<string | null>;
+  /** The database enemy a level-local enemy (useDb false) is drawn as. */
+  prefabKey?: Slot<string | null>;
   attributes?: {
     maxHp?: Slot<number>;
     atk?: Slot<number>;
@@ -93,12 +95,13 @@ export interface RawLevel {
     moveMultiplier: number;
   };
   mapData: { map: number[][]; tiles: RawTile[] };
-  routes: RawRoute[] | null;
-  extraRoutes: RawRoute[] | null;
+  /** Older activity files have null placeholders. */
+  routes: (RawRoute | null)[] | null;
+  extraRoutes: (RawRoute | null)[] | null;
   enemyDbRefs: RawEnemyDbRef[] | null;
   waves: RawWave[];
-  /** 難度修正 */
-  runes?: { difficultyMask: string; key: string }[] | null;
+  /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
+  runes?: { difficultyMask: string | number; key: string }[] | null;
 }
 
 export interface RawEnemyDatabase {

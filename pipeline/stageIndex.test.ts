@@ -69,6 +69,15 @@ describe("stage index", () => {
       expect(levelFacts(rawFixture("level_main_04-04")).difficulties).toEqual(["FOUR_STAR"]);
     });
 
+    it("reads the numeric masks of older activity files (1 NORMAL, 2 FOUR_STAR, 3 both)", () => {
+      const raw = rawFixture("level_main_04-04");
+      raw.runes = [
+        { difficultyMask: 2, key: "ebuff_attribute" },
+        { difficultyMask: 3, key: "gbuff_lifepoint" },
+      ];
+      expect(levelFacts(raw).difficulties.sort()).toEqual(["FOUR_STAR", "NORMAL"]);
+    });
+
     it("omits easy when the normal file has no EASY modifiers", () => {
       const ids = stageByCode(build(), "main_10", "10-2").variants.map((v) => v.id);
       expect(ids).toEqual(["normal", "tough"]);

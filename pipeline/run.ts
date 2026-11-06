@@ -121,7 +121,14 @@ await forEachLimit(wanted, 8, async (levelPath) => {
     const raw = JSON.parse(body.toString("utf8")) as RawLevel;
     try {
       const level = convertLevel(levelPath, raw, catalog);
-      for (const enemy of Object.values(level.enemies)) enemy.avatar = await avatarFor(enemy.id);
+      // Level-local enemies are drawn as their prefab, a database enemy.
+      const prefabs = new Map(
+        (raw.enemyDbRefs ?? []).map((r) => [r.id, r.overwrittenData?.prefabKey?.m_value]),
+      );
+      for (const enemy of Object.values(level.enemies)) {
+        const prefab = prefabs.get(enemy.id);
+        enemy.avatar = (await avatarFor(enemy.id)) ?? (prefab ? await avatarFor(prefab) : null);
+      }
       await writeJson(path.join(outDir, "levels", file), level);
       facts.set(levelPath, levelFacts(raw));
     } catch (e) {
