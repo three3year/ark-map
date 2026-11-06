@@ -37,7 +37,7 @@ pnpm fixtures obt/main/level_main_04-04.json   # 更新 test-fixtures/raw/ 的�
 |---|---|---|
 | 資料管線 | `pipeline/` | Node 腳本:抓取(`fetchCached.ts`)、原始檔 → 關卡模型(`convertLevel.ts`)、輸出(`run.ts`)。來源 repo 與分支在 `config.ts` |
 | 關卡模型 | `src/level/` | 站內 JSON 的型別與格子查詢 |
-| 尋路 | `src/pathfinding/` | 地圖 + 目標格 + 移動模式 → nextNode 表(目前是佔位) |
+| 尋路 | `src/pathfinding/` | 地圖 + 目標格 + 移動模式 → nextNode 表(SPFA + 平整化;「2×x 長方形」視線規則有開關 `rectangleRule`,預設開) |
 | 基準時間軸 | `src/timeline/` | 出生時刻、移動模型介面(`movement.ts`)、時刻快照 |
 | 畫面 | `src/ui/` | Svelte 元件、hash 路由、繁中字串表(`strings.ts`) |
 
@@ -48,4 +48,4 @@ pnpm fixtures obt/main/level_main_04-04.json   # 更新 test-fixtures/raw/ 的�
 只打兩道接縫:
 
 - 原始遊戲資料 → 關卡模型:`pipeline/convertLevel.test.ts`,fixture 是 `test-fixtures/raw/` 裡實際抓下的原始檔。
-- 關卡模型 → 基準時間軸 / 快照:`src/timeline/*.test.ts`。
+- 關卡模型 → 基準時間軸 / 快照:`src/timeline/*.test.ts`,尋路的 nextNode 表在 `src/pathfinding/pathfinding.test.ts`(期望值取自文章的紙上推演與遺塵漫步 EX-4)。
