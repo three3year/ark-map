@@ -1,6 +1,7 @@
 // 基準時間軸: level model -> every enemy individual's trajectory; 時刻快照 = its value at T.
 // Pure; no DOM or network.
 import {
+  isSpawn,
   moveSpeedFactor,
   variantModifiers,
   type Difficulty,
@@ -110,7 +111,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   ) {
     for (const scheduled of scheduleWave(source.waves[sourceWave]!).actions) {
       const { action, fragmentIndex, actionIndex } = scheduled;
-      if (action.actionType !== "SPAWN") continue;
+      if (!isSpawn(action)) continue;
       if (!plan.spawns({ waveIndex: sourceWave, fragmentIndex, actionIndex })) continue;
       const route = routes[action.routeIndex];
       const enemy = level.enemies[action.key];

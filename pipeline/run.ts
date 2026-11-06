@@ -134,7 +134,7 @@ const facts = new Map<string, LevelFacts>();
 const failures: string[] = [];
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
-/** "field = value" of numeric enums with no known name -> the level files they appear in. */
+/** "field = value" of enum values with no known name -> the level files they appear in. */
 const unknownEnums = new Map<string, Set<string>>();
 let done = 0;
 await forEachLimit(wanted, 8, async (levelPath) => {
@@ -193,8 +193,8 @@ if (unknownKeys.length > 0) {
 
 if (unknownEnums.size > 0) {
   console.warn(
-    `[資料管線] ${unknownEnums.size} 種數字列舉值沒有已知對應(pipeline/convertLevel.ts),` +
-      `站內 JSON 寫成 UNKNOWN_<n>:`,
+    `[資料管線] ${unknownEnums.size} 種列舉值沒有已知對應(pipeline/convertLevel.ts、src/level/enums.ts),` +
+      `站內 JSON 寫成 UNKNOWN_<值>:`,
   );
   for (const [key, levels] of unknownEnums) {
     const sample = [...levels].slice(0, 3).join("、");

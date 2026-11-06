@@ -1,5 +1,5 @@
 // 出兵表: one row per spawn action across every wave, with PRTS.Map's absolute-time column.
-import type { Difficulty, EnemyRef, Level } from "../level/index.ts";
+import { isSpawn, type Difficulty, type EnemyRef, type Level } from "../level/index.ts";
 import { scheduleWave, type ScheduledAction } from "./schedule.ts";
 import { spawnPlan, triggeredBranches, type SpawnSwitches } from "./switches.ts";
 
@@ -85,13 +85,12 @@ export function spawnTable(level: Level, options: SpawnTableOptions = {}): Spawn
     const spawns: TableAction[] = schedule.actions
       .filter(
         ({ action }) =>
-          action.actionType === "SPAWN" &&
-          (action.hiddenGroup === null || plan.hiddenOn.has(action.hiddenGroup)),
+          isSpawn(action) && (action.hiddenGroup === null || plan.hiddenOn.has(action.hiddenGroup)),
       )
       .map((s) => ({ ...s, branchIndex: null, spawns: plan.spawns({ waveIndex, ...s }) }));
     for (const b of triggeredBranches(level, difficulty, switches, waveIndex)) {
       for (const s of scheduleWave(b.level.waves[0]!).actions) {
-        if (s.action.actionType !== "SPAWN" || !b.plan.spawns({ waveIndex: 0, ...s })) continue;
+        if (!isSpawn(s.action) || !b.plan.spawns({ waveIndex: 0, ...s })) continue;
         spawns.push({ ...s, start: b.t + s.start, branchIndex: b.branchIndex, spawns: true });
       }
     }

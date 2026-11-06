@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Action, Branch, Level } from "../level/index.ts";
+  import { isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
   import type { ConditionalTrigger, RandomCandidate, SpawnPlan } from "../timeline/index.ts";
   import { roundTenth } from "./route.ts";
   import { strings } from "./strings.ts";
@@ -31,7 +31,7 @@
    */
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {
-      if (action.actionType !== "SPAWN") {
+      if (!isSpawn(action)) {
         return action.key ? [strings.device(action.key.replace(/#\d+$/, ""))] : [];
       }
       if (!action.key) return [];

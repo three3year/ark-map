@@ -162,7 +162,7 @@ describe("numeric enums (older activity files)", () => {
     (raw.routes![4]!.checkpoints![1]! as { type: number }).type = 7;
     raw.waves[0]!.fragments[0]!.actions[0]!.actionType = 3;
     raw.runes![0]!.difficultyMask = 4;
-    const unknown: [string, number][] = [];
+    const unknown: [string, number | string][] = [];
     const level = convertLevel(
       "act14mini_08",
       raw,
@@ -176,6 +176,25 @@ describe("numeric enums (older activity files)", () => {
     ]);
     expect(level.routes[4]!.checkpoints[1]!.type).toBe("UNKNOWN_7");
     expect(level.waves[0]!.fragments[0]!.actions[0]!.actionType).toBe("UNKNOWN_3");
+  });
+
+  it("reports an action or checkpoint type name it does not know and writes it as UNKNOWN_<name>", () => {
+    const raw = rawFixture("level_main_01-07");
+    raw.routes![1]!.checkpoints![0]!.type = "JUMP";
+    raw.waves[0]!.fragments[0]!.actions[0]!.actionType = "SUMMON";
+    const unknown: [string, number | string][] = [];
+    const level = convertLevel(
+      "main_01-07",
+      raw,
+      buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()),
+      (field, value) => unknown.push([field, value]),
+    );
+    expect(unknown).toEqual([
+      ["checkpointType", "JUMP"],
+      ["actionType", "SUMMON"],
+    ]);
+    expect(level.routes[1]!.checkpoints[0]!.type).toBe("UNKNOWN_JUMP");
+    expect(level.waves[0]!.fragments[0]!.actions[0]!.actionType).toBe("UNKNOWN_SUMMON");
   });
 });
 

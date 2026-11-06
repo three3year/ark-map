@@ -1,6 +1,7 @@
 // 開關狀態: which spawn actions produce individuals, given the 隱藏組 switched on and each
 // 隨機出兵組's picked candidate. Pure; no DOM or network.
 import {
+  isSpawn,
   variantModifiers,
   type Action,
   type Branch,
@@ -109,8 +110,6 @@ export function switchConditional(
   delete next.conditional;
   return Object.keys(conditional).length > 0 ? { ...next, conditional } : next;
 }
-
-const isSpawn = (action: Action) => action.actionType === "SPAWN";
 
 function* allActions(level: Level): Generator<ActionRef & { action: Action }> {
   for (const [waveIndex, wave] of level.waves.entries()) {

@@ -1,4 +1,11 @@
 // Raw level file + enemy database -> level model (the site's level JSON).
+import {
+  actionTypes,
+  checkpointTypes,
+  isSpawn,
+  type ActionType,
+  type CheckpointType,
+} from "../src/level/index.ts";
 import type {
   Action,
   Branch,
@@ -64,7 +71,7 @@ const numericEnums = {
     4: "WAIT_CURRENT_WAVE_TIME",
     5: "DISAPPEAR",
     6: "APPEAR_AT_POS",
-  },
+  } satisfies Record<number, CheckpointType>,
   actionType: {
     0: "SPAWN",
     1: "PREVIEW_CURSOR",
@@ -73,10 +80,21 @@ const numericEnums = {
     5: "DISPLAY_ENEMY_INFO",
     6: "ACTIVATE_PREDEFINED",
     8: "TRIGGER_PREDEFINED",
-  },
+  } satisfies Record<number, ActionType>,
   enemyLevelType: { 0: "NORMAL", 1: "ELITE" },
   enemyMotion: {},
 } satisfies Record<string, Record<number, string>>;
+
+/** Fields whose names the level model types: any other name is unknown too. */
+const knownNames: { [F in keyof Named]: readonly string[] } = {
+  actionType: actionTypes,
+  checkpointType: checkpointTypes,
+};
+
+interface Named {
+  actionType: ActionType;
+  checkpointType: CheckpointType;
+}
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */
 const maskFlags: [number, string][] = [
@@ -94,19 +112,28 @@ export function maskNames(mask: RawEnum): string[] {
 
 export type NumericEnumField = keyof typeof numericEnums | "difficultyMask";
 
-/** Called once per enum value with no known name; the value is written as `UNKNOWN_<n>`. */
-export type UnknownEnumHandler = (field: NumericEnumField, value: number) => void;
+/**
+ * Called once per enum value with no known name: a number, or a name the level model does not
+ * type (action and checkpoint types). The value is written as `UNKNOWN_<value>`.
+ */
+export type UnknownEnumHandler = (field: NumericEnumField, value: number | string) => void;
 
-type Decode = (field: keyof typeof numericEnums, value: RawEnum) => string;
+type EnumField = keyof typeof numericEnums;
+type Decode = <F extends EnumField>(
+  field: F,
+  value: RawEnum,
+) => F extends keyof Named ? Named[F] : string;
 
 function enumDecoder(onUnknown: UnknownEnumHandler): Decode {
-  return (field, value) => {
-    if (typeof value === "string") return value;
-    const name = (numericEnums[field] as Record<number, string>)[value];
-    if (name !== undefined) return name;
+  const decode = (field: EnumField, value: RawEnum): string => {
+    const name =
+      typeof value === "string" ? value : (numericEnums[field] as Record<number, string>)[value];
+    const known = (knownNames as Partial<Record<EnumField, readonly string[]>>)[field];
+    if (name !== undefined && (!known || known.includes(name))) return name;
     onUnknown(field, value);
     return `UNKNOWN_${value}`;
   };
+  return decode as Decode;
 }
 
 const warnUnknownEnum: UnknownEnumHandler = (field, value) =>
@@ -287,7 +314,7 @@ export function convertLevel(
   const { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier } = raw.options;
   const branches: Branch[] = Object.entries(raw.branches ?? {}).map(([key, b]) => {
     const phases = (b.phases ?? []).map(fragment);
-    const spawns = phases.some((p) => p.actions.some((a) => a.actionType === "SPAWN"));
+    const spawns = phases.some((p) => p.actions.some(isSpawn));
     return { key, phases, deviceOnly: !spawns };
   });
   const refs = raw.enemyDbRefs ?? [];
@@ -296,7 +323,7 @@ export function convertLevel(
   const listed = new Set(refs.map((r) => r.id));
   const branchOnly = branches
     .flatMap((b) => b.phases.flatMap((p) => p.actions))
-    .filter((a) => a.actionType === "SPAWN" && !listed.has(a.key) && catalog.levels.has(a.key))
+    .filter((a) => isSpawn(a) && !listed.has(a.key) && catalog.levels.has(a.key))
     .map((a): RawEnemyDbRef => ({ useDb: true, id: a.key, level: 0, overwrittenData: null }));
   return {
     levelId,
