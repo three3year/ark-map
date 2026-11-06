@@ -3,7 +3,7 @@
 import type { EnemyRef, Level, Route, Vec2 } from "../level/index.ts";
 import { createNextNodeLookup } from "../pathfinding/index.ts";
 import {
-  straightLineModel,
+  nextNodeModel,
   theoreticalSpeed,
   type IndividualState,
   type MovementModel,
@@ -65,7 +65,7 @@ export function timelineEnd(timeline: Timeline): number {
  * individual of a spawn action spawns at fragment start + preDelay + k x interval.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
-  const { waveIndex = 0, movement = straightLineModel } = options;
+  const { waveIndex = 0, movement = nextNodeModel } = options;
   const wave = level.waves[waveIndex];
   if (!wave) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);

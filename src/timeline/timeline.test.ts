@@ -36,10 +36,10 @@ describe("snapshot", () => {
     expect(takeSnapshot(timeline, 0).counts).toEqual({ pending: 41, onField: 0, leaked: 0 });
   });
 
-  it("1-7 at 27 s: the 6 s 源石蟲·α has leaked, six more are on the field", () => {
-    // Spawns before 27 s: 6, 12, 13, 18, 19, 23, 24. At 0.5 cells/s the first one covers
-    // (5,10) -> (3,0), sqrt(104) = 10.2 cells, in 20.4 s and leaks at 26.4 s.
-    const snapshot = takeSnapshot(timeline, 27);
+  it("1-7 at 31 s: the 6 s 源石蟲·α has leaked, six more are on the field", () => {
+    // Spawns before 31 s: 6, 12, 13, 18, 19, 23, 24. The first one walks the corridors
+    // F11 -> F5 -> E5 -> E3 -> D3 -> D1, 12 cells, at 0.5 cells/s: 24 s, leaking at 30 s.
+    const snapshot = takeSnapshot(timeline, 31);
     expect(snapshot.counts).toEqual({ pending: 34, onField: 6, leaked: 1 });
     expect(snapshot.onField).toHaveLength(6);
   });
