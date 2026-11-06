@@ -140,6 +140,7 @@ export function convertLevel(levelId: string, raw: RawLevel, catalog: EnemyCatal
     waves: raw.waves.map((w) => ({
       preDelay: w.preDelay,
       postDelay: w.postDelay,
+      timeLimit: w.maxTimeWaitingForNextWave < 0 ? null : w.maxTimeWaitingForNextWave,
       fragments: w.fragments.map((f) => ({
         preDelay: f.preDelay,
         actions: f.actions.map(convertAction),

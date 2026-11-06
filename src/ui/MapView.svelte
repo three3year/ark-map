@@ -131,11 +131,14 @@
         <g
           class="enemy"
           class:invisible
+          class:harmless={individual.harmless}
           transform="translate({position.x} {svgY(position.y)})"
           data-enemy={individual.enemy.id}
         >
           <g class="billboard">
-            <title>{individual.enemy.name}</title>
+            <title
+              >{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title
+            >
             <circle r="0.36" class="enemy-bg" />
             {#if individual.enemy.avatar}
               <image
@@ -150,6 +153,9 @@
               <text class="enemy-code">{individual.enemy.name.slice(0, 1)}</text>
             {/if}
             <circle r="0.36" class="enemy-ring" />
+            {#if individual.harmless}
+              <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
+            {/if}
           </g>
         </g>
       {/each}
@@ -277,6 +283,16 @@
     text-anchor: middle;
     dominant-baseline: central;
     fill: #1d1d1f;
+  }
+  .enemy.harmless .enemy-ring {
+    stroke: #2e9e5b;
+    stroke-dasharray: 0.12 0.08;
+  }
+  .harmless-tag {
+    font-size: 0.2px;
+    text-anchor: middle;
+    fill: #2e9e5b;
+    font-weight: 700;
   }
   .enemy.invisible {
     opacity: 0.4;
