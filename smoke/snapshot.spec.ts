@@ -3,12 +3,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Level, StageIndex } from "../src/level/index.ts";
+import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot } from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
   JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
+const readSiteLevel = (file: string) =>
+  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
 
 function siteStage(id: string) {
   const stage = readSiteJson<StageIndex>("data/index.json")
@@ -22,7 +24,7 @@ test("1-7 at 35 s shows as many enemy individuals as the timeline has on field",
   page,
 }) => {
   const stage = siteStage("main_01-07");
-  const level = readSiteJson<Level>(stage.variants[0]!.levelFile);
+  const level = readSiteLevel(stage.variants[0]!.levelFile);
   const expected = takeSnapshot(buildTimeline(level), 35).counts.onField;
   expect(expected, "1-7 has enemies on field at 35 s").toBeGreaterThan(0);
 
@@ -33,7 +35,7 @@ test("1-7 at 35 s shows as many enemy individuals as the timeline has on field",
 
 test("4-4 challenge runs its 難度修正 move speed and lists its modifiers", async ({ page }) => {
   const stage = siteStage("main_04-04");
-  const level = readSiteJson<Level>(stage.variants[0]!.levelFile);
+  const level = readSiteLevel(stage.variants[0]!.levelFile);
   const normal = buildTimeline(level);
   const challenge = buildTimeline(level, { difficulty: "FOUR_STAR" });
   // The first whole second at which the two variants have different counts on field.

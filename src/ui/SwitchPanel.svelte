@@ -1,6 +1,12 @@
 <script lang="ts">
-  import type { Action, Branch, Level } from "../level/index.ts";
-  import type { ConditionalTrigger, RandomCandidate, SpawnPlan } from "../timeline/index.ts";
+  import { isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
+  import {
+    actionAt,
+    type ConditionalTrigger,
+    type RandomCandidate,
+    type RandomGroup,
+    type SpawnPlan,
+  } from "../timeline/index.ts";
   import { roundTenth } from "./route.ts";
   import { strings } from "./strings.ts";
 
@@ -31,7 +37,7 @@
    */
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {
-      if (action.actionType !== "SPAWN") {
+      if (!isSpawn(action)) {
         return action.key ? [strings.device(action.key.replace(/#\d+$/, ""))] : [];
       }
       if (!action.key) return [];
@@ -40,13 +46,15 @@
     return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
   }
 
-  function candidateLabel(candidate: RandomCandidate): string {
-    return actionsLabel(
-      candidate.actions.map(
-        ({ waveIndex, fragmentIndex, actionIndex }) =>
-          level.waves[waveIndex]!.fragments[fragmentIndex]!.actions[actionIndex]!,
-      ),
-    );
+  const candidateLabel = (candidate: RandomCandidate) =>
+    actionsLabel(candidate.actions.map((ref) => actionAt(level, ref)));
+
+  /** The wave (when there are several) or the 條件出兵 a random group is in. */
+  function groupSource(group: RandomGroup): string | null {
+    if (group.branchIndex !== null) {
+      return strings.conditionalBadge(level.branches[group.branchIndex]?.key ?? "");
+    }
+    return multiWave ? strings.wave(group.waveIndex) : null;
   }
 
   const branchLabel = (branch: Branch) => actionsLabel(branch.phases.flatMap((p) => p.actions));
@@ -82,16 +90,11 @@
       <fieldset>
         <legend title={strings.randomGroupsHint}>{strings.randomGroups}</legend>
         {#each plan.groups.random as group, i (i)}
-          {@const total = group.candidates.reduce((s, c) => s + c.weight, 0)}
           <label class="random">
             <span>
               {strings.randomGroup(i)}
               <span class="muted">
-                {strings.randomGroupWhere(
-                  multiWave ? strings.wave(group.waveIndex) : null,
-                  group.fragmentIndex,
-                  group.key,
-                )}
+                {strings.randomGroupWhere(groupSource(group), group.fragmentIndex, group.key)}
               </span>
             </span>
             <select
@@ -103,7 +106,7 @@
                 <option value={c}>
                   {candidateLabel(candidate)} ・ {strings.candidateWeight(
                     candidate.weight,
-                    total > 0 ? candidate.weight / total : 0,
+                    candidate.share,
                   )}
                 </option>
               {/each}

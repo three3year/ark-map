@@ -1,5 +1,6 @@
 // The level model: the site's level JSON, written by the data pipeline and read by the
 // browser. Vocabulary follows GLOSSARY.md.
+import type { ActionType, CheckpointType } from "./enums.ts";
 
 /** 格: row 0 is the bottom row, col 0 the left column. */
 export interface Cell {
@@ -33,7 +34,7 @@ export interface LevelMap {
 export type MotionMode = "WALK" | "FLY" | "E_NUM";
 
 export interface Checkpoint {
-  type: string;
+  type: CheckpointType;
   time: number;
   position: Cell;
   reachOffset: Vec2;
@@ -54,7 +55,7 @@ export interface Route {
 
 /** 出兵動作, or a non-spawn action (story, preview...) kept for fragment timing. */
 export interface Action {
-  actionType: string;
+  actionType: ActionType;
   /** Enemy id for SPAWN actions. */
   key: string;
   count: number;

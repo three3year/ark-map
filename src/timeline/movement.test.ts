@@ -1,6 +1,14 @@
 // Seam 1: level model -> baseline timeline. Ground individuals follow the nextNode chain.
 import { describe, expect, it } from "vitest";
-import type { Cell, Checkpoint, Level, MotionMode, Tile, Vec2 } from "../level/index.ts";
+import type {
+  Cell,
+  Checkpoint,
+  CheckpointType,
+  Level,
+  MotionMode,
+  Tile,
+  Vec2,
+} from "../level/index.ts";
 import { buildTimeline, takeSnapshot, type IndividualState } from "./index.ts";
 
 const road: Tile = {
@@ -149,7 +157,12 @@ describe("movement model: ground follows the nextNode chain", () => {
 });
 
 /** A checkpoint at `cell`; `time` is the wait for the WAIT types. */
-function cp(type: string, cell: Cell = { row: 0, col: 0 }, time = 0, reachOffset = { x: 0, y: 0 }) {
+function cp(
+  type: CheckpointType,
+  cell: Cell = { row: 0, col: 0 },
+  time = 0,
+  reachOffset = { x: 0, y: 0 },
+) {
   return { type, time, position: cell, reachOffset, reachDistance: 0 } satisfies Checkpoint;
 }
 
@@ -175,7 +188,7 @@ describe("movement model: checkpoints", () => {
         start: { row: 0, col: 0 },
         end: { row: 0, col: 4 },
         spawnOffset: { x: 0, y: 0.3 },
-        checkpoints: [cp("MOVE", { row: 0, col: 2 }, 0, { x: 0, y: -0.3 }), cp("ALERT")],
+        checkpoints: [cp("MOVE", { row: 0, col: 2 }, 0, { x: 0, y: -0.3 }), cp("UNKNOWN_7")],
       }),
     );
     // (0, 0.3) -> (2, -0.3) -> (4, 0): hypot(2, 0.6) + hypot(2, 0.3) cells at 1 cell/s.

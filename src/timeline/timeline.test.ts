@@ -138,7 +138,7 @@ describe("movement model v0", () => {
       buildableType: "MELEE",
     };
     const action = {
-      actionType: "SPAWN",
+      actionType: "SPAWN" as const,
       key: "enemy_test",
       count: 1,
       preDelay: 2,

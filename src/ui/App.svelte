@@ -1,5 +1,13 @@
 <script lang="ts">
-  import type { Area, Level, StageEntry, StageIndex } from "../level/index.ts";
+  import {
+    withNames,
+    type Area,
+    type Level,
+    type LevelFile,
+    type NameTable,
+    type StageEntry,
+    type StageIndex,
+  } from "../level/index.ts";
   import AreaList from "./AreaList.svelte";
   import LevelPage from "./LevelPage.svelte";
   import { formatHash, parseHash, type Route } from "./route.ts";
@@ -57,13 +65,16 @@
   /** The last level JSON fetched, with the file it came from. */
   let loaded = $state<{ file: string; level: Level } | null>(null);
   let requested: string | null = null;
+  /** The 名稱表, fetched with the first level. */
+  let names: Promise<NameTable> | null = null;
   $effect(() => {
     const file = variant?.levelFile;
     if (!file || file === requested) return;
     requested = file;
-    fetchJson<Level>(file).then(
-      (level) => {
-        if (requested === file) loaded = { file, level };
+    names ??= fetchJson<NameTable>("data/names.json");
+    Promise.all([fetchJson<LevelFile>(file), names]).then(
+      ([levelFile, nameTable]) => {
+        if (requested === file) loaded = { file, level: withNames(levelFile, nameTable) };
       },
       (e: unknown) => (error = String(e)),
     );

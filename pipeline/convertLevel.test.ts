@@ -1,6 +1,12 @@
 // Seam 2: raw game data -> level model.
 import { describe, expect, it } from "vitest";
-import { isWalkable, tileAt } from "../src/level/index.ts";
+import {
+  affectsMovement,
+  isWalkable,
+  tileAt,
+  withNames,
+  type NameTable,
+} from "../src/level/index.ts";
 import {
   convertFixture,
   loadFixtureLevel,
@@ -8,7 +14,7 @@ import {
   rawEnemyHandbook,
   rawFixture,
 } from "../test-fixtures/load.ts";
-import { buildEnemyCatalog, convertLevel } from "./convertLevel.ts";
+import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
 import type { RawEnemyDbRef } from "./raw.ts";
 
 describe("map orientation", () => {
@@ -162,7 +168,7 @@ describe("numeric enums (older activity files)", () => {
     (raw.routes![4]!.checkpoints![1]! as { type: number }).type = 7;
     raw.waves[0]!.fragments[0]!.actions[0]!.actionType = 3;
     raw.runes![0]!.difficultyMask = 4;
-    const unknown: [string, number][] = [];
+    const unknown: [string, number | string][] = [];
     const level = convertLevel(
       "act14mini_08",
       raw,
@@ -176,6 +182,25 @@ describe("numeric enums (older activity files)", () => {
     ]);
     expect(level.routes[4]!.checkpoints[1]!.type).toBe("UNKNOWN_7");
     expect(level.waves[0]!.fragments[0]!.actions[0]!.actionType).toBe("UNKNOWN_3");
+  });
+
+  it("reports an action or checkpoint type name it does not know and writes it as UNKNOWN_<name>", () => {
+    const raw = rawFixture("level_main_01-07");
+    raw.routes![1]!.checkpoints![0]!.type = "JUMP";
+    raw.waves[0]!.fragments[0]!.actions[0]!.actionType = "SUMMON";
+    const unknown: [string, number | string][] = [];
+    const level = convertLevel(
+      "main_01-07",
+      raw,
+      buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()),
+      (field, value) => unknown.push([field, value]),
+    );
+    expect(unknown).toEqual([
+      ["checkpointType", "JUMP"],
+      ["actionType", "SUMMON"],
+    ]);
+    expect(level.routes[1]!.checkpoints[0]!.type).toBe("UNKNOWN_JUMP");
+    expect(level.waves[0]!.fragments[0]!.actions[0]!.actionType).toBe("UNKNOWN_SUMMON");
   });
 });
 
@@ -288,6 +313,54 @@ describe("enemy resolution", () => {
   });
 });
 
+describe("名稱表", () => {
+  const catalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
+
+  it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
+    const level = loadFixtureLevel("level_main_01-07");
+    const names: NameTable = { enemies: {} };
+    const file = siteLevelFile(level, catalog(), names);
+    expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
+    expect(names.enemies).toMatchObject({
+      enemy_1007_slime_2: "源石蟲·α",
+      enemy_1029_shdsbr: "機動盾兵",
+    });
+    expect(Object.keys(names.enemies).sort()).toEqual(Object.keys(level.enemies).sort());
+    expect(withNames(file, names)).toEqual(level);
+  });
+
+  it("one table serves every level; a name only one level gives stays in its level file", () => {
+    const names: NameTable = { enemies: {} };
+    const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
+    const raw = rawFixture("level_main_01-07");
+    // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.
+    raw.enemyDbRefs!.push({
+      useDb: false,
+      id: "enemy_1122_sphond_0",
+      level: 0,
+      overwrittenData: { name: { m_defined: true, m_value: "“小躁”" } },
+    });
+    const handbook = rawEnemyHandbook();
+    delete handbook.enemyData["enemy_1029_shdsbr"];
+    raw.enemyDbRefs!.find((r) => r.id === "enemy_1029_shdsbr")!.overwrittenData = {
+      name: { m_defined: true, m_value: "改名的持盾刀兵" },
+    };
+    const renamed = buildEnemyCatalog(rawEnemyDatabase(), handbook);
+    const level = convertLevel("1-7", raw, renamed);
+    const file = siteLevelFile(level, renamed, names);
+    expect(
+      Object.values(file.enemies).flatMap((e) => (e.name === undefined ? [] : [[e.id, e.name]])),
+    ).toEqual([
+      ["enemy_1029_shdsbr", "改名的持盾刀兵"],
+      ["enemy_1122_sphond_0", "“小躁”"],
+    ]);
+    expect(names.enemies["enemy_1029_shdsbr"]).toBe("持盾刀兵");
+    expect(names.enemies["enemy_1122_sphond_0"]).toBeUndefined();
+    expect(withNames(file, names)).toEqual(level);
+    expect(withNames(other, names)).toEqual(loadFixtureLevel("level_main_04-04"));
+  });
+});
+
 describe("難度修正", () => {
   it("4-4: keeps each modifier's difficulties, key and blackboard", () => {
     const level = loadFixtureLevel("level_main_04-04");
@@ -379,4 +452,78 @@ describe("條件出兵", () => {
   it("a level without branches has none", () => {
     expect(loadFixtureLevel("level_main_01-07").branches).toEqual([]);
   });
+});
+
+describe("key fields of the levels the timeline tests use", () => {
+  // Expected values read straight from the raw files (grid, route list, waves, runes).
+  const cases = [
+    {
+      name: "level_main_15-12",
+      width: 11,
+      height: 7,
+      routes: 36,
+      extraRoutes: 0,
+      route: 1,
+      checkpoints: ["MOVE", "WAIT_FOR_SECONDS", "MOVE", "MOVE", "MOVE"],
+      fragments: [5],
+      actions: 36,
+      spawnActions: 33,
+      hiddenGroups: ["group1", "group2"],
+      branches: 0,
+    },
+    {
+      name: "level_rogue2_2-6",
+      width: 8,
+      height: 8,
+      routes: 35,
+      extraRoutes: 2,
+      route: 14,
+      checkpoints: [
+        "MOVE",
+        "WAIT_FOR_SECONDS",
+        "MOVE",
+        "DISAPPEAR",
+        "APPEAR_AT_POS",
+        "MOVE",
+        "MOVE",
+        "MOVE",
+      ],
+      fragments: [6, 1],
+      actions: 35,
+      spawnActions: 26,
+      hiddenGroups: ["allydonq", "raid"],
+      branches: 2,
+    },
+    {
+      name: "level_act18d0_ex04",
+      width: 11,
+      height: 8,
+      routes: 24,
+      extraRoutes: 0,
+      route: 0,
+      checkpoints: ["MOVE", "WAIT_FOR_SECONDS", "MOVE"],
+      fragments: [5],
+      actions: 24,
+      spawnActions: 24,
+      hiddenGroups: [],
+      branches: 0,
+    },
+  ];
+
+  for (const c of cases) {
+    it(`${c.name}: grid, routes, checkpoints, actions, 隱藏組, 條件出兵, no movement modifier`, () => {
+      const level = loadFixtureLevel(c.name);
+      const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
+      expect([level.map.width, level.map.height]).toEqual([c.width, c.height]);
+      expect([level.routes.length, level.extraRoutes.length]).toEqual([c.routes, c.extraRoutes]);
+      expect(level.routes[c.route]!.checkpoints.map((p) => p.type)).toEqual(c.checkpoints);
+      expect(level.waves.map((w) => w.fragments.length)).toEqual(c.fragments);
+      expect(actions).toHaveLength(c.actions);
+      expect(actions.filter((a) => a.actionType === "SPAWN")).toHaveLength(c.spawnActions);
+      const hidden = new Set(actions.flatMap((a) => (a.hiddenGroup ? [a.hiddenGroup] : [])));
+      expect([...hidden].sort()).toEqual(c.hiddenGroups);
+      expect(level.branches).toHaveLength(c.branches);
+      expect(level.modifiers.filter(affectsMovement)).toEqual([]);
+    });
+  }
 });

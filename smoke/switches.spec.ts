@@ -3,19 +3,27 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Level, StageIndex } from "../src/level/index.ts";
+import {
+  withNames,
+  type Level,
+  type LevelFile,
+  type NameTable,
+  type StageIndex,
+} from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, type TimelineOptions } from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
   JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
+const readSiteLevel = (file: string) =>
+  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
 
 function siteLevel(stageId: string): Level {
   const stage = readSiteJson<StageIndex>("data/index.json")
     .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
     .find((s) => s.id === stageId);
   expect(stage, `the built site publishes ${stageId}`).toBeDefined();
-  return readSiteJson<Level>(stage!.variants[0]!.levelFile);
+  return readSiteLevel(stage!.variants[0]!.levelFile);
 }
 
 const onField = (level: Level, t: number, options: TimelineOptions) =>
@@ -101,4 +109,38 @@ test("5-10: a device-only 條件出兵 is listed without a switch", async ({ pag
   await expect(page.locator("[data-device-only]")).toHaveCount(1);
   await expect(page.locator("[data-device-only]")).toContainText("faust_ballis");
   await expect(page.locator("[data-conditional] input")).toHaveCount(0);
+});
+
+test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the panel", async ({ page }) => {
+  const level = siteLevel("act1dp_01");
+  const conditional = { 0: { wave: 0, t: 10 } };
+  const t = 11;
+  const groupOn = { switches: { conditional, hiddenOn: ["random"] } };
+  const picked = { switches: { ...groupOn.switches, picks: { 0: 0 } } };
+  expect(onField(level, t, { switches: { conditional } }), "the group is off by default").toBe(0);
+  expect(onField(level, t, groupOn)).toBe(1);
+  expect(onField(level, t, picked)).toBe(1);
+
+  await page.goto(`#/level/act1dp_01?t=${t}&c=0-10`);
+  const group = page.locator('input[data-hidden-group="random"]');
+  await expect(group).not.toBeChecked();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+
+  await group.check();
+
+  await expect(page).toHaveURL(/h=random/);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(1);
+  await expect(page.locator('select[data-random-group="0"]')).toHaveValue("3");
+
+  await page.locator('select[data-random-group="0"]').selectOption("0");
+
+  await expect(page).toHaveURL(/r=0-0/);
+  await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
+  const enemy = page.locator("svg.map g.enemy");
+  await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
+
+  // The URL alone reproduces the state.
+  await page.goto(`#/level/act1dp_01?t=${t}&c=0-10&h=random&r=0-0`);
+  await expect(page.locator('select[data-random-group="0"]')).toHaveValue("0");
+  await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
 });
