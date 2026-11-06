@@ -12,10 +12,12 @@
     buildTimeline,
     spawnPlan,
     spawnTable,
+    switchConditional,
     switchHidden,
     switchPick,
     takeSnapshot,
     timelineEnd,
+    type ConditionalTrigger,
     type Individual,
     type SpawnRow,
     type SpawnSwitches,
@@ -71,6 +73,8 @@
     onSwitches(switchHidden(level, difficulty, switches, name, on));
   const pick = (group: number, candidate: number) =>
     onSwitches(switchPick(level, switches, group, candidate));
+  const setConditional = (branch: number, trigger: ConditionalTrigger | null) =>
+    onSwitches(switchConditional(switches, branch, trigger));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
@@ -79,6 +83,8 @@
   interface Selection {
     levelId: string;
     wave: number;
+    /** The 條件出兵 the action belongs to; null for a wave action. */
+    branchIndex: number | null;
     fragmentIndex: number;
     actionIndex: number;
     spawnIndex: number;
@@ -90,6 +96,7 @@
     return (
       timeline.individuals.find(
         (i) =>
+          i.branchIndex === s.branchIndex &&
           i.fragmentIndex === s.fragmentIndex &&
           i.actionIndex === s.actionIndex &&
           i.spawnIndex === s.spawnIndex,
@@ -102,6 +109,7 @@
     selection = individual && {
       levelId: level.levelId,
       wave: waveIndex,
+      branchIndex: individual.branchIndex,
       fragmentIndex: individual.fragmentIndex,
       actionIndex: individual.actionIndex,
       spawnIndex: individual.spawnIndex,
@@ -113,6 +121,7 @@
     selection = {
       levelId: level.levelId,
       wave: row.waveIndex,
+      branchIndex: row.branchIndex,
       fragmentIndex: row.fragmentIndex,
       actionIndex: row.actionIndex,
       spawnIndex: 0,
@@ -173,7 +182,16 @@
     <dd data-count="leaked">{snapshot.counts.leaked}</dd>
   </div>
 </dl>
-<SwitchPanel {level} {plan} onHidden={setHidden} onPick={pick} />
+<SwitchPanel
+  {level}
+  {plan}
+  conditional={switches.conditional ?? {}}
+  wave={waveIndex}
+  {t}
+  onHidden={setHidden}
+  onPick={pick}
+  onConditional={setConditional}
+/>
 <SpawnTable
   {rows}
   wave={waveIndex}
@@ -181,6 +199,7 @@
   {selected}
   onJump={jumpTo}
   onPick={pick}
+  branchKeys={level.branches.map((b) => b.key)}
 />
 <LevelInfo
   options={level.options}

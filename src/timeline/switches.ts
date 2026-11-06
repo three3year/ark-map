@@ -1,6 +1,12 @@
 // 開關狀態: which spawn actions produce individuals, given the 隱藏組 switched on and each
 // 隨機出兵組's picked candidate. Pure; no DOM or network.
-import { variantModifiers, type Action, type Difficulty, type Level } from "../level/index.ts";
+import {
+  variantModifiers,
+  type Action,
+  type Branch,
+  type Difficulty,
+  type Level,
+} from "../level/index.ts";
 
 /** A 隱藏組 with at least one spawn action. */
 export interface HiddenGroup {
@@ -44,12 +50,64 @@ export interface LevelGroups {
   random: RandomGroup[];
 }
 
+/** When a switched-on 條件出兵 is triggered: second `t` of wave `wave`. */
+export interface ConditionalTrigger {
+  wave: number;
+  t: number;
+}
+
 /** 開關狀態. Anything left out takes the variant's default. */
 export interface SpawnSwitches {
   /** 隱藏組 switched on. */
   hiddenOn?: readonly string[];
   /** Index into {@link LevelGroups.random} -> picked candidate index. */
   picks?: Readonly<Record<number, number>>;
+  /** 條件出兵 switched on (all are off by default): index into `Level.branches` -> trigger. */
+  conditional?: Readonly<Record<number, ConditionalTrigger>>;
+}
+
+/** A switched-on 條件出兵, run as a level of one wave: see {@link triggeredBranches}. */
+export interface TriggeredBranch {
+  branchIndex: number;
+  /** Trigger second in the wave; the branch's wave 0 starts here. */
+  t: number;
+  level: Level;
+  plan: SpawnPlan;
+}
+
+/**
+ * The 條件出兵 switched on in `waveIndex`. Each runs as a level of one wave whose fragments are
+ * the branch's phases, so its timing, 隱藏組 and 隨機出兵組 (default picks only) follow the rules
+ * of a wave.
+ */
+export function triggeredBranches(
+  level: Level,
+  difficulty: Difficulty,
+  switches: SpawnSwitches,
+  waveIndex: number,
+): TriggeredBranch[] {
+  return Object.entries(switches.conditional ?? {}).flatMap(([index, trigger]) => {
+    const branch: Branch | undefined = level.branches[Number(index)];
+    if (!branch || trigger.wave !== waveIndex) return [];
+    const wave = { preDelay: 0, postDelay: 0, timeLimit: null, fragments: branch.phases };
+    const sub: Level = { ...level, waves: [wave], branches: [] };
+    const plan = spawnPlan(sub, difficulty, { hiddenOn: switches.hiddenOn });
+    return [{ branchIndex: Number(index), t: trigger.t, level: sub, plan }];
+  });
+}
+
+/** `switches` with 條件出兵 `branch` triggered at `trigger`, or switched off with null. */
+export function switchConditional(
+  switches: SpawnSwitches,
+  branch: number,
+  trigger: ConditionalTrigger | null,
+): SpawnSwitches {
+  const conditional = { ...switches.conditional };
+  if (trigger) conditional[branch] = trigger;
+  else delete conditional[branch];
+  const next = { ...switches };
+  delete next.conditional;
+  return Object.keys(conditional).length > 0 ? { ...next, conditional } : next;
 }
 
 const isSpawn = (action: Action) => action.actionType === "SPAWN";

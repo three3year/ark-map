@@ -1,6 +1,6 @@
 // Hash routing. The URL is the single source of truth for page state:
 // the UI writes the hash first and renders from what it reads back.
-import type { SpawnSwitches } from "../timeline/index.ts";
+import type { ConditionalTrigger, SpawnSwitches } from "../timeline/index.ts";
 
 export interface LevelRoute {
   page: "level";
@@ -27,6 +27,8 @@ export function roundTenth(t: number): number {
  * - `h=<name>`: the 隱藏組 switched on. Present = the full set; a single empty `h=` = none on;
  *   absent = the variant's default.
  * - `r=<group>-<candidate>`: a 隨機出兵組 pick (indices); groups not listed take their default.
+ * - `c=<branch>-<seconds>[-<wave>]`: a 條件出兵 switched on (index into the level's branches),
+ *   triggered at that second of that wave (0-based, omitted for the first); unlisted ones are off.
  */
 function parseSwitches(params: URLSearchParams): SpawnSwitches | undefined {
   const switches: SpawnSwitches = {};
@@ -37,6 +39,17 @@ function parseSwitches(params: URLSearchParams): SpawnSwitches | undefined {
     if (match) picks[Number(match[1])] = Number(match[2]);
   }
   if (Object.keys(picks).length > 0) switches.picks = picks;
+  const conditional: Record<number, ConditionalTrigger> = {};
+  for (const entry of params.getAll("c")) {
+    const match = /^(\d+)-(\d+(?:\.\d+)?)(?:-(\d+))?$/.exec(entry);
+    if (match) {
+      conditional[Number(match[1])] = {
+        wave: Number(match[3] ?? 0),
+        t: roundTenth(Number(match[2])),
+      };
+    }
+  }
+  if (Object.keys(conditional).length > 0) switches.conditional = conditional;
   return Object.keys(switches).length > 0 ? switches : undefined;
 }
 
@@ -48,10 +61,13 @@ function appendSwitches(params: URLSearchParams, switches: SpawnSwitches) {
   for (const [group, candidate] of Object.entries(switches.picks ?? {})) {
     params.append("r", `${group}-${candidate}`);
   }
+  for (const [branch, { wave, t }] of Object.entries(switches.conditional ?? {})) {
+    params.append("c", `${branch}-${roundTenth(t)}${wave > 0 ? `-${wave}` : ""}`);
+  }
 }
 
 /**
- * `#/level/<stageId>?v=<variant>&w=<wave>&t=<seconds>&h=…&r=…` (`w` omitted for the first
+ * `#/level/<stageId>?v=<variant>&w=<wave>&t=<seconds>&h=…&r=…&c=…` (`w` omitted for the first
  * wave), `#/area/<areaId>`; anything else is home.
  */
 export function parseHash(hash: string): Route {

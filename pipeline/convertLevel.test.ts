@@ -331,3 +331,52 @@ describe("難度修正", () => {
     ]);
   });
 });
+
+describe("條件出兵", () => {
+  it("11-06 (shown as 11-7): one branch spawning on an extra route that starts at its device", () => {
+    const level = loadFixtureLevel("level_main_11-06");
+    expect(level.branches).toHaveLength(1);
+    const [branch] = level.branches;
+    expect(branch!.key).toBe("route1");
+    expect(branch!.deviceOnly).toBe(false);
+    expect(branch!.phases).toHaveLength(1);
+    const [action] = branch!.phases[0]!.actions;
+    expect(action).toMatchObject({ actionType: "SPAWN", key: "enemy_1266_nhapos", count: 1 });
+    // routeIndex points into extraRoutes: extra route 0 starts on the cell of the device that
+    // triggers the branch, predefines.tokenInsts trap_086_larva#1 at (4, 10).
+    expect(action!.routeIndex).toBe(0);
+    expect(level.extraRoutes[0]!.start).toEqual({ row: 4, col: 10 });
+  });
+
+  it("12-18 (shown as 12-20): two spawning branches, each on its own extra route", () => {
+    const level = loadFixtureLevel("level_main_12-18");
+    expect(
+      level.branches.map((b) => [b.key, b.deviceOnly, b.phases[0]!.actions[0]!.routeIndex]),
+    ).toEqual([
+      ["branch_2", false, 0],
+      ["branch_1", false, 1],
+    ]);
+  });
+
+  it("5-10: the ballista branch only activates devices, phase by phase", () => {
+    const level = loadFixtureLevel("level_main_05-10");
+    expect(level.branches.map((b) => [b.key, b.deviceOnly])).toEqual([["faust_ballis", true]]);
+    const actions = level.branches[0]!.phases.flatMap((p) => p.actions);
+    expect(actions.every((a) => a.actionType === "ACTIVATE_PREDEFINED")).toBe(true);
+    expect(actions[0]!.key).toBe("trap_007_ballis#1");
+  });
+
+  it("an enemy only a branch spawns, missing from enemyDbRefs, comes from the database at level 0", () => {
+    // 24 CN level files do this (11-18 spawns enemy_1266_nhapos from four branches without
+    // listing it); wave actions never do.
+    const raw = rawFixture("level_main_11-06");
+    raw.enemyDbRefs = raw.enemyDbRefs!.filter((r) => r.id !== "enemy_1266_nhapos");
+    const enemy = convertFixture(raw).enemies["enemy_1266_nhapos"];
+    expect(enemy).toMatchObject({ id: "enemy_1266_nhapos", level: 0 });
+    expect(enemy!.moveSpeed).toBeGreaterThan(0);
+  });
+
+  it("a level without branches has none", () => {
+    expect(loadFixtureLevel("level_main_01-07").branches).toEqual([]);
+  });
+});

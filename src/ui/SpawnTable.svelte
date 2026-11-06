@@ -13,12 +13,15 @@
     onJump: (row: SpawnRow) => void;
     /** 切換 on a candidate row that is not picked. */
     onPick: (group: number, candidate: number) => void;
+    /** 條件出兵 keys by branch index, for the rows' markers. */
+    branchKeys: string[];
   }
-  let { rows, wave, multiWave, selected, onJump, onPick }: Props = $props();
+  let { rows, wave, multiWave, selected, onJump, onPick, branchKeys }: Props = $props();
 
   const isSelected = (r: SpawnRow) =>
     selected !== null &&
     r.waveIndex === wave &&
+    r.branchIndex === selected.branchIndex &&
     r.fragmentIndex === selected.fragmentIndex &&
     r.actionIndex === selected.actionIndex;
 
@@ -50,7 +53,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row, i (`${row.waveIndex}-${row.fragmentIndex}-${row.actionIndex}`)}
+        {#each rows as row, i (`${row.waveIndex}-${row.branchIndex ?? ""}-${row.fragmentIndex}-${row.actionIndex}`)}
           {#if multiWave && (i === 0 || rows[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
               <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
@@ -62,6 +65,7 @@
             class:unpicked={row.random && !row.random.picked}
             data-wave={row.waveIndex}
             data-hidden-group={row.hiddenGroup}
+            data-conditional={row.branchIndex}
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
             data-picked={row.random?.picked}
           >
@@ -95,6 +99,11 @@
             <td class="num">{seconds(row.absoluteTime)} {strings.seconds}</td>
             <td class="markers"
               ><span class="marker-list">
+                {#if row.branchIndex !== null}
+                  <span class="badge conditional"
+                    >{strings.conditionalBadge(branchKeys[row.branchIndex] ?? "")}</span
+                  >
+                {/if}
                 {#if row.hiddenGroup}
                   <span class="badge hidden-group">{strings.hiddenGroupBadge(row.hiddenGroup)}</span
                   >
@@ -228,6 +237,10 @@
   .hidden-group {
     background: color-mix(in srgb, #8e5bd6 18%, transparent);
     color: #8e5bd6;
+  }
+  .conditional {
+    background: color-mix(in srgb, #2e86d6 18%, transparent);
+    color: #2a78c0;
   }
   .random {
     background: color-mix(in srgb, #d6862e 18%, transparent);

@@ -112,6 +112,8 @@ export interface RawLevel {
   extraRoutes: (RawRoute | null)[] | null;
   enemyDbRefs: RawEnemyDbRef[] | null;
   waves: RawWave[];
+  /** 條件出兵 by branch key. */
+  branches?: Record<string, { phases: { preDelay: number; actions: RawAction[] }[] | null }> | null;
   /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
   runes?: RawRune[] | null;
 }

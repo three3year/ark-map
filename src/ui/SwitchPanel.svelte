@@ -1,32 +1,64 @@
 <script lang="ts">
-  import type { Level } from "../level/index.ts";
-  import type { RandomCandidate, SpawnPlan } from "../timeline/index.ts";
+  import type { Action, Branch, Level } from "../level/index.ts";
+  import type { ConditionalTrigger, RandomCandidate, SpawnPlan } from "../timeline/index.ts";
+  import { roundTenth } from "./route.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
     level: Level;
     /** The current 開關狀態, resolved against the variant's defaults. */
     plan: SpawnPlan;
+    /** 條件出兵 switched on, by branch index. */
+    conditional: Readonly<Record<number, ConditionalTrigger>>;
+    /** The wave and second on screen: a 條件出兵 switched on here is triggered there. */
+    wave: number;
+    t: number;
     onHidden: (name: string, on: boolean) => void;
     onPick: (group: number, candidate: number) => void;
+    /** Switch 條件出兵 `branch` on at `trigger`, or off with null. */
+    onConditional: (branch: number, trigger: ConditionalTrigger | null) => void;
   }
-  let { level, plan, onHidden, onPick }: Props = $props();
+  let { level, plan, conditional, wave, t, onHidden, onPick, onConditional }: Props = $props();
 
   const multiWave = $derived(level.waves.length > 1);
+  const branches = $derived(level.branches.map((branch, index) => ({ branch, index })));
+  const spawning = $derived(branches.filter(({ branch }) => !branch.deviceOnly));
+  const deviceOnly = $derived(branches.filter(({ branch }) => branch.deviceOnly));
 
-  /** What a candidate puts on the field: enemies × count, devices, or nothing. */
-  function candidateLabel(candidate: RandomCandidate): string {
-    const parts = candidate.actions.flatMap(({ waveIndex, fragmentIndex, actionIndex }) => {
-      const action = level.waves[waveIndex]!.fragments[fragmentIndex]!.actions[actionIndex]!;
-      if (action.actionType !== "SPAWN") return action.key ? [strings.device(action.key)] : [];
+  /**
+   * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
+   * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
+   */
+  function actionsLabel(actions: Action[]): string {
+    const parts = actions.flatMap((action) => {
+      if (action.actionType !== "SPAWN") {
+        return action.key ? [strings.device(action.key.replace(/#\d+$/, ""))] : [];
+      }
       if (!action.key) return [];
       return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];
     });
-    return parts.length > 0 ? parts.join("、") : strings.noSpawn;
+    return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
+  }
+
+  function candidateLabel(candidate: RandomCandidate): string {
+    return actionsLabel(
+      candidate.actions.map(
+        ({ waveIndex, fragmentIndex, actionIndex }) =>
+          level.waves[waveIndex]!.fragments[fragmentIndex]!.actions[actionIndex]!,
+      ),
+    );
+  }
+
+  const branchLabel = (branch: Branch) => actionsLabel(branch.phases.flatMap((p) => p.actions));
+
+  function setTriggerSecond(branch: number, value: string) {
+    const seconds = Number(value);
+    if (value === "" || !Number.isFinite(seconds) || seconds < 0) return;
+    onConditional(branch, { wave, t: roundTenth(seconds) });
   }
 </script>
 
-{#if plan.groups.hidden.length > 0 || plan.groups.random.length > 0}
+{#if plan.groups.hidden.length > 0 || plan.groups.random.length > 0 || branches.length > 0}
   <section class="switches" aria-label={strings.switches}>
     <h3>{strings.switches}</h3>
     {#if plan.groups.hidden.length > 0}
@@ -80,6 +112,55 @@
         {/each}
       </fieldset>
     {/if}
+    {#if spawning.length > 0}
+      <fieldset>
+        <legend title={strings.conditionalHint}>{strings.conditional}</legend>
+        {#each spawning as { branch, index } (index)}
+          {@const trigger = conditional[index]}
+          <div class="conditional" data-conditional={index}>
+            <label>
+              <input
+                type="checkbox"
+                checked={trigger !== undefined && trigger.wave === wave}
+                onchange={(e) =>
+                  onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
+              />
+              {branchLabel(branch)}
+              <span class="muted">{branch.key}</span>
+            </label>
+            {#if trigger !== undefined && trigger.wave === wave}
+              <label class="seconds">
+                {strings.triggerSecond}
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={trigger.t}
+                  onchange={(e) => setTriggerSecond(index, e.currentTarget.value)}
+                />
+                {strings.seconds}
+              </label>
+            {:else if trigger !== undefined}
+              <span class="muted"
+                >{strings.triggeredInWave(strings.wave(trigger.wave), trigger.t)}</span
+              >
+            {/if}
+          </div>
+        {/each}
+      </fieldset>
+    {/if}
+    {#if deviceOnly.length > 0}
+      <fieldset>
+        <legend title={strings.deviceOnlyHint}>{strings.deviceOnly}</legend>
+        <ul>
+          {#each deviceOnly as { branch, index } (index)}
+            <li data-device-only={index}>
+              {branchLabel(branch)} <span class="muted">{branch.key}</span>
+            </li>
+          {/each}
+        </ul>
+      </fieldset>
+    {/if}
   </section>
 {/if}
 
@@ -113,6 +194,21 @@
   .random {
     flex-wrap: wrap;
     width: 100%;
+  }
+  .conditional {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    width: 100%;
+  }
+  .seconds input {
+    width: 6em;
+    font: inherit;
+  }
+  ul {
+    margin: 0;
+    padding-left: 1.2em;
   }
   select {
     max-width: 100%;

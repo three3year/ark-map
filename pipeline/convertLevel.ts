@@ -1,8 +1,10 @@
 // Raw level file + enemy database -> level model (the site's level JSON).
 import type {
   Action,
+  Branch,
   Difficulty,
   EnemyRef,
+  Fragment,
   Level,
   LevelMap,
   Modifier,
@@ -278,7 +280,24 @@ export function convertLevel(
 ): Level {
   const decode = enumDecoder(onUnknownEnum);
   const route = (r: RawRoute | null) => convertRoute(r, decode);
+  const fragment = (f: { preDelay: number; actions: RawAction[] }): Fragment => ({
+    preDelay: f.preDelay,
+    actions: f.actions.map((a) => convertAction(a, decode)),
+  });
   const { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier } = raw.options;
+  const branches: Branch[] = Object.entries(raw.branches ?? {}).map(([key, b]) => {
+    const phases = (b.phases ?? []).map(fragment);
+    const spawns = phases.some((p) => p.actions.some((a) => a.actionType === "SPAWN"));
+    return { key, phases, deviceOnly: !spawns };
+  });
+  const refs = raw.enemyDbRefs ?? [];
+  // Some branches spawn enemies the level does not list (24 CN files; wave actions never do):
+  // take them from the database at level 0.
+  const listed = new Set(refs.map((r) => r.id));
+  const branchOnly = branches
+    .flatMap((b) => b.phases.flatMap((p) => p.actions))
+    .filter((a) => a.actionType === "SPAWN" && !listed.has(a.key) && catalog.levels.has(a.key))
+    .map((a): RawEnemyDbRef => ({ useDb: true, id: a.key, level: 0, overwrittenData: null }));
   return {
     levelId,
     options: { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier },
@@ -290,13 +309,11 @@ export function convertLevel(
       preDelay: w.preDelay,
       postDelay: w.postDelay,
       timeLimit: w.maxTimeWaitingForNextWave < 0 ? null : w.maxTimeWaitingForNextWave,
-      fragments: w.fragments.map((f) => ({
-        preDelay: f.preDelay,
-        actions: f.actions.map((a) => convertAction(a, decode)),
-      })),
+      fragments: w.fragments.map(fragment),
     })),
+    branches,
     enemies: Object.fromEntries(
-      (raw.enemyDbRefs ?? []).map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
+      [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
   };
 }
