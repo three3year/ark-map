@@ -16,6 +16,8 @@ export interface EnemyCatalog {
   levels: Map<string, Map<number, RawEnemyData>>;
   /** Enemy id -> TW name. */
   twNames: Map<string, string>;
+  /** Enemy id -> TW handbook code, e.g. "B1". */
+  twCodes: Map<string, string>;
 }
 
 export function buildEnemyCatalog(
@@ -27,10 +29,11 @@ export function buildEnemyCatalog(
       db.enemies.map((e) => [e.Key, new Map(e.Value.map((v) => [v.level, v.enemyData]))]),
     ),
     twNames: new Map(Object.entries(handbook.enemyData).map(([id, e]) => [id, e.name])),
+    twCodes: new Map(Object.entries(handbook.enemyData).map(([id, e]) => [id, e.enemyIndex])),
   };
 }
 
-type EnemyStats = Omit<EnemyRef, "id" | "level" | "avatar">;
+type EnemyStats = Omit<EnemyRef, "id" | "level" | "code" | "avatar">;
 
 /** Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value. */
 function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
@@ -73,7 +76,8 @@ export function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef): EnemyRe
   if (levelN) stats = overlay(stats, levelN);
   if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData);
   const name = catalog.twNames.get(ref.id) ?? stats.name;
-  return { id: ref.id, level: ref.level, ...stats, name, avatar: null };
+  const code = catalog.twCodes.get(ref.id) ?? null;
+  return { id: ref.id, level: ref.level, ...stats, name, code, avatar: null };
 }
 
 function convertAction(raw: RawAction): Action {

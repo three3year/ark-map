@@ -96,6 +96,8 @@ export interface EnemyRef {
   atk: number;
   def: number;
   notCountInTotal: boolean;
+  /** TW handbook code, e.g. "B1"; shown in place of a missing avatar. */
+  code: string | null;
   /** Site-relative avatar path, or null when no avatar was found. */
   avatar: string | null;
 }
@@ -121,16 +123,53 @@ export interface Level {
   enemies: Record<string, EnemyRef>;
 }
 
-/** One stage in the site's stage index. */
-export interface StageEntry {
-  /** Stage id used in URLs, e.g. "main_01-07". */
-  id: string;
-  code: string;
-  name: string;
+/** Difficulty a variant runs at; 難度修正 whose mask matches it apply. */
+export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";
+
+/** 關卡變體 kinds. Normal, challenge, six-star and easy share one level file; tough has its own. */
+export type VariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough";
+
+export interface Variant {
+  /** Used in URLs; unique within its stage. */
+  id: VariantId;
+  /** The stage-table entry this variant comes from. */
+  sourceStageId: string;
   /** Site-relative path of the level JSON. */
   levelFile: string;
+  difficulty: Difficulty;
 }
 
-export interface StageIndex {
+/** One stage in the site's stage index. */
+export interface StageEntry {
+  /** Stage id used in URLs: the stage-table id of the base variant, e.g. "main_01-07". */
+  id: string;
+  /** Display code, e.g. "6-16". */
+  code: string;
+  name: string;
+  /** Base variant first. */
+  variants: Variant[];
+}
+
+/** A titled run of stages inside an area, e.g. one zone of an activity. */
+export interface Section {
+  /** null when the area has a single section. */
+  name: string | null;
   stages: StageEntry[];
+}
+
+export type AreaKind = "MAINLINE" | "ACTIVITY" | "CAMPAIGN";
+
+/** 區域: a mainline chapter, an activity or a campaign region. */
+export interface Area {
+  id: string;
+  kind: AreaKind;
+  /** Short label, e.g. "第六章"; null when the area has none. */
+  code: string | null;
+  name: string;
+  sections: Section[];
+}
+
+/** Areas in display order: mainline chapters, activities newest first, campaign regions. */
+export interface StageIndex {
+  areas: Area[];
 }

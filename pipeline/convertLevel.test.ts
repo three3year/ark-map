@@ -114,6 +114,11 @@ describe("enemy resolution", () => {
     expect(level.enemies["enemy_1002_nsabr"]!.maxHp).toBe(2200);
   });
 
+  it("carries the TW handbook code, shown when an enemy has no avatar", () => {
+    const level = loadFixtureLevel("level_main_01-07");
+    expect(level.enemies["enemy_1007_slime_2"]!.code).toBe("B2");
+  });
+
   it("falls back to the CN name when the TW handbook lacks the enemy", () => {
     const raw = rawFixture("level_main_01-07");
     const handbook = rawEnemyHandbook();
