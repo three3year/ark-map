@@ -2,6 +2,7 @@
   import type { Level, StageEntry } from "../level/index.ts";
   import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
+  import { playbackStop } from "./playback.ts";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
@@ -22,6 +23,7 @@
   const timeline = $derived(buildTimeline(level, { waveIndex }));
   const rows = $derived(spawnTable(level));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
+  const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
 </script>
 
@@ -30,7 +32,7 @@
 {#if level.waves.length > 1}
   <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
 {/if}
-<TimelineBar {t} {end} {onSeek} />
+<TimelineBar {t} {end} {stop} {onSeek} />
 <dl class="counts" aria-live="polite">
   <div>
     <dt>{strings.countPending}</dt>
@@ -54,7 +56,7 @@
   }
   .counts {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin: 12px 0 0;
   }
   .counts div {
@@ -62,6 +64,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
+    min-width: 0;
     padding: 8px 12px;
   }
   dt {
