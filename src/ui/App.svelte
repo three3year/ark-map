@@ -98,10 +98,12 @@
       level={loaded.level}
       wave={route.wave}
       t={route.t}
+      switches={route.switches ?? {}}
       onSeek={(t) => navigate({ ...route, t })}
       onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
       onJump={(wave, t) => navigate({ ...route, wave, t })}
-      onVariant={(v) => navigate({ ...route, variant: v })}
+      onSwitches={(switches) => navigate({ ...route, switches })}
+      onVariant={(v) => navigate({ ...route, variant: v, switches: undefined })}
     />
   {:else}
     <p>{strings.loading}</p>
