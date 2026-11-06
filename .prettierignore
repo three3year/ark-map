@@ -6,3 +6,6 @@ pnpm-lock.yaml
 test-fixtures/raw/
 *.md
 *.code-workspace
+.scratch/
+.claude/
+.playwright-mcp/
