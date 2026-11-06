@@ -2,6 +2,7 @@
   import type { Level, StageEntry } from "../level/index.ts";
   import { buildTimeline, takeSnapshot, timelineEnd } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
+  import { playbackStop } from "./playback.ts";
   import TimelineBar from "./TimelineBar.svelte";
   import { strings } from "./strings.ts";
 
@@ -15,12 +16,13 @@
 
   const timeline = $derived(buildTimeline(level));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
+  const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
 </script>
 
 <h2>{stage.code} {stage.name}</h2>
 <MapView map={level.map} routes={level.routes} enemies={snapshot.onField} />
-<TimelineBar {t} {end} {onSeek} />
+<TimelineBar {t} {end} {stop} {onSeek} />
 <dl class="counts" aria-live="polite">
   <div>
     <dt>{strings.countPending}</dt>
@@ -43,7 +45,7 @@
   }
   .counts {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin: 12px 0 0;
   }
   .counts div {
@@ -51,6 +53,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
+    min-width: 0;
     padding: 8px 12px;
   }
   dt {
