@@ -7,3 +7,4 @@ dist/
 .cache/
 # Data pipeline output
 public/data/
+.claude/
