@@ -110,3 +110,37 @@ test("5-10: a device-only 條件出兵 is listed without a switch", async ({ pag
   await expect(page.locator("[data-device-only]")).toContainText("faust_ballis");
   await expect(page.locator("[data-conditional] input")).toHaveCount(0);
 });
+
+test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the panel", async ({ page }) => {
+  const level = siteLevel("act1dp_01");
+  const conditional = { 0: { wave: 0, t: 10 } };
+  const t = 11;
+  const groupOn = { switches: { conditional, hiddenOn: ["random"] } };
+  const picked = { switches: { ...groupOn.switches, picks: { 0: 0 } } };
+  expect(onField(level, t, { switches: { conditional } }), "the group is off by default").toBe(0);
+  expect(onField(level, t, groupOn)).toBe(1);
+  expect(onField(level, t, picked)).toBe(1);
+
+  await page.goto(`#/level/act1dp_01?t=${t}&c=0-10`);
+  const group = page.locator('input[data-hidden-group="random"]');
+  await expect(group).not.toBeChecked();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+
+  await group.check();
+
+  await expect(page).toHaveURL(/h=random/);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(1);
+  await expect(page.locator('select[data-random-group="0"]')).toHaveValue("3");
+
+  await page.locator('select[data-random-group="0"]').selectOption("0");
+
+  await expect(page).toHaveURL(/r=0-0/);
+  await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
+  const enemy = page.locator("svg.map g.enemy");
+  await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
+
+  // The URL alone reproduces the state.
+  await page.goto(`#/level/act1dp_01?t=${t}&c=0-10&h=random&r=0-0`);
+  await expect(page.locator('select[data-random-group="0"]')).toHaveValue("0");
+  await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
+});
