@@ -3,19 +3,27 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Level, StageIndex } from "../src/level/index.ts";
+import {
+  withNames,
+  type Level,
+  type LevelFile,
+  type NameTable,
+  type StageIndex,
+} from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, type TimelineOptions } from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
   JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
+const readSiteLevel = (file: string) =>
+  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
 
 function siteLevel(stageId: string): Level {
   const stage = readSiteJson<StageIndex>("data/index.json")
     .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
     .find((s) => s.id === stageId);
   expect(stage, `the built site publishes ${stageId}`).toBeDefined();
-  return readSiteJson<Level>(stage!.variants[0]!.levelFile);
+  return readSiteLevel(stage!.variants[0]!.levelFile);
 }
 
 const onField = (level: Level, t: number, options: TimelineOptions) =>

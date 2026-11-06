@@ -1,6 +1,12 @@
 // Seam 2: raw game data -> level model.
 import { describe, expect, it } from "vitest";
-import { affectsMovement, isWalkable, tileAt } from "../src/level/index.ts";
+import {
+  affectsMovement,
+  isWalkable,
+  tileAt,
+  withNames,
+  type NameTable,
+} from "../src/level/index.ts";
 import {
   convertFixture,
   loadFixtureLevel,
@@ -8,7 +14,7 @@ import {
   rawEnemyHandbook,
   rawFixture,
 } from "../test-fixtures/load.ts";
-import { buildEnemyCatalog, convertLevel } from "./convertLevel.ts";
+import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
 import type { RawEnemyDbRef } from "./raw.ts";
 
 describe("map orientation", () => {
@@ -304,6 +310,54 @@ describe("enemy resolution", () => {
     delete handbook.enemyData["enemy_1029_shdsbr"];
     const level = convertLevel("1-7", raw, buildEnemyCatalog(rawEnemyDatabase(), handbook));
     expect(level.enemies["enemy_1029_shdsbr"]!.name).toBe("持盾刀兵");
+  });
+});
+
+describe("名稱表", () => {
+  const catalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
+
+  it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
+    const level = loadFixtureLevel("level_main_01-07");
+    const names: NameTable = { enemies: {} };
+    const file = siteLevelFile(level, catalog(), names);
+    expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
+    expect(names.enemies).toMatchObject({
+      enemy_1007_slime_2: "源石蟲·α",
+      enemy_1029_shdsbr: "機動盾兵",
+    });
+    expect(Object.keys(names.enemies).sort()).toEqual(Object.keys(level.enemies).sort());
+    expect(withNames(file, names)).toEqual(level);
+  });
+
+  it("one table serves every level; a name only one level gives stays in its level file", () => {
+    const names: NameTable = { enemies: {} };
+    const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
+    const raw = rawFixture("level_main_01-07");
+    // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.
+    raw.enemyDbRefs!.push({
+      useDb: false,
+      id: "enemy_1122_sphond_0",
+      level: 0,
+      overwrittenData: { name: { m_defined: true, m_value: "“小躁”" } },
+    });
+    const handbook = rawEnemyHandbook();
+    delete handbook.enemyData["enemy_1029_shdsbr"];
+    raw.enemyDbRefs!.find((r) => r.id === "enemy_1029_shdsbr")!.overwrittenData = {
+      name: { m_defined: true, m_value: "改名的持盾刀兵" },
+    };
+    const renamed = buildEnemyCatalog(rawEnemyDatabase(), handbook);
+    const level = convertLevel("1-7", raw, renamed);
+    const file = siteLevelFile(level, renamed, names);
+    expect(
+      Object.values(file.enemies).flatMap((e) => (e.name === undefined ? [] : [[e.id, e.name]])),
+    ).toEqual([
+      ["enemy_1029_shdsbr", "改名的持盾刀兵"],
+      ["enemy_1122_sphond_0", "“小躁”"],
+    ]);
+    expect(names.enemies["enemy_1029_shdsbr"]).toBe("持盾刀兵");
+    expect(names.enemies["enemy_1122_sphond_0"]).toBeUndefined();
+    expect(withNames(file, names)).toEqual(level);
+    expect(withNames(other, names)).toEqual(loadFixtureLevel("level_main_04-04"));
   });
 });
 

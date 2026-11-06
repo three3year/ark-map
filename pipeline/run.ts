@@ -1,11 +1,11 @@
 // Data pipeline entry point: fetch raw game data (cached by blob sha), trim every level the
-// stage index covers into the site's JSON under public/data/, write the stage index, and copy
-// the avatars those levels use.
+// stage index covers into the site's JSON under public/data/, write the stage index and the
+// 名稱表, and copy the avatars those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { isKnownModifierKey } from "../src/level/index.ts";
+import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
 import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
-import { buildEnemyCatalog, convertLevel } from "./convertLevel.ts";
+import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
 import { fetchCached, fetchJson, fetchStats, listTree, type TreeListing } from "./fetchCached.ts";
 import type {
   RawActivityTable,
@@ -132,6 +132,7 @@ const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
 const facts = new Map<string, LevelFacts>();
 const failures: string[] = [];
+const names: NameTable = { enemies: {} };
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
@@ -156,7 +157,7 @@ await forEachLimit(wanted, 8, async (levelPath) => {
         const prefab = prefabs.get(enemy.id);
         enemy.avatar = (await avatarFor(enemy.id)) ?? (prefab ? await avatarFor(prefab) : null);
       }
-      await writeJson(path.join(outDir, "levels", file), level);
+      await writeJson(path.join(outDir, "levels", file), siteLevelFile(level, catalog, names));
       facts.set(levelPath, levelFacts(raw));
       for (const { key } of level.modifiers)
         modifierKeys.set(key, (modifierKeys.get(key) ?? 0) + 1);
@@ -169,6 +170,10 @@ await forEachLimit(wanted, 8, async (levelPath) => {
 
 const { index, skipped } = buildStageIndex(tables, facts);
 await writeJson(path.join(outDir, "index.json"), index);
+const sortedNames = Object.keys(names.enemies).sort();
+await writeJson(path.join(outDir, "names.json"), {
+  enemies: Object.fromEntries(sortedNames.map((id) => [id, names.enemies[id]!])),
+} satisfies NameTable);
 
 const missing = skipped.filter((s) => !failures.some((f) => f.startsWith(`${s.levelPath}:`)));
 if (missing.length > 0) {

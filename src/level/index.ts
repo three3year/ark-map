@@ -3,6 +3,7 @@ import type { Action, Cell, LevelMap, Tile, Vec2 } from "./types.ts";
 export type * from "./types.ts";
 export * from "./enums.ts";
 export * from "./modifiers.ts";
+export * from "./names.ts";
 
 /** An 出兵動作, as opposed to the story, preview and device actions kept for fragment timing. */
 export function isSpawn(action: Action): boolean {

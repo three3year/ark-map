@@ -3,8 +3,11 @@ import {
   actionTypes,
   checkpointTypes,
   isSpawn,
+  withoutNames,
   type ActionType,
   type CheckpointType,
+  type LevelFile,
+  type NameTable,
 } from "../src/level/index.ts";
 import type {
   Action,
@@ -343,4 +346,17 @@ export function convertLevel(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
   };
+}
+
+/**
+ * The level file the site ships: names the 名稱表 gives are left out. Adds the level's enemies to
+ * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
+ * enemy (not in the database) gets no entry and keeps its name in the level file.
+ */
+export function siteLevelFile(level: Level, catalog: EnemyCatalog, names: NameTable): LevelFile {
+  for (const id of Object.keys(level.enemies)) {
+    const name = catalog.twNames.get(id) ?? catalog.levels.get(id)?.get(0)?.name?.m_value;
+    if (name) names.enemies[id] = name;
+  }
+  return withoutNames(level, names);
 }
