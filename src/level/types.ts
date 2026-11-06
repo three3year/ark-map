@@ -79,6 +79,8 @@ export interface Fragment {
 export interface Wave {
   preDelay: number;
   postDelay: number;
+  /** 限時: seconds before the next wave starts anyway; null = wait until this wave is cleared. */
+  timeLimit: number | null;
   fragments: Fragment[];
 }
 

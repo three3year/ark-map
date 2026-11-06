@@ -96,8 +96,10 @@
       stage={found.stage}
       {variant}
       level={loaded.level}
+      wave={route.wave}
       t={route.t}
       onSeek={(t) => navigate({ ...route, t })}
+      onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
       onVariant={(v) => navigate({ ...route, variant: v })}
     />
   {:else}

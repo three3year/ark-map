@@ -1,9 +1,12 @@
 <script lang="ts">
   import type { Area, Level, StageEntry, Variant, VariantId } from "../level/index.ts";
-  import { buildTimeline, takeSnapshot, timelineEnd } from "../timeline/index.ts";
+  import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
+  import { playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
+  import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
+  import WaveSelect from "./WaveSelect.svelte";
   import { strings } from "./strings.ts";
 
   interface Props {
@@ -11,14 +14,20 @@
     stage: StageEntry;
     variant: Variant;
     level: Level;
+    /** 0-based wave index from the URL; out-of-range indices show the first wave. */
+    wave: number;
     t: number;
     onSeek: (t: number) => void;
+    onSelectWave: (wave: number) => void;
     onVariant: (variant: VariantId) => void;
   }
-  let { area, stage, variant, level, t, onSeek, onVariant }: Props = $props();
+  let { area, stage, variant, level, wave, t, onSeek, onSelectWave, onVariant }: Props = $props();
 
-  const timeline = $derived(buildTimeline(level));
+  const waveIndex = $derived(wave < level.waves.length ? wave : 0);
+  const timeline = $derived(buildTimeline(level, { waveIndex }));
+  const rows = $derived(spawnTable(level));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
+  const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
 </script>
 
@@ -41,7 +50,10 @@
   </div>
 {/if}
 <MapView map={level.map} routes={level.routes} enemies={snapshot.onField} />
-<TimelineBar {t} {end} {onSeek} />
+{#if level.waves.length > 1}
+  <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+{/if}
+<TimelineBar {t} {end} {stop} {onSeek} />
 <dl class="counts" aria-live="polite">
   <div>
     <dt>{strings.countPending}</dt>
@@ -56,6 +68,7 @@
     <dd data-count="leaked">{snapshot.counts.leaked}</dd>
   </div>
 </dl>
+<SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} />
 
 <style>
   nav a {
@@ -86,7 +99,7 @@
   }
   .counts {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin: 12px 0 0;
   }
   .counts div {
@@ -94,6 +107,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
+    min-width: 0;
     padding: 8px 12px;
   }
   dt {

@@ -13,8 +13,13 @@ function sourceUrl(source: RepoSource, file: string): string {
   return `https://raw.githubusercontent.com/${source.repo}/${source.branch}/${source.root}/${file}`;
 }
 
+/** Where one source's downloads are cached. */
+export function sourceCacheDir(source: RepoSource): string {
+  return path.join(rawCacheDir, source.repo, source.branch, source.root);
+}
+
 function cachePath(source: RepoSource, file: string): string {
-  return path.join(rawCacheDir, source.repo, source.branch, source.root, file);
+  return path.join(sourceCacheDir(source), file);
 }
 
 /** The sha git gives a file's content, as listed by the trees API. */

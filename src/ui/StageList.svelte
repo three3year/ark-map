@@ -24,6 +24,7 @@
             page: "level",
             stageId: stage.id,
             variant: stage.variants[0]!.id,
+            wave: 0,
             t: 0,
           })}
           data-stage={stage.id}

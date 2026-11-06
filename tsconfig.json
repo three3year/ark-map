@@ -15,5 +15,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["src", "pipeline", "test-fixtures", "*.ts"]
+  "include": ["src", "pipeline", "test-fixtures", "smoke", "*.ts"]
 }

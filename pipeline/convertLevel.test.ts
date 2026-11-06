@@ -50,6 +50,13 @@ describe("null routes (older activity files)", () => {
   });
 });
 
+describe("waves", () => {
+  it("13-11: the first wave moves on after 70 s, the second waits until cleared", () => {
+    const level = loadFixtureLevel("level_main_13-11");
+    expect(level.waves.map((w) => w.timeLimit)).toEqual([70, null]);
+  });
+});
+
 describe("1-7 level model", () => {
   const level = loadFixtureLevel("level_main_01-07");
   const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));

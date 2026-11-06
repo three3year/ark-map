@@ -9,3 +9,5 @@ test-fixtures/raw/
 .scratch/
 .claude/
 .playwright-mcp/
+test-results/
+playwright-report/
