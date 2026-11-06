@@ -38,6 +38,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
       maxCost: 99,
       moveMultiplier: 1,
     },
+    modifiers: [],
     map: {
       width: bottomUp[0]!.length,
       height: bottomUp.length,

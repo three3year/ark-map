@@ -113,9 +113,25 @@ export interface LevelOptions {
   moveMultiplier: number;
 }
 
+export interface BlackboardEntry {
+  key: string;
+  value: number;
+  valueStr: string | null;
+}
+
+/** 難度修正: applies to a variant whose difficulty is in `difficulties`. */
+export interface Modifier {
+  /** Decoded mask; ALL lists every difficulty, NONE none. */
+  difficulties: Difficulty[];
+  key: string;
+  blackboard: BlackboardEntry[];
+}
+
 export interface Level {
   levelId: string;
   options: LevelOptions;
+  /** 難度修正 in level-file order, for every difficulty. */
+  modifiers: Modifier[];
   map: LevelMap;
   /** Indexed by `Action.routeIndex`; placeholder routes keep their slot. */
   routes: Route[];

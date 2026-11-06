@@ -1,5 +1,13 @@
 <script lang="ts">
-  import type { Area, Level, StageEntry, Variant, VariantId } from "../level/index.ts";
+  import {
+    variantModifiers,
+    type Area,
+    type Level,
+    type StageEntry,
+    type Variant,
+    type VariantId,
+  } from "../level/index.ts";
+  import LevelInfo from "./LevelInfo.svelte";
   import {
     buildTimeline,
     spawnTable,
@@ -34,7 +42,8 @@
     $props();
 
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
-  const timeline = $derived(buildTimeline(level, { waveIndex }));
+  const timeline = $derived(buildTimeline(level, { waveIndex, difficulty: variant.difficulty }));
+  const modifiers = $derived(variantModifiers(level.modifiers, variant.difficulty));
   const rows = $derived(spawnTable(level));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
@@ -139,6 +148,12 @@
   </div>
 </dl>
 <SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} {selected} onJump={jumpTo} />
+<LevelInfo
+  options={level.options}
+  {modifiers}
+  variantName={variantLabel(variant.id)}
+  enemies={level.enemies}
+/>
 
 <style>
   nav a {

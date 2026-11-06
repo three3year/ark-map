@@ -1,6 +1,7 @@
 import type { Cell, LevelMap, Tile, Vec2 } from "./types.ts";
 
 export type * from "./types.ts";
+export * from "./modifiers.ts";
 
 export function tileAt(map: LevelMap, cell: Cell): Tile | undefined {
   if (cell.row < 0 || cell.row >= map.height || cell.col < 0 || cell.col >= map.width) {

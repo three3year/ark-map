@@ -38,7 +38,7 @@ CI 每個上游來源各一份快取,key 是該來源分支當下的 commit(`pip
 | 模組 | 位置 | 內容 |
 |---|---|---|
 | 資料管線 | `pipeline/` | Node 腳本:抓取(`fetchCached.ts`)、關卡表與集成戰略主題表等 → 關卡索引(`stageIndex.ts`)、原始檔 → 關卡模型(`convertLevel.ts`)、輸出(`run.ts`)。來源 repo 與分支在 `config.ts` |
-| 關卡模型 | `src/level/` | 站內 JSON 的型別與格子查詢 |
+| 關卡模型 | `src/level/` | 站內 JSON 的型別與格子查詢;難度修正(`modifiers.ts`):變體套用、移速倍率、已知修正鍵清單(管線遇到清單外的鍵會警告,畫面只顯示不套用) |
 | 尋路 | `src/pathfinding/` | 地圖 + 目標格 + 移動模式 → nextNode 表(SPFA + 平整化;「2×x 長方形」視線規則有開關 `rectangleRule`,預設開) |
 | 基準時間軸 | `src/timeline/` | 出生時刻、移動模型介面(`movement.ts`)、時刻快照 |
 | 畫面 | `src/ui/` | Svelte 元件、hash 路由、繁中字串表(`strings.ts`) |
