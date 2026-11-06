@@ -1,6 +1,6 @@
 // Seam 2: raw game data -> level model.
 import { describe, expect, it } from "vitest";
-import { isWalkable, tileAt } from "../src/level/index.ts";
+import { affectsMovement, isWalkable, tileAt } from "../src/level/index.ts";
 import {
   convertFixture,
   loadFixtureLevel,
@@ -379,4 +379,78 @@ describe("條件出兵", () => {
   it("a level without branches has none", () => {
     expect(loadFixtureLevel("level_main_01-07").branches).toEqual([]);
   });
+});
+
+describe("key fields of the levels the timeline tests use", () => {
+  // Expected values read straight from the raw files (grid, route list, waves, runes).
+  const cases = [
+    {
+      name: "level_main_15-12",
+      width: 11,
+      height: 7,
+      routes: 36,
+      extraRoutes: 0,
+      route: 1,
+      checkpoints: ["MOVE", "WAIT_FOR_SECONDS", "MOVE", "MOVE", "MOVE"],
+      fragments: [5],
+      actions: 36,
+      spawnActions: 33,
+      hiddenGroups: ["group1", "group2"],
+      branches: 0,
+    },
+    {
+      name: "level_rogue2_2-6",
+      width: 8,
+      height: 8,
+      routes: 35,
+      extraRoutes: 2,
+      route: 14,
+      checkpoints: [
+        "MOVE",
+        "WAIT_FOR_SECONDS",
+        "MOVE",
+        "DISAPPEAR",
+        "APPEAR_AT_POS",
+        "MOVE",
+        "MOVE",
+        "MOVE",
+      ],
+      fragments: [6, 1],
+      actions: 35,
+      spawnActions: 26,
+      hiddenGroups: ["allydonq", "raid"],
+      branches: 2,
+    },
+    {
+      name: "level_act18d0_ex04",
+      width: 11,
+      height: 8,
+      routes: 24,
+      extraRoutes: 0,
+      route: 0,
+      checkpoints: ["MOVE", "WAIT_FOR_SECONDS", "MOVE"],
+      fragments: [5],
+      actions: 24,
+      spawnActions: 24,
+      hiddenGroups: [],
+      branches: 0,
+    },
+  ];
+
+  for (const c of cases) {
+    it(`${c.name}: grid, routes, checkpoints, actions, 隱藏組, 條件出兵, no movement modifier`, () => {
+      const level = loadFixtureLevel(c.name);
+      const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
+      expect([level.map.width, level.map.height]).toEqual([c.width, c.height]);
+      expect([level.routes.length, level.extraRoutes.length]).toEqual([c.routes, c.extraRoutes]);
+      expect(level.routes[c.route]!.checkpoints.map((p) => p.type)).toEqual(c.checkpoints);
+      expect(level.waves.map((w) => w.fragments.length)).toEqual(c.fragments);
+      expect(actions).toHaveLength(c.actions);
+      expect(actions.filter((a) => a.actionType === "SPAWN")).toHaveLength(c.spawnActions);
+      const hidden = new Set(actions.flatMap((a) => (a.hiddenGroup ? [a.hiddenGroup] : [])));
+      expect([...hidden].sort()).toEqual(c.hiddenGroups);
+      expect(level.branches).toHaveLength(c.branches);
+      expect(level.modifiers.filter(affectsMovement)).toEqual([]);
+    });
+  }
 });
