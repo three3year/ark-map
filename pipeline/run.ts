@@ -7,6 +7,7 @@ import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
 import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
 import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
 import { fetchCached, fetchJson, fetchStats, listTree, type TreeListing } from "./fetchCached.ts";
+import { pipelineOutcome, type ConversionFailure } from "./outcome.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
@@ -131,7 +132,7 @@ if (cnLevels) {
 const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has(`${p}.json`));
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
 const facts = new Map<string, LevelFacts>();
-const failures: string[] = [];
+const failures: ConversionFailure[] = [];
 const names: NameTable = { enemies: {} };
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
@@ -142,8 +143,8 @@ await forEachLimit(wanted, 8, async (levelPath) => {
   const file = `${levelPath}.json`;
   const body = await fetchCached(sources.cn, `levels/${file}`, cnLevels?.get(file));
   if (body) {
-    const raw = JSON.parse(body.toString("utf8")) as RawLevel;
     try {
+      const raw = JSON.parse(body.toString("utf8")) as RawLevel;
       const level = convertLevel(levelPath, raw, catalog, (field, value) => {
         const key = `${field} = ${value}`;
         if (!unknownEnums.has(key)) unknownEnums.set(key, new Set());
@@ -162,7 +163,7 @@ await forEachLimit(wanted, 8, async (levelPath) => {
       for (const { key } of level.modifiers)
         modifierKeys.set(key, (modifierKeys.get(key) ?? 0) + 1);
     } catch (e) {
-      failures.push(`${levelPath}: ${e instanceof Error ? e.message : String(e)}`);
+      failures.push({ levelPath, message: e instanceof Error ? e.message : String(e) });
     }
   }
   if (++done % 250 === 0) log(`  ${done}/${wanted.length}`);
@@ -175,14 +176,10 @@ await writeJson(path.join(outDir, "names.json"), {
   enemies: Object.fromEntries(sortedNames.map((id) => [id, names.enemies[id]!])),
 } satisfies NameTable);
 
-const missing = skipped.filter((s) => !failures.some((f) => f.startsWith(`${s.levelPath}:`)));
-if (missing.length > 0) {
-  log(`略過 ${missing.length} 個關卡(上游沒有關卡檔):`);
-  for (const s of missing) console.log(`  ${s.stageId} -> levels/${s.levelPath}.json`);
-}
-if (failures.length > 0) {
-  console.warn(`[資料管線] ${failures.length} 個關卡檔轉換失敗,未列入索引:`);
-  for (const f of failures) console.warn(`  ${f}`);
+const outcome = pipelineOutcome(skipped, failures);
+if (outcome.missing.length > 0) {
+  log(`略過 ${outcome.missing.length} 個關卡(上游沒有關卡檔):`);
+  for (const s of outcome.missing) console.log(`  ${s.stageId} -> levels/${s.levelPath}.json`);
 }
 
 const keyCounts = [...modifierKeys].sort((a, b) => b[1] - a[1]);
@@ -230,3 +227,9 @@ log(
   `原始檔: 快取命中 ${fetchStats.cached}、下載 ${fetchStats.downloaded}、重試 ${fetchStats.retried};` +
     `耗時 ${((performance.now() - started) / 1000).toFixed(1)} 秒`,
 );
+
+if (outcome.failures.length > 0) {
+  console.error(`[資料管線] 失敗:${outcome.failures.length} 個關卡檔轉換失敗,未列入索引:`);
+  for (const f of outcome.failures) console.error(`  ${f.levelPath}: ${f.message}`);
+}
+process.exitCode = outcome.exitCode;
