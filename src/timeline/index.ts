@@ -48,7 +48,7 @@ export interface TimelineOptions {
   waveIndex?: number;
   /** The variant's difficulty; picks which 難度修正 apply. Default NORMAL. */
   difficulty?: Difficulty;
-  /** 隱藏組 and 隨機出兵組 state; parts left out take the variant's default. */
+  /** 開關狀態 (隱藏組, 隨機出兵組, 條件出兵); parts left out take the variant's default. */
   switches?: SpawnSwitches;
   movement?: MovementModel;
 }
