@@ -22,7 +22,7 @@ interface PrtsRow {
 const prts = prtsTables as Record<string, PrtsRow[]>;
 const round = (t: number) => Math.round(t * 100) / 100;
 
-describe("無害單位", () => {
+describe("無害敵人", () => {
   // 12-14's harmless spawns (isUnharmfulAndAlwaysCountAsKilled): 10 actions of three kinds.
   const level = loadFixtureLevel("level_main_12-14");
   const harmlessKinds = ["enemy_1313_wdfmr", "enemy_1540_wdncr", "enemy_1541_wdslms"];
