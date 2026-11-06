@@ -1,5 +1,8 @@
 // Shapes of the raw game-data files, limited to the fields the pipeline reads.
 
+/** An enum field: a name, or a number in older activity files (decoded in convertLevel.ts). */
+export type RawEnum = string | number;
+
 export interface RawCell {
   row: number;
   col: number;
@@ -12,13 +15,13 @@ export interface RawVec2 {
 
 export interface RawTile {
   tileKey: string;
-  heightType: string;
-  buildableType: string;
-  passableMask: string;
+  heightType: RawEnum;
+  buildableType: RawEnum;
+  passableMask: RawEnum;
 }
 
 export interface RawCheckpoint {
-  type: string;
+  type: RawEnum;
   time: number;
   position: RawCell;
   reachOffset: RawVec2;
@@ -26,7 +29,7 @@ export interface RawCheckpoint {
 }
 
 export interface RawRoute {
-  motionMode: string;
+  motionMode: RawEnum;
   startPosition: RawCell;
   endPosition: RawCell;
   spawnOffset: RawVec2;
@@ -38,7 +41,7 @@ export interface RawRoute {
 }
 
 export interface RawAction {
-  actionType: string;
+  actionType: RawEnum;
   key: string;
   count: number;
   preDelay: number;
@@ -76,8 +79,8 @@ export interface RawEnemyData {
     def?: Slot<number>;
     moveSpeed?: Slot<number>;
   };
-  motion?: Slot<string>;
-  levelType?: Slot<string>;
+  motion?: Slot<RawEnum>;
+  levelType?: Slot<RawEnum>;
   notCountInTotal?: Slot<boolean>;
 }
 
@@ -90,7 +93,7 @@ export interface RawEnemyDbRef {
 
 export interface RawRune {
   /** "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY" | "ALL" | "NONE", or flags in older files. */
-  difficultyMask: string | number;
+  difficultyMask: RawEnum;
   key: string;
   blackboard?: { key: string; value: number; valueStr: string | null }[] | null;
 }

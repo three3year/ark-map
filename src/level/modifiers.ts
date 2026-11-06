@@ -2,7 +2,7 @@
 import type { Difficulty, Modifier } from "./types.ts";
 
 /**
- * Every modifier key seen in the main, activity and campaign level files (CN data,
+ * Every modifier key seen in the main, activity, campaign and 集成戰略 level files (CN data,
  * 2026-11-07). The UI names each one; the pipeline warns about any key not listed.
  */
 export const knownModifierKeys = [
@@ -75,6 +75,10 @@ export const knownModifierKeys = [
   "map_tile_blackb_assign",
   "map_tile_blackb_add",
   "map_tile_blackb_mul",
+  // 集成戰略 only.
+  "level_predefine_tokens_random_spawn_on_tile",
+  "level_predefines_skill_replace",
+  "default_key",
 ] as const;
 
 export type KnownModifierKey = (typeof knownModifierKeys)[number];

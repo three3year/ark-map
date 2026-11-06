@@ -134,6 +134,8 @@ const facts = new Map<string, LevelFacts>();
 const failures: string[] = [];
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
+/** "field = value" of numeric enums with no known name -> the level files they appear in. */
+const unknownEnums = new Map<string, Set<string>>();
 let done = 0;
 await forEachLimit(wanted, 8, async (levelPath) => {
   const file = `${levelPath}.json`;
@@ -141,7 +143,11 @@ await forEachLimit(wanted, 8, async (levelPath) => {
   if (body) {
     const raw = JSON.parse(body.toString("utf8")) as RawLevel;
     try {
-      const level = convertLevel(levelPath, raw, catalog);
+      const level = convertLevel(levelPath, raw, catalog, (field, value) => {
+        const key = `${field} = ${value}`;
+        if (!unknownEnums.has(key)) unknownEnums.set(key, new Set());
+        unknownEnums.get(key)!.add(levelPath);
+      });
       // Level-local enemies are drawn as their prefab, a database enemy.
       const prefabs = new Map(
         (raw.enemyDbRefs ?? []).map((r) => [r.id, r.overwrittenData?.prefabKey?.m_value]),
@@ -183,6 +189,17 @@ if (unknownKeys.length > 0) {
       `畫面只顯示原始鍵名、不套用:`,
   );
   for (const [key, n] of unknownKeys) console.warn(`  ${key} ×${n}`);
+}
+
+if (unknownEnums.size > 0) {
+  console.warn(
+    `[資料管線] ${unknownEnums.size} 種數字列舉值沒有已知對應(pipeline/convertLevel.ts),` +
+      `站內 JSON 寫成 UNKNOWN_<n>:`,
+  );
+  for (const [key, levels] of unknownEnums) {
+    const sample = [...levels].slice(0, 3).join("、");
+    console.warn(`  ${key}:${levels.size} 個關卡檔,例如 ${sample}`);
+  }
 }
 
 const stageCount = index.areas.reduce(
