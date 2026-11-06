@@ -93,6 +93,92 @@ describe("checkpoints", () => {
   });
 });
 
+describe("numeric enums (older activity files)", () => {
+  it("act14mini 8: checkpoint types and motion modes come out as names", () => {
+    const level = loadFixtureLevel("level_act14mini_08");
+    const at = (row: number, col: number) => ({ row, col });
+    // Raw types 0 1 0 5 1 6 0 5 1 6 0 0 0.
+    expect(
+      level.routes[4]!.checkpoints.map(({ type, time, position }) =>
+        type === "MOVE" || type === "APPEAR_AT_POS" ? [type, position] : [type, time],
+      ),
+    ).toEqual([
+      ["MOVE", at(4, 4)],
+      ["WAIT_FOR_SECONDS", 15],
+      ["MOVE", at(4, 8)],
+      ["DISAPPEAR", 0],
+      ["WAIT_FOR_SECONDS", 5],
+      ["APPEAR_AT_POS", at(2, 3)],
+      ["MOVE", at(2, 8)],
+      ["DISAPPEAR", 0],
+      ["WAIT_FOR_SECONDS", 5],
+      ["APPEAR_AT_POS", at(4, 11)],
+      ["MOVE", at(4, 10)],
+      ["MOVE", at(6, 10)],
+      ["MOVE", at(6, 7)],
+    ]);
+    expect(level.routes[4]!.motionMode).toBe("WALK");
+    // Raw motion mode 1, waits of type 4 (wave-timed).
+    expect(level.routes[0]!.motionMode).toBe("FLY");
+    expect(level.routes[0]!.checkpoints.map((c) => [c.type, c.time])).toEqual([
+      ["MOVE", 0],
+      ["WAIT_CURRENT_WAVE_TIME", 160],
+      ["MOVE", 0],
+      ["WAIT_CURRENT_WAVE_TIME", 290],
+      ["MOVE", 0],
+    ]);
+  });
+
+  it("act14mini 8: tiles and actions come out as names", () => {
+    const level = loadFixtureLevel("level_act14mini_08");
+    const tile = (key: string) => level.map.tiles.find((t) => t.tileKey === key);
+    expect(tile("tile_road")).toMatchObject({
+      heightType: "LOWLAND",
+      passableMask: "ALL",
+      buildableType: "MELEE",
+    });
+    expect(tile("tile_wall")).toMatchObject({
+      heightType: "HIGHLAND",
+      passableMask: "FLY_ONLY",
+      buildableType: "RANGED",
+    });
+    expect(tile("tile_forbidden")).toMatchObject({
+      heightType: "HIGHLAND",
+      passableMask: "FLY_ONLY",
+      buildableType: "NONE",
+    });
+    const walk = level.routes.filter((r) => r.motionMode === "WALK");
+    const blocked = walk
+      .flatMap((r) => [r.start, r.end])
+      .filter((p) => !isWalkable(tileAt(level.map, p)!));
+    expect(blocked).toEqual([]);
+    const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
+    expect(new Set(actions.map((a) => a.actionType))).toEqual(new Set(["SPAWN"]));
+    expect(actions).toHaveLength(18);
+  });
+
+  it("reports a number with no known name and writes it as UNKNOWN_<n>", () => {
+    const raw = rawFixture("level_act14mini_08");
+    (raw.routes![4]!.checkpoints![1]! as { type: number }).type = 7;
+    raw.waves[0]!.fragments[0]!.actions[0]!.actionType = 3;
+    raw.runes![0]!.difficultyMask = 4;
+    const unknown: [string, number][] = [];
+    const level = convertLevel(
+      "act14mini_08",
+      raw,
+      buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()),
+      (field, value) => unknown.push([field, value]),
+    );
+    expect(unknown).toEqual([
+      ["difficultyMask", 4],
+      ["checkpointType", 7],
+      ["actionType", 3],
+    ]);
+    expect(level.routes[4]!.checkpoints[1]!.type).toBe("UNKNOWN_7");
+    expect(level.waves[0]!.fragments[0]!.actions[0]!.actionType).toBe("UNKNOWN_3");
+  });
+});
+
 describe("1-7 level model", () => {
   const level = loadFixtureLevel("level_main_01-07");
   const actions = level.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions));
