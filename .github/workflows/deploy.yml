@@ -1,0 +1,118 @@
+name: 建置與部署
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # Weekly, to pick up new stages from upstream game data.
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安裝相依套件
+        run: pnpm install --frozen-lockfile
+
+      # One cache per upstream source, keyed on that source's branch head: a rerun against the
+      # same upstream reuses the downloads, an upstream update re-downloads only that source.
+      - name: 查詢上游資料版本
+        id: upstream
+        run: pnpm exec tsx pipeline/cacheKeys.ts
+
+      - name: 還原原始檔快取(國服)
+        uses: actions/cache/restore@v4
+        id: cache-cn
+        with:
+          path: ${{ steps.upstream.outputs.cn-path }}
+          key: raw-cn-${{ steps.upstream.outputs.cn-rev }}
+
+      - name: 還原原始檔快取(台服)
+        uses: actions/cache/restore@v4
+        id: cache-tw
+        with:
+          path: ${{ steps.upstream.outputs.tw-path }}
+          key: raw-tw-${{ steps.upstream.outputs.tw-rev }}
+
+      - name: 還原原始檔快取(頭像)
+        uses: actions/cache/restore@v4
+        id: cache-avatars
+        with:
+          path: ${{ steps.upstream.outputs.avatars-path }}
+          key: raw-avatars-${{ steps.upstream.outputs.avatars-rev }}
+
+      - name: 資料管線
+        run: pnpm data
+
+      # Saved right after the pipeline so a later failing step doesn't discard the downloads.
+      - name: 儲存原始檔快取(國服)
+        if: steps.cache-cn.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.upstream.outputs.cn-path }}
+          key: raw-cn-${{ steps.upstream.outputs.cn-rev }}
+
+      - name: 儲存原始檔快取(台服)
+        if: steps.cache-tw.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.upstream.outputs.tw-path }}
+          key: raw-tw-${{ steps.upstream.outputs.tw-rev }}
+
+      - name: 儲存原始檔快取(頭像)
+        if: steps.cache-avatars.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.upstream.outputs.avatars-path }}
+          key: raw-avatars-${{ steps.upstream.outputs.avatars-rev }}
+
+      - name: 單元測試
+        run: pnpm test
+
+      - name: 格式與 lint
+        run: pnpm lint
+
+      - name: 建置
+        run: pnpm build
+
+      - name: 安裝 Playwright 瀏覽器
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: 煙霧測試
+        run: pnpm smoke
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

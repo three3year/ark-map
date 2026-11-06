@@ -6,8 +6,13 @@ function sourceUrl(source: RepoSource, file: string): string {
   return `https://raw.githubusercontent.com/${source.repo}/${source.branch}/${source.root}/${file}`;
 }
 
+/** Where one source's downloads are cached. */
+export function sourceCacheDir(source: RepoSource): string {
+  return path.join(rawCacheDir, source.repo, source.branch, source.root);
+}
+
 function cachePath(source: RepoSource, file: string): string {
-  return path.join(rawCacheDir, source.repo, source.branch, source.root, file);
+  return path.join(sourceCacheDir(source), file);
 }
 
 /** Download a file once; later calls read the cached copy. Returns null on HTTP 404. */
