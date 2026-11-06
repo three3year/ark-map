@@ -6,7 +6,17 @@ import ts from "typescript-eslint";
 import svelteConfig from "./svelte.config.js";
 
 export default ts.config(
-  { ignores: ["dist/", "public/data/", ".cache/", "test-fixtures/raw/", ".scratch/", ".claude/", ".playwright-mcp/"] },
+  {
+    ignores: [
+      "dist/",
+      "public/data/",
+      ".cache/",
+      "test-fixtures/raw/",
+      ".scratch/",
+      ".claude/",
+      ".playwright-mcp/",
+    ],
+  },
   js.configs.recommended,
   ...ts.configs.recommended,
   ...svelte.configs.recommended,
