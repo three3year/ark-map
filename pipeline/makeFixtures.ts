@@ -3,8 +3,10 @@
 // in the fixture directory (old and new), the enemies already in the subset, and any
 // `--enemy` ids. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
-// pipeline reads.
+// pipeline reads. The CN and TW roguelike topic tables keep every theme, the numbered zones, and
+// the `--rogue` stage ids plus the stages already in the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
+//                      [--rogue <roguelike stage id>...]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +18,8 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRoguelikeStage,
+  RawRoguelikeTopicTable,
   RawStage,
   RawStageTable,
   RawZone,
@@ -33,10 +37,12 @@ const args = process.argv.slice(2);
 const levelPaths: string[] = [];
 const enemyIds = new Set<string>();
 const zoneIds = new Set<string>();
+const rogueStageIds = new Set<string>();
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!;
   if (arg === "--enemy") enemyIds.add(args[++i]!);
   else if (arg === "--zone") zoneIds.add(args[++i]!);
+  else if (arg === "--rogue") rogueStageIds.add(args[++i]!);
   else levelPaths.push(arg);
 }
 
@@ -155,4 +161,49 @@ if (zoneIds.size > 0) {
   await writeTables(sources.cn, "");
   await writeTables(sources.tw, ".tw");
   console.log(`fixtures: ${zoneIds.size} 個區域的關卡表、區域表、活動表、剿滅表`);
+}
+
+const rogueStageKeys: (keyof RawRoguelikeStage)[] = [
+  "id",
+  "linkedStageId",
+  "levelId",
+  "levelReplaceIds",
+  "code",
+  "name",
+  "eliteDesc",
+  "difficulty",
+];
+
+async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<void> {
+  const table = await fetchJson<RawRoguelikeTopicTable>(source, "excel/roguelike_topic_table.json");
+  const subset: RawRoguelikeTopicTable = {
+    topics: mapValues(table.topics, (t) => pick(t, ["id", "name", "sort"])),
+    details: mapValues(table.details, (d) => ({
+      zones: mapValues(
+        filterEntries(d.zones, (z) => /^zone_\d+$/.test(z)),
+        (z) => pick(z, ["id", "name"]),
+      ),
+      stages: mapValues(
+        filterEntries(d.stages, (id) => rogueStageIds.has(id)),
+        (s) => pick(s, rogueStageKeys),
+      ),
+    })),
+  };
+  await writeFile(
+    path.join(fixtureDir, `roguelike_topic_table${suffix}.json`),
+    JSON.stringify(subset),
+  );
+}
+
+const existingRogue = await readFile(path.join(fixtureDir, "roguelike_topic_table.json"), "utf8")
+  .then((text) => Object.values((JSON.parse(text) as RawRoguelikeTopicTable).details))
+  .then(
+    (topics) => topics.flatMap((t) => Object.keys(t.stages)),
+    () => [],
+  );
+for (const id of existingRogue) rogueStageIds.add(id);
+if (rogueStageIds.size > 0) {
+  await writeRoguelikeTable(sources.cn, "");
+  await writeRoguelikeTable(sources.tw, ".tw");
+  console.log(`fixtures: 集成戰略主題表 ${rogueStageIds.size} 個關卡`);
 }

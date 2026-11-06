@@ -128,8 +128,14 @@ export interface Level {
 /** Difficulty a variant runs at; 難度修正 whose mask matches it apply. */
 export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";
 
-/** 關卡變體 kinds. Normal, challenge, six-star and easy share one level file; tough has its own. */
-export type VariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough";
+/**
+ * 關卡變體 kinds. Normal, challenge, six-star and easy share one level file; tough has its own.
+ * 集成戰略: an emergency operation is the base variant of its own stage, on the normal node's
+ * file; `replace<n>` is the node's n-th 替換地圖 (from 1), each its own file.
+ */
+export type VariantId = NamedVariantId | ReplaceVariantId;
+export type NamedVariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough" | "emergency";
+export type ReplaceVariantId = `replace${number}`;
 
 export interface Variant {
   /** Used in URLs; unique within its stage. */
@@ -150,18 +156,25 @@ export interface StageEntry {
   name: string;
   /** Base variant first. */
   variants: Variant[];
+  /** 集成戰略 emergency operations (緊急作戰): the condition text, "附加條件:…". */
+  emergencyCondition?: string;
 }
 
 /** A titled run of stages inside an area, e.g. one zone of an activity. */
 export interface Section {
-  /** null when the area has a single section. */
+  /**
+   * null when the area has a single section, and for 集成戰略 stages that belong to no zone
+   * (bosses, events, ...).
+   */
   name: string | null;
+  /** 集成戰略: the section lists emergency operations, kept apart from the normal nodes. */
+  emergency?: boolean;
   stages: StageEntry[];
 }
 
-export type AreaKind = "MAINLINE" | "ACTIVITY" | "CAMPAIGN";
+export type AreaKind = "MAINLINE" | "ACTIVITY" | "CAMPAIGN" | "ROGUELIKE";
 
-/** 區域: a mainline chapter, an activity or a campaign region. */
+/** 區域: a mainline chapter, an activity, a campaign region or a 集成戰略 theme. */
 export interface Area {
   id: string;
   kind: AreaKind;
@@ -171,7 +184,7 @@ export interface Area {
   sections: Section[];
 }
 
-/** Areas in display order: mainline chapters, activities newest first, campaign regions. */
+/** Areas in display order: mainline chapters, activities newest first, campaign regions, themes. */
 export interface StageIndex {
   areas: Area[];
 }

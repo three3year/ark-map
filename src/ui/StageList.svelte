@@ -1,12 +1,18 @@
 <script lang="ts">
-  import type { Area } from "../level/index.ts";
+  import type { Area, Section } from "../level/index.ts";
   import { formatHash } from "./route.ts";
-  import { strings } from "./strings.ts";
+  import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
     area: Area;
   }
   let { area }: Props = $props();
+
+  /** Unnamed sections only get a heading when the area has others to tell them from. */
+  function heading(section: Section): string | null {
+    const name = section.name ?? (area.sections.length > 1 ? strings.otherStages : null);
+    return name && section.emergency ? strings.emergencySection(name) : name;
+  }
 </script>
 
 <nav><a href={formatHash({ page: "home" })}>← {strings.backToAreas}</a></nav>
@@ -15,7 +21,7 @@
   {area.name}
 </h2>
 {#each area.sections as section, i (i)}
-  {#if section.name}<h3>{section.name}</h3>{/if}
+  {#if heading(section)}<h3>{heading(section)}</h3>{/if}
   <ul>
     {#each section.stages as stage (stage.id)}
       <li>
@@ -30,12 +36,17 @@
           data-stage={stage.id}
         >
           <span class="code">{stage.code}</span>
-          <span class="name">{stage.name}</span>
+          <span class="name">
+            {stage.name}
+            {#if stage.emergencyCondition}
+              <span class="condition">{stage.emergencyCondition}</span>
+            {/if}
+          </span>
           {#if stage.variants.length > 1}
             <span class="variants">
               {stage.variants
                 .slice(1)
-                .map((v) => strings.variants[v.id])
+                .map((v) => variantLabel(v.id))
                 .join("・")}
             </span>
           {/if}
@@ -89,6 +100,11 @@
   }
   .name {
     flex: 1;
+  }
+  .condition {
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
   .variants {
     color: var(--muted);

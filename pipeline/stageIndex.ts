@@ -3,6 +3,7 @@ import type {
   Area,
   AreaKind,
   Difficulty,
+  Section,
   StageEntry,
   StageIndex,
   Variant,
@@ -12,6 +13,7 @@ import type {
   RawActivityTable,
   RawCampaignTable,
   RawLevel,
+  RawRoguelikeTopicTable,
   RawStage,
   RawStageTable,
   RawZone,
@@ -23,6 +25,7 @@ export interface GameTables {
   zone: RawZoneTable;
   activity: RawActivityTable;
   campaign: RawCampaignTable;
+  roguelike: RawRoguelikeTopicTable;
 }
 
 /** CN tables are the data; TW tables only supply names and lag CN, so every lookup falls back. */
@@ -68,9 +71,9 @@ export function siteLevelFile(path: string): string {
   return `data/levels/${path}.json`;
 }
 
-/** Where a stage is listed: the area, and the section (zone) inside it. */
+/** Where a stage-table stage is listed: the area, and the section (zone) inside it. */
 interface Placement {
-  kind: AreaKind;
+  kind: Exclude<AreaKind, "ROGUELIKE">;
   areaId: string;
   sectionId: string;
 }
@@ -118,12 +121,20 @@ export function indexedLevelPaths(tables: StageIndexTables): string[] {
   const paths = selectStages(tables)
     .filter(({ stage }) => links.get(stage.stageId)?.id !== "easy")
     .map(({ stage }) => levelPath(stage.levelId!));
+  return [...new Set([...paths, ...roguelikeLevelPaths(tables.cn.roguelike)])];
+}
+
+/** 集成戰略 level files: every stage's own file and its 替換地圖 files. */
+export function roguelikeLevelPaths(table: RawRoguelikeTopicTable): string[] {
+  const paths = Object.values(table.details).flatMap((topic) =>
+    Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds].map(levelPath)),
+  );
   return [...new Set(paths)];
 }
 
 interface VariantLink {
   baseId: string;
-  id: VariantId;
+  id: StageTableVariantId;
 }
 
 /**
@@ -146,9 +157,11 @@ function variantLinks(stages: Record<string, RawStage>): Map<string, VariantLink
   return links;
 }
 
+type StageTableVariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough";
+
 const variantOrder: VariantId[] = ["normal", "challenge", "sixStar", "easy", "tough"];
 
-const variantDifficulty: Record<VariantId, Difficulty> = {
+const variantDifficulty: Record<StageTableVariantId, Difficulty> = {
   normal: "NORMAL",
   challenge: "FOUR_STAR",
   sixStar: "SIX_STAR",
@@ -156,7 +169,7 @@ const variantDifficulty: Record<VariantId, Difficulty> = {
   tough: "NORMAL",
 };
 
-const kindOrder: AreaKind[] = ["MAINLINE", "ACTIVITY", "CAMPAIGN"];
+const kindOrder: AreaKind[] = ["MAINLINE", "ACTIVITY", "CAMPAIGN", "ROGUELIKE"];
 
 const numerals = "零一二三四五六七八九";
 
@@ -196,7 +209,7 @@ export function buildStageIndex(
   const skipped: SkippedStage[] = [];
 
   /** null when the level file is missing; easy also needs EASY modifiers in the base file. */
-  function toVariant(stage: RawStage, id: VariantId, basePath: string): Variant | null {
+  function toVariant(stage: RawStage, id: StageTableVariantId, basePath: string): Variant | null {
     const path = id === "easy" ? basePath : levelPath(stage.levelId!);
     const fileFacts = facts.get(path);
     if (!fileFacts) {
@@ -279,17 +292,106 @@ export function buildStageIndex(
     draft.sections.set(place.sectionId, section);
   }
 
-  const areas = [...drafts.values()]
+  const sorted: SortedArea[] = [
+    ...[...drafts.values()].map(({ area, sortKey, sections }) => ({
+      sortKey,
+      area: {
+        ...area,
+        sections: [...sections].map(([zoneId, stages]) => ({
+          name: sections.size > 1 ? zoneName(zoneId) : null,
+          stages,
+        })),
+      },
+    })),
+    ...roguelikeAreas(tables, facts, skipped),
+  ];
+  const areas = sorted
     .sort(
       (a, b) =>
         kindOrder.indexOf(a.area.kind) - kindOrder.indexOf(b.area.kind) || a.sortKey - b.sortKey,
     )
-    .map(({ area, sections }) => ({
-      ...area,
-      sections: [...sections].map(([zoneId, stages]) => ({
-        name: sections.size > 1 ? zoneName(zoneId) : null,
-        stages,
-      })),
-    }));
+    .map(({ area }) => area);
   return { index: { areas }, skipped };
+}
+
+interface SortedArea {
+  area: Area;
+  sortKey: number;
+}
+
+/** Normal nodes are `roN_n_<zone>_<i>...`; other stages (bosses, events, ...) have no zone. */
+function roguelikeZone(stageId: string): string | null {
+  const zone = /^ro\d+_n_(\d+)_\d+/.exec(stageId)?.[1];
+  return zone ? `zone_${zone}` : null;
+}
+
+/**
+ * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its normal nodes,
+ * then its emergency operations (which share the linked node's file and zone); stages with no
+ * zone come last. A node's 替換地圖 are further variants of it, each on its own file.
+ */
+function roguelikeAreas(
+  { cn, tw }: StageIndexTables,
+  facts: Map<string, LevelFacts>,
+  skipped: SkippedStage[],
+): SortedArea[] {
+  return Object.values(cn.roguelike.topics).flatMap((topic) => {
+    const detail = cn.roguelike.details[topic.id]!;
+    const twDetail = tw.roguelike.details[topic.id];
+    const sections = new Map<string, Section>();
+    // Keys sort into display order: zone_1|false, zone_1|true, ..., then "~" (no zone).
+    const sectionFor = (zone: string | null, emergency: boolean): Section => {
+      const key = `${zone ?? "~"}|${emergency}`;
+      let section = sections.get(key);
+      if (!section) {
+        const name = zone
+          ? (twDetail?.zones[zone]?.name ?? detail.zones[zone]?.name ?? zone)
+          : null;
+        section = { name, ...(emergency && { emergency }), stages: [] };
+        sections.set(key, section);
+      }
+      return section;
+    };
+
+    for (const stage of Object.values(detail.stages)) {
+      const emergency = stage.linkedStageId !== "";
+      const difficulty: Difficulty = stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
+      const files = [stage.levelId, ...stage.levelReplaceIds].map(levelPath);
+      const variants = files.flatMap((path, i): Variant[] => {
+        if (!facts.has(path)) {
+          skipped.push({ stageId: stage.id, levelPath: path });
+          return [];
+        }
+        const id: VariantId = i > 0 ? `replace${i}` : emergency ? "emergency" : "normal";
+        return [{ id, sourceStageId: stage.id, levelFile: siteLevelFile(path), difficulty }];
+      });
+      if (!facts.has(files[0]!)) continue;
+      const twStage = twDetail?.stages[stage.id];
+      const condition = twStage?.eliteDesc ?? stage.eliteDesc;
+      const entry: StageEntry = {
+        id: stage.id,
+        code: twStage?.code ?? stage.code,
+        name: twStage?.name ?? stage.name,
+        variants,
+        ...(emergency && condition ? { emergencyCondition: condition } : {}),
+      };
+      const zone = roguelikeZone(emergency ? stage.linkedStageId : stage.id);
+      sectionFor(zone, emergency).stages.push(entry);
+    }
+    if (sections.size === 0) return [];
+
+    const ordered = [...sections.keys()].sort().map((key) => sections.get(key)!);
+    return [
+      {
+        sortKey: topic.sort,
+        area: {
+          id: topic.id,
+          kind: "ROGUELIKE",
+          code: null,
+          name: tw.roguelike.topics[topic.id]?.name ?? topic.name,
+          sections: ordered,
+        },
+      },
+    ];
+  });
 }

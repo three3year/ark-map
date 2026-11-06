@@ -7,7 +7,7 @@
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { strings } from "./strings.ts";
+  import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
     area: Area;
@@ -35,6 +35,9 @@
   <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
 </nav>
 <h2>{stage.code} {stage.name}</h2>
+{#if stage.emergencyCondition}
+  <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
+{/if}
 {#if stage.variants.length > 1}
   <div class="variants" role="group" aria-label={strings.variantPicker}>
     {#each stage.variants as v (v.id)}
@@ -44,7 +47,7 @@
         data-variant={v.id}
         onclick={() => onVariant(v.id)}
       >
-        {strings.variants[v.id]}
+        {variantLabel(v.id)}
       </button>
     {/each}
   </div>
@@ -77,6 +80,11 @@
   h2 {
     margin: 8px 0 12px;
     font-size: 1.4rem;
+  }
+  .condition {
+    margin: -6px 0 12px;
+    padding-left: 8px;
+    border-left: 3px solid var(--accent);
   }
   .variants {
     display: flex;

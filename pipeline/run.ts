@@ -12,6 +12,7 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRoguelikeTopicTable,
   RawStageTable,
   RawZoneTable,
 } from "./raw.ts";
@@ -19,6 +20,7 @@ import {
   buildStageIndex,
   indexedLevelPaths,
   levelFacts,
+  roguelikeLevelPaths,
   type GameTables,
   type LevelFacts,
 } from "./stageIndex.ts";
@@ -70,6 +72,7 @@ async function gameTables(source: RepoSource, listing: TreeListing | null): Prom
     zone: await table<RawZoneTable>(source, listing, "zone_table"),
     activity: await table<RawActivityTable>(source, listing, "activity_table"),
     campaign: await table<RawCampaignTable>(source, listing, "campaign_table"),
+    roguelike: await table<RawRoguelikeTopicTable>(source, listing, "roguelike_topic_table"),
   };
 }
 
@@ -106,6 +109,21 @@ function avatarFor(enemyId: string): Promise<string | null> {
     avatars.set(enemyId, avatar);
   }
   return avatar;
+}
+
+// 集成戰略: the theme table should name every file under obt/roguelike/ and nothing else.
+if (cnLevels) {
+  const referenced = roguelikeLevelPaths(tables.cn.roguelike);
+  const upstream = [...cnLevels.keys()]
+    .filter((f) => f.startsWith("obt/roguelike/"))
+    .map((f) => f.replace(/\.json$/, ""));
+  const unreferenced = upstream.filter((p) => !referenced.includes(p));
+  const absent = referenced.filter((p) => !cnLevels.has(`${p}.json`));
+  log(
+    `集成戰略: 主題表引用 ${referenced.length} 個關卡檔,上游 obt/roguelike/ 有 ${upstream.length} 檔;` +
+      `缺檔 ${absent.length}、未被引用 ${unreferenced.length}`,
+  );
+  for (const p of unreferenced) console.log(`  未被引用: levels/${p}.json`);
 }
 
 // Files the listing does not have are left out up front; the index reports their stages.
