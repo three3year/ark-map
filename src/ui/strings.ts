@@ -58,4 +58,11 @@ export const strings = {
   legendFloor: "不可放置",
   legendForbidden: "禁入",
   legendHole: "坑",
+  legendPath: "路徑",
+  legendTeleport: "傳送",
+  waitSeconds: (seconds: number) => `等 ${seconds} 秒`,
+  jumpToSpawn: "跳到出生時刻並選取",
+  selected: (name: string, state: string) => `已選取:${name}(${state})`,
+  stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
+  deselect: "取消選取",
 } as const;
