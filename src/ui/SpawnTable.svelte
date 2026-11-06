@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SpawnRow, WaveEnd } from "../timeline/index.ts";
+  import type { Individual, SpawnRow, WaveEnd } from "../timeline/index.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
@@ -7,8 +7,18 @@
     /** The selected wave; its rows are highlighted. */
     wave: number;
     multiWave: boolean;
+    /** The selected individual; its action's row is highlighted. */
+    selected: Individual | null;
+    /** Clicking a row jumps to its first individual's spawn. */
+    onJump: (row: SpawnRow) => void;
   }
-  let { rows, wave, multiWave }: Props = $props();
+  let { rows, wave, multiWave, selected, onJump }: Props = $props();
+
+  const isSelected = (r: SpawnRow) =>
+    selected !== null &&
+    r.waveIndex === wave &&
+    r.fragmentIndex === selected.fragmentIndex &&
+    r.actionIndex === selected.actionIndex;
 
   const seconds = (t: number) => `${Math.round(t * 100) / 100}`;
   const order = (r: SpawnRow) =>
@@ -39,10 +49,20 @@
               <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
-          <tr class:current={multiWave && row.waveIndex === wave} data-wave={row.waveIndex}>
+          <tr
+            class:current={multiWave && row.waveIndex === wave}
+            class:selected={isSelected(row)}
+            data-wave={row.waveIndex}
+          >
             <td class="num">{i + 1}</td>
             <td>
-              <span class="enemy">
+              <button
+                type="button"
+                class="enemy"
+                title={strings.jumpToSpawn}
+                aria-pressed={isSelected(row)}
+                onclick={() => onJump(row)}
+              >
                 {#if row.enemy?.avatar}
                   <img src={row.enemy.avatar} alt="" width="28" height="28" />
                 {:else}
@@ -56,7 +76,7 @@
                   <span class="badge harmless" title={strings.harmlessHint}>{strings.harmless}</span
                   >
                 {/if}
-              </span>
+              </button>
             </td>
             <td class="num">{order(row)}</td>
             <td class="num">{seconds(row.interval)} {strings.seconds}</td>
@@ -120,6 +140,19 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .enemy:hover span:not(.count, .badge) {
+    text-decoration: underline;
+  }
+  tr.selected td {
+    background: color-mix(in srgb, #f5a524 22%, transparent);
   }
   .enemy img,
   .avatar-fallback {

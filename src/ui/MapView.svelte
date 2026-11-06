@@ -15,8 +15,23 @@
     map: LevelMap;
     routes: Route[];
     enemies: { individual: Individual; position: Vec2; invisible: boolean }[];
+    /** The selected individual, whose 路徑 is drawn; it may be off the field right now. */
+    selected: Individual | null;
+    /** Clicking the selected individual again passes null. */
+    onSelect: (individual: Individual | null) => void;
   }
-  let { map, routes, enemies }: Props = $props();
+  let { map, routes, enemies, selected, onSelect }: Props = $props();
+
+  function toggleSelect(individual: Individual) {
+    onSelect(individual.id === selected?.id ? null : individual);
+  }
+
+  const points = (ps: Vec2[]) => ps.map((p) => `${p.x},${svgY(p.y)}`).join(" ");
+  const tenth = (s: number) => Math.round(s * 10) / 10;
+  /** Where each walk ends: a MOVE / PATROL_MOVE checkpoint, or the end point. */
+  const checkpointMarks = $derived(
+    (selected?.path ?? []).flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
+  );
 
   let view = $state(loadMapView(browserStorage()));
   function toggleView() {
@@ -127,13 +142,52 @@
         {/if}
       {/each}
 
+      {#if selected}
+        <g class="path" data-path={selected.id}>
+          {#each selected.path as leg, i (i)}
+            {#if leg.kind === "move"}
+              <polyline class="walk" class:invisible={leg.invisible} points={points(leg.points)} />
+            {:else if leg.kind === "teleport"}
+              <line
+                class="teleport"
+                x1={leg.from.x}
+                y1={svgY(leg.from.y)}
+                x2={leg.to.x}
+                y2={svgY(leg.to.y)}
+              />
+            {/if}
+          {/each}
+          {#each checkpointMarks as mark, i (i)}
+            <circle class="checkpoint" r="0.09" cx={mark.x} cy={svgY(mark.y)} />
+          {/each}
+          {#each selected.path as leg, i (i)}
+            {#if leg.kind === "wait"}
+              <circle class="wait" r="0.14" cx={leg.position.x} cy={svgY(leg.position.y)} />
+            {/if}
+          {/each}
+        </g>
+      {/if}
+
       {#each enemies as { individual, position, invisible } (individual.id)}
         <g
           class="enemy"
           class:invisible
           class:harmless={individual.harmless}
+          class:selected={individual.id === selected?.id}
           transform="translate({position.x} {svgY(position.y)})"
           data-enemy={individual.enemy.id}
+          data-individual={individual.id}
+          role="button"
+          tabindex="0"
+          aria-label={individual.enemy.name}
+          aria-pressed={individual.id === selected?.id}
+          onclick={() => toggleSelect(individual)}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleSelect(individual);
+            }
+          }}
         >
           <g class="billboard">
             <title
@@ -159,6 +213,21 @@
           </g>
         </g>
       {/each}
+
+      {#if selected}
+        <!-- Wait labels sit above the enemies so an avatar never hides them. -->
+        <g class="path">
+          {#each selected.path as leg, i (i)}
+            {#if leg.kind === "wait"}
+              <g class="wait-label" transform="translate({leg.position.x} {svgY(leg.position.y)})">
+                <g class="billboard">
+                  <text y="-0.22">{strings.waitSeconds(tenth(leg.end - leg.start))}</text>
+                </g>
+              </g>
+            {/if}
+          {/each}
+        </g>
+      {/if}
     </svg>
   </div>
 
@@ -170,6 +239,10 @@
     <li><span class="swatch frame start"></span>{strings.start}</li>
     <li><span class="swatch frame end"></span>{strings.end}</li>
     <li><span class="swatch hole-swatch"></span>{strings.legendHole}</li>
+    {#if selected}
+      <li><span class="swatch line walk"></span>{strings.legendPath}</li>
+      <li><span class="swatch line teleport"></span>{strings.legendTeleport}</li>
+    {/if}
   </ul>
 </div>
 
@@ -182,6 +255,7 @@
     --start: #e5484d;
     --end: #3e83f8;
     --hole: #121316;
+    --path: #f5a524;
   }
   .toolbar {
     display: flex;
@@ -294,8 +368,69 @@
     fill: #2e9e5b;
     font-weight: 700;
   }
+  .enemy {
+    cursor: pointer;
+  }
+  .enemy:focus {
+    outline: none;
+  }
   .enemy.invisible {
     opacity: 0.4;
+  }
+  .enemy.invisible .enemy-ring {
+    stroke-dasharray: 0.1 0.07;
+  }
+  .enemy.selected .enemy-ring {
+    stroke: var(--path);
+    stroke-width: 0.1;
+  }
+  .enemy:focus-visible .enemy-ring {
+    stroke: var(--path);
+  }
+
+  .path {
+    pointer-events: none;
+  }
+  .path .walk {
+    fill: none;
+    stroke: var(--path);
+    stroke-width: 0.08;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .path .walk.invisible {
+    stroke-opacity: 0.45;
+  }
+  .path .teleport {
+    stroke: var(--path);
+    stroke-width: 0.06;
+    stroke-dasharray: 0.12 0.12;
+  }
+  .path .checkpoint {
+    fill: #fff;
+    stroke: var(--path);
+    stroke-width: 0.05;
+  }
+  .path .wait {
+    fill: var(--path);
+  }
+  .path .wait-label text {
+    font-size: 0.22px;
+    font-weight: 700;
+    text-anchor: middle;
+    fill: #fff;
+    paint-order: stroke;
+    stroke: #1d1d1f;
+    stroke-width: 0.06px;
+  }
+  .swatch.line {
+    height: 0;
+    border: none;
+    border-top: 3px solid var(--path);
+    border-radius: 0;
+  }
+  .swatch.line.teleport {
+    border-top-style: dashed;
   }
 
   .legend {

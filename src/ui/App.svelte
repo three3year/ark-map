@@ -73,6 +73,7 @@
       t={route.t}
       onSeek={(t) => navigate({ ...route, t })}
       onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
+      onJump={(wave, t) => navigate({ ...route, wave, t })}
     />
   {:else}
     <p>{strings.loading}</p>
