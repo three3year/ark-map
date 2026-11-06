@@ -3,3 +3,7 @@ dist/
 .scratch/
 .playwright-mcp/
 *.log
+# Raw game-data download cache (override the location with AK_RAW_CACHE)
+.cache/
+# Data pipeline output
+public/data/
