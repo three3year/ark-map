@@ -18,9 +18,11 @@ import {
   type PathLeg,
 } from "./movement.ts";
 import { scheduleWave } from "./schedule.ts";
+import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
+export * from "./switches.ts";
 
 export interface Individual {
   /** Stable within a timeline: "<fragment>-<action>-<k>". */
@@ -48,6 +50,8 @@ export interface TimelineOptions {
   waveIndex?: number;
   /** The variant's difficulty; picks which 難度修正 apply. Default NORMAL. */
   difficulty?: Difficulty;
+  /** 隱藏組 and 隨機出兵組 state; parts left out take the variant's default. */
+  switches?: SpawnSwitches;
   movement?: MovementModel;
 }
 
@@ -80,15 +84,17 @@ export function timelineEnd(timeline: Timeline): number {
  * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
-  const { waveIndex = 0, difficulty = "NORMAL", movement = nextNodeModel } = options;
+  const { waveIndex = 0, difficulty = "NORMAL", switches, movement = nextNodeModel } = options;
   const wave = level.waves[waveIndex];
   if (!wave) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);
   const modifiers = variantModifiers(level.modifiers, difficulty);
+  const plan = spawnPlan(level, difficulty, switches);
   const individuals: Individual[] = [];
   for (const { action, fragmentIndex, actionIndex, fragmentStart, start } of scheduleWave(wave)
     .actions) {
     if (action.actionType !== "SPAWN") continue;
+    if (!plan.spawns({ waveIndex, fragmentIndex, actionIndex })) continue;
     const route = level.routes[action.routeIndex];
     const enemy = level.enemies[action.key];
     if (!route || route.motionMode === "E_NUM" || !enemy) continue;

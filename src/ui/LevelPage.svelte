@@ -10,12 +10,17 @@
   import LevelInfo from "./LevelInfo.svelte";
   import {
     buildTimeline,
+    spawnPlan,
     spawnTable,
+    switchHidden,
+    switchPick,
     takeSnapshot,
     timelineEnd,
     type Individual,
     type SpawnRow,
+    type SpawnSwitches,
   } from "../timeline/index.ts";
+  import SwitchPanel from "./SwitchPanel.svelte";
   import MapView from "./MapView.svelte";
   import { playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
@@ -32,19 +37,40 @@
     /** 0-based wave index from the URL; out-of-range indices show the first wave. */
     wave: number;
     t: number;
+    /** 開關狀態 from the URL: only what differs from the variant's default. */
+    switches: SpawnSwitches;
     onSeek: (t: number) => void;
     onSelectWave: (wave: number) => void;
     onVariant: (variant: VariantId) => void;
     /** Go to `t` of `wave` in one URL change. */
     onJump: (wave: number, t: number) => void;
+    onSwitches: (switches: SpawnSwitches) => void;
   }
-  let { area, stage, variant, level, wave, t, onSeek, onSelectWave, onVariant, onJump }: Props =
-    $props();
+  let {
+    area,
+    stage,
+    variant,
+    level,
+    wave,
+    t,
+    switches,
+    onSeek,
+    onSelectWave,
+    onVariant,
+    onJump,
+    onSwitches,
+  }: Props = $props();
 
+  const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
-  const timeline = $derived(buildTimeline(level, { waveIndex, difficulty: variant.difficulty }));
-  const modifiers = $derived(variantModifiers(level.modifiers, variant.difficulty));
-  const rows = $derived(spawnTable(level));
+  const plan = $derived(spawnPlan(level, difficulty, switches));
+  const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches }));
+  const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
+  const rows = $derived(spawnTable(level, { difficulty, switches }));
+  const setHidden = (name: string, on: boolean) =>
+    onSwitches(switchHidden(level, difficulty, switches, name, on));
+  const pick = (group: number, candidate: number) =>
+    onSwitches(switchPick(level, switches, group, candidate));
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
@@ -147,7 +173,15 @@
     <dd data-count="leaked">{snapshot.counts.leaked}</dd>
   </div>
 </dl>
-<SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} {selected} onJump={jumpTo} />
+<SwitchPanel {level} {plan} onHidden={setHidden} onPick={pick} />
+<SpawnTable
+  {rows}
+  wave={waveIndex}
+  multiWave={level.waves.length > 1}
+  {selected}
+  onJump={jumpTo}
+  onPick={pick}
+/>
 <LevelInfo
   options={level.options}
   {modifiers}

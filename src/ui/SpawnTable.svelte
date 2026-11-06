@@ -11,8 +11,10 @@
     selected: Individual | null;
     /** Clicking a row jumps to its first individual's spawn. */
     onJump: (row: SpawnRow) => void;
+    /** 切換 on a candidate row that is not picked. */
+    onPick: (group: number, candidate: number) => void;
   }
-  let { rows, wave, multiWave, selected, onJump }: Props = $props();
+  let { rows, wave, multiWave, selected, onJump, onPick }: Props = $props();
 
   const isSelected = (r: SpawnRow) =>
     selected !== null &&
@@ -22,7 +24,12 @@
 
   const seconds = (t: number) => `${Math.round(t * 100) / 100}`;
   const order = (r: SpawnRow) =>
-    r.firstOrder === r.lastOrder ? `${r.firstOrder}` : `${r.firstOrder} ~ ${r.lastOrder}`;
+    r.firstOrder === null
+      ? "-"
+      : r.firstOrder === r.lastOrder
+        ? `${r.firstOrder}`
+        : `${r.firstOrder} ~ ${r.lastOrder}`;
+  const enemyName = (r: SpawnRow) => r.enemy?.name ?? (r.enemyId || strings.noSpawn);
   const waveEndLabel = (end: WaveEnd) =>
     end.kind === "untilCleared" ? strings.untilCleared : strings.timeLimit(end.seconds);
 </script>
@@ -52,7 +59,11 @@
           <tr
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
+            class:unpicked={row.random && !row.random.picked}
             data-wave={row.waveIndex}
+            data-hidden-group={row.hiddenGroup}
+            data-random={row.random && `${row.random.group}-${row.random.candidate}`}
+            data-picked={row.random?.picked}
           >
             <td class="num">{i + 1}</td>
             <td>
@@ -67,10 +78,10 @@
                   <img src={row.enemy.avatar} alt="" width="28" height="28" />
                 {:else}
                   <span class="avatar-fallback" aria-hidden="true">
-                    {(row.enemy?.name ?? row.enemyId).slice(0, 1)}
+                    {enemyName(row).slice(0, 1)}
                   </span>
                 {/if}
-                <span>{row.enemy?.name ?? row.enemyId}</span>
+                <span>{enemyName(row)}</span>
                 <span class="count">× {row.count}</span>
                 {#if row.harmless}
                   <span class="badge harmless" title={strings.harmlessHint}>{strings.harmless}</span
@@ -82,11 +93,36 @@
             <td class="num">{seconds(row.interval)} {strings.seconds}</td>
             <td class="num">{seconds(row.waveTime)} {strings.seconds}</td>
             <td class="num">{seconds(row.absoluteTime)} {strings.seconds}</td>
-            <td>
-              {#if row.waveEnd}
-                <span class="badge wave-end">{waveEndLabel(row.waveEnd)}</span>
-              {/if}
-            </td>
+            <td class="markers"
+              ><span class="marker-list">
+                {#if row.hiddenGroup}
+                  <span class="badge hidden-group">{strings.hiddenGroupBadge(row.hiddenGroup)}</span
+                  >
+                {/if}
+                {#if row.random}
+                  {@const random = row.random}
+                  <span class="badge random">
+                    {strings.randomGroup(random.group)} ・ {strings.candidateWeight(
+                      random.weight,
+                      random.share,
+                    )}
+                  </span>
+                  {#if !random.picked}
+                    <button
+                      type="button"
+                      class="pick"
+                      title={strings.pickCandidateHint}
+                      onclick={() => onPick(random.group, random.candidate)}
+                    >
+                      {strings.pickCandidate}
+                    </button>
+                  {/if}
+                {/if}
+                {#if row.waveEnd}
+                  <span class="badge wave-end">{waveEndLabel(row.waveEnd)}</span>
+                {/if}
+              </span></td
+            >
           </tr>
         {/each}
       </tbody>
@@ -178,6 +214,34 @@
   .harmless {
     background: color-mix(in srgb, #2e9e5b 18%, transparent);
     color: #2e9e5b;
+  }
+  tr.unpicked td:not(.markers),
+  tr.unpicked .badge.random {
+    opacity: 0.45;
+  }
+  .marker-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+  .hidden-group {
+    background: color-mix(in srgb, #8e5bd6 18%, transparent);
+    color: #8e5bd6;
+  }
+  .random {
+    background: color-mix(in srgb, #d6862e 18%, transparent);
+    color: #c0731f;
+  }
+  .pick {
+    padding: 1px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
   }
   .wave-end {
     background: color-mix(in srgb, var(--accent) 15%, transparent);
