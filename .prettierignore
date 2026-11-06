@@ -1,0 +1,8 @@
+node_modules/
+dist/
+public/data/
+.cache/
+pnpm-lock.yaml
+test-fixtures/raw/
+*.md
+*.code-workspace
