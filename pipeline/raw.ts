@@ -88,6 +88,13 @@ export interface RawEnemyDbRef {
   overwrittenData: RawEnemyData | null;
 }
 
+export interface RawRune {
+  /** "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY" | "ALL" | "NONE", or flags in older files. */
+  difficultyMask: string | number;
+  key: string;
+  blackboard?: { key: string; value: number; valueStr: string | null }[] | null;
+}
+
 export interface RawLevel {
   options: {
     characterLimit: number;
@@ -103,7 +110,7 @@ export interface RawLevel {
   enemyDbRefs: RawEnemyDbRef[] | null;
   waves: RawWave[];
   /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
-  runes?: { difficultyMask: string | number; key: string }[] | null;
+  runes?: RawRune[] | null;
 }
 
 export interface RawEnemyDatabase {

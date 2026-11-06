@@ -3,6 +3,7 @@
 // the avatars those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isKnownModifierKey } from "../src/level/index.ts";
 import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
 import { buildEnemyCatalog, convertLevel } from "./convertLevel.ts";
 import { fetchCached, fetchJson, fetchStats, listTree, type TreeListing } from "./fetchCached.ts";
@@ -113,6 +114,8 @@ const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
 const facts = new Map<string, LevelFacts>();
 const failures: string[] = [];
+/** 難度修正 key -> how many modifiers in the converted level files use it. */
+const modifierKeys = new Map<string, number>();
 let done = 0;
 await forEachLimit(wanted, 8, async (levelPath) => {
   const file = `${levelPath}.json`;
@@ -131,6 +134,8 @@ await forEachLimit(wanted, 8, async (levelPath) => {
       }
       await writeJson(path.join(outDir, "levels", file), level);
       facts.set(levelPath, levelFacts(raw));
+      for (const { key } of level.modifiers)
+        modifierKeys.set(key, (modifierKeys.get(key) ?? 0) + 1);
     } catch (e) {
       failures.push(`${levelPath}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -149,6 +154,17 @@ if (missing.length > 0) {
 if (failures.length > 0) {
   console.warn(`[資料管線] ${failures.length} 個關卡檔轉換失敗,未列入索引:`);
   for (const f of failures) console.warn(`  ${f}`);
+}
+
+const keyCounts = [...modifierKeys].sort((a, b) => b[1] - a[1]);
+log(`難度修正鍵 ${keyCounts.length} 種:` + keyCounts.map(([key, n]) => `${key} ×${n}`).join("、"));
+const unknownKeys = keyCounts.filter(([key]) => !isKnownModifierKey(key));
+if (unknownKeys.length > 0) {
+  console.warn(
+    `[資料管線] ${unknownKeys.length} 種難度修正鍵不在已知清單(src/level/modifiers.ts),` +
+      `畫面只顯示原始鍵名、不套用:`,
+  );
+  for (const [key, n] of unknownKeys) console.warn(`  ${key} ×${n}`);
 }
 
 const stageCount = index.areas.reduce(

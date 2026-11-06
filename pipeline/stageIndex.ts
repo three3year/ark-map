@@ -8,6 +8,7 @@ import type {
   Variant,
   VariantId,
 } from "../src/level/index.ts";
+import { maskNames } from "./convertLevel.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
@@ -35,17 +36,6 @@ export interface StageIndexTables {
 export interface LevelFacts {
   /** Difficulties named by the file's 難度修正 masks. */
   difficulties: string[];
-}
-
-/** Bit flags used by older files in place of names. */
-const maskFlags: [number, string][] = [
-  [1, "NORMAL"],
-  [2, "FOUR_STAR"],
-];
-
-function maskNames(mask: string | number): string[] {
-  if (typeof mask === "number") return maskFlags.filter(([bit]) => mask & bit).map(([, n]) => n);
-  return mask.split(/[\s,|]+/);
 }
 
 export function levelFacts(raw: RawLevel): LevelFacts {

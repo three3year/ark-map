@@ -1,6 +1,14 @@
 // 基準時間軸: level model -> every enemy individual's trajectory; 時刻快照 = its value at T.
 // Pure; no DOM or network.
-import type { EnemyRef, Level, Route, Vec2 } from "../level/index.ts";
+import {
+  moveSpeedFactor,
+  variantModifiers,
+  type Difficulty,
+  type EnemyRef,
+  type Level,
+  type Route,
+  type Vec2,
+} from "../level/index.ts";
 import { createNextNodeLookup } from "../pathfinding/index.ts";
 import {
   nextNodeModel,
@@ -35,6 +43,8 @@ export interface Timeline {
 
 export interface TimelineOptions {
   waveIndex?: number;
+  /** The variant's difficulty; picks which 難度修正 apply. Default NORMAL. */
+  difficulty?: Difficulty;
   movement?: MovementModel;
 }
 
@@ -67,10 +77,11 @@ export function timelineEnd(timeline: Timeline): number {
  * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
-  const { waveIndex = 0, movement = nextNodeModel } = options;
+  const { waveIndex = 0, difficulty = "NORMAL", movement = nextNodeModel } = options;
   const wave = level.waves[waveIndex];
   if (!wave) return { individuals: [] };
   const nextNode = createNextNodeLookup(level.map);
+  const modifiers = variantModifiers(level.modifiers, difficulty);
   const individuals: Individual[] = [];
   for (const { action, fragmentIndex, actionIndex, fragmentStart, start } of scheduleWave(wave)
     .actions) {
@@ -78,7 +89,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
     const route = level.routes[action.routeIndex];
     const enemy = level.enemies[action.key];
     if (!route || route.motionMode === "E_NUM" || !enemy) continue;
-    const speed = theoreticalSpeed(enemy, level.options);
+    const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
     for (let k = 0; k < action.count; k++) {
       const spawnTime = start + k * action.interval;
       const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });

@@ -36,9 +36,13 @@ export interface Trajectory {
 
 export type MovementModel = (input: MovementInput) => Trajectory;
 
-/** 理論移速 = max(屬性移速, 0.1) x the level's move multiplier. */
-export function theoreticalSpeed(enemy: EnemyRef, options: LevelOptions): number {
-  return Math.max(enemy.moveSpeed, 0.1) * options.moveMultiplier;
+/** 理論移速 = max(屬性移速, 0.1) x the level's move multiplier x the 難度修正 move-speed factor. */
+export function theoreticalSpeed(
+  enemy: EnemyRef,
+  options: LevelOptions,
+  modifierFactor = 1,
+): number {
+  return Math.max(enemy.moveSpeed, 0.1) * options.moveMultiplier * modifierFactor;
 }
 
 /**

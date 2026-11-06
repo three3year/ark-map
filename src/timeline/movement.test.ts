@@ -26,6 +26,7 @@ function level(
       maxCost: 99,
       moveMultiplier: 1,
     },
+    modifiers: [],
     map: {
       width: bottomUp[0]!.length,
       height: bottomUp.length,

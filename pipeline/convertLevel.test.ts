@@ -165,3 +165,47 @@ describe("enemy resolution", () => {
     expect(level.enemies["enemy_1029_shdsbr"]!.name).toBe("持盾刀兵");
   });
 });
+
+describe("難度修正", () => {
+  it("4-4: keeps each modifier's difficulties, key and blackboard", () => {
+    const level = loadFixtureLevel("level_main_04-04");
+    expect(level.modifiers).toEqual([
+      {
+        difficulties: ["FOUR_STAR"],
+        key: "gbuff_lifepoint",
+        blackboard: [{ key: "value", value: 1, valueStr: null }],
+      },
+      {
+        difficulties: ["FOUR_STAR"],
+        key: "ebuff_attribute",
+        blackboard: [
+          { key: "atk", value: 1, valueStr: null },
+          { key: "def", value: 1, valueStr: null },
+          { key: "map_hp", value: 1, valueStr: null },
+          { key: "move_speed", value: 2, valueStr: null },
+        ],
+      },
+    ]);
+  });
+
+  it("decodes ALL, NONE and the numeric masks of older activity files (1 NORMAL, 2 FOUR_STAR)", () => {
+    const raw = rawFixture("level_main_04-04");
+    raw.runes = [
+      { difficultyMask: "ALL", key: "a", blackboard: [] },
+      { difficultyMask: "NONE", key: "b", blackboard: [] },
+      { difficultyMask: 1, key: "c", blackboard: [] },
+      { difficultyMask: 2, key: "d", blackboard: [] },
+      { difficultyMask: 3, key: "e", blackboard: null },
+      { difficultyMask: "SIX_STAR", key: "f" },
+    ];
+    const masks = convertFixture(raw).modifiers.map((m) => [m.key, m.difficulties]);
+    expect(masks).toEqual([
+      ["a", ["NORMAL", "FOUR_STAR", "SIX_STAR", "EASY"]],
+      ["b", []],
+      ["c", ["NORMAL"]],
+      ["d", ["FOUR_STAR"]],
+      ["e", ["NORMAL", "FOUR_STAR"]],
+      ["f", ["SIX_STAR"]],
+    ]);
+  });
+});

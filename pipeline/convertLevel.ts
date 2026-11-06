@@ -1,5 +1,14 @@
 // Raw level file + enemy database -> level model (the site's level JSON).
-import type { Action, EnemyRef, Level, LevelMap, MotionMode, Route } from "../src/level/index.ts";
+import type {
+  Action,
+  Difficulty,
+  EnemyRef,
+  Level,
+  LevelMap,
+  Modifier,
+  MotionMode,
+  Route,
+} from "../src/level/index.ts";
 import type {
   RawAction,
   RawEnemyData,
@@ -8,6 +17,7 @@ import type {
   RawEnemyHandbookTable,
   RawLevel,
   RawRoute,
+  RawRune,
   Slot,
 } from "./raw.ts";
 
@@ -152,11 +162,44 @@ function convertRoute(raw: RawRoute | null): Route {
   };
 }
 
+/** Bit flags used by older activity files in place of names. */
+const maskFlags: [number, string][] = [
+  [1, "NORMAL"],
+  [2, "FOUR_STAR"],
+];
+
+/** The names a 難度修正 mask lists, as written: may include "ALL" and "NONE". */
+export function maskNames(mask: string | number): string[] {
+  if (typeof mask === "number") return maskFlags.filter(([bit]) => mask & bit).map(([, n]) => n);
+  return mask.split(/[\s,|]+/).filter(Boolean);
+}
+
+const allDifficulties: Difficulty[] = ["NORMAL", "FOUR_STAR", "SIX_STAR", "EASY"];
+
+function maskDifficulties(mask: string | number): Difficulty[] {
+  const names = maskNames(mask);
+  if (names.includes("ALL")) return allDifficulties;
+  return allDifficulties.filter((d) => names.includes(d));
+}
+
+function convertModifier(raw: RawRune): Modifier {
+  return {
+    difficulties: maskDifficulties(raw.difficultyMask),
+    key: raw.key,
+    blackboard: (raw.blackboard ?? []).map(({ key, value, valueStr }) => ({
+      key,
+      value,
+      valueStr,
+    })),
+  };
+}
+
 export function convertLevel(levelId: string, raw: RawLevel, catalog: EnemyCatalog): Level {
   const { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier } = raw.options;
   return {
     levelId,
     options: { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier },
+    modifiers: (raw.runes ?? []).map(convertModifier),
     map: convertMap(raw.mapData),
     routes: (raw.routes ?? []).map(convertRoute),
     extraRoutes: (raw.extraRoutes ?? []).map(convertRoute),
