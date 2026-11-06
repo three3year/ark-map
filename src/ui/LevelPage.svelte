@@ -1,6 +1,13 @@
 <script lang="ts">
   import type { Area, Level, StageEntry, Variant, VariantId } from "../level/index.ts";
-  import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../timeline/index.ts";
+  import {
+    buildTimeline,
+    spawnTable,
+    takeSnapshot,
+    timelineEnd,
+    type Individual,
+    type SpawnRow,
+  } from "../timeline/index.ts";
   import MapView from "./MapView.svelte";
   import { playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
@@ -20,8 +27,11 @@
     onSeek: (t: number) => void;
     onSelectWave: (wave: number) => void;
     onVariant: (variant: VariantId) => void;
+    /** Go to `t` of `wave` in one URL change. */
+    onJump: (wave: number, t: number) => void;
   }
-  let { area, stage, variant, level, wave, t, onSeek, onSelectWave, onVariant }: Props = $props();
+  let { area, stage, variant, level, wave, t, onSeek, onSelectWave, onVariant, onJump }: Props =
+    $props();
 
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
   const timeline = $derived(buildTimeline(level, { waveIndex }));
@@ -29,6 +39,51 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
+
+  /** The selected individual: the k-th of one spawn action, in one level's wave. */
+  interface Selection {
+    levelId: string;
+    wave: number;
+    fragmentIndex: number;
+    actionIndex: number;
+    spawnIndex: number;
+  }
+  let selection = $state<Selection | null>(null);
+  const selected = $derived.by(() => {
+    const s = selection;
+    if (s?.levelId !== level.levelId || s.wave !== waveIndex) return null;
+    return (
+      timeline.individuals.find(
+        (i) =>
+          i.fragmentIndex === s.fragmentIndex &&
+          i.actionIndex === s.actionIndex &&
+          i.spawnIndex === s.spawnIndex,
+      ) ?? null
+    );
+  });
+  const selectedState = $derived(selected?.stateAt(t).kind);
+
+  function select(individual: Individual | null) {
+    selection = individual && {
+      levelId: level.levelId,
+      wave: waveIndex,
+      fragmentIndex: individual.fragmentIndex,
+      actionIndex: individual.actionIndex,
+      spawnIndex: individual.spawnIndex,
+    };
+  }
+
+  /** A spawn-table row: jump to its first individual's spawn and select it. */
+  function jumpTo(row: SpawnRow) {
+    selection = {
+      levelId: level.levelId,
+      wave: row.waveIndex,
+      fragmentIndex: row.fragmentIndex,
+      actionIndex: row.actionIndex,
+      spawnIndex: 0,
+    };
+    onJump(row.waveIndex, row.waveTime);
+  }
 </script>
 
 <nav>
@@ -52,7 +107,19 @@
     {/each}
   </div>
 {/if}
-<MapView map={level.map} routes={level.routes} enemies={snapshot.onField} />
+<MapView
+  map={level.map}
+  routes={level.routes}
+  enemies={snapshot.onField}
+  {selected}
+  onSelect={select}
+/>
+{#if selected && selectedState}
+  <p class="selection" data-selected={selected.id}>
+    <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
+    <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+  </p>
+{/if}
 {#if level.waves.length > 1}
   <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
 {/if}
@@ -71,7 +138,7 @@
     <dd data-count="leaked">{snapshot.counts.leaked}</dd>
   </div>
 </dl>
-<SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} />
+<SpawnTable {rows} wave={waveIndex} multiWave={level.waves.length > 1} {selected} onJump={jumpTo} />
 
 <style>
   nav a {
@@ -85,6 +152,23 @@
     margin: -6px 0 12px;
     padding-left: 8px;
     border-left: 3px solid var(--accent);
+  }
+  .selection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+  }
+  .selection button {
+    padding: 2px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
   }
   .variants {
     display: flex;
