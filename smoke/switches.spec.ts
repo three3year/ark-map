@@ -27,7 +27,10 @@ import {
   selectWave,
   setConditionalSecond,
   timeDisplay,
+  wideWindow,
 } from "./levelPage.ts";
+
+test.use({ viewport: wideWindow });
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>

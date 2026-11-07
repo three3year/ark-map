@@ -6,7 +6,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
 import { roundTenth } from "../src/ui/playback.ts";
-import { timeDisplay } from "./levelPage.ts";
+import { timeDisplay, wideWindow } from "./levelPage.ts";
+
+test.use({ viewport: wideWindow });
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
