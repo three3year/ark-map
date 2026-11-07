@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.ts";
-import { roundTenth } from "../src/ui/playback.ts";
+import { playbackStop, roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
   expectDefaultSwitches,
@@ -100,6 +100,40 @@ test("playback leaves the URL alone", async ({ page }) => {
 
   await expect(timeDisplay(page)).not.toHaveText(/^0\.0 /);
   expect(page.url()).toBe(url);
+});
+
+test("8x playback runs on from 第 1 波 into 第 2 波 and stops at the end of the last 波次", async ({
+  page,
+}) => {
+  const variant = siteStage("ro4_b_5").variants.find((v) => v.id === "normal")!;
+  const level = readSiteLevel(variant.levelFile);
+  const stops = level.waves.map((_, waveIndex) =>
+    playbackStop(buildTimeline(level, { waveIndex, difficulty: variant.difficulty })),
+  );
+  expect(stops, "ro4_b_5 has 2 波次").toHaveLength(2);
+  expect(stops[1], "第 2 波 runs past 4 s").toBeGreaterThan(4);
+  const playButton = page.getByRole("button", { name: "播放", exact: true });
+  const speed8 = page.getByRole("radio", { name: "8x" });
+
+  await page.goto("#/level/ro4_b_5?v=normal");
+  await expect(page.locator("svg.map")).toBeVisible();
+  const url = page.url();
+  await speed8.click();
+  await seek(page, roundTenth(stops[0]! - 4));
+  await playButton.click();
+
+  await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
+  await expect(timeDisplay(page)).not.toHaveText(/^0\.0 /);
+  await expect(page.getByRole("button", { name: "暫停", exact: true })).toBeVisible();
+  await expect(speed8).toBeChecked();
+  expect(page.url()).toBe(url);
+
+  await seek(page, roundTenth(stops[1]! - 4));
+  await playButton.click();
+
+  await expect(timeDisplay(page)).toHaveText(`${stops[1]!.toFixed(1)} 秒`);
+  await expect(playButton).toBeVisible();
+  await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
 });
 
 test("seeking, picking a 波次 and jumping from the spawn table leave the URL alone", async ({
