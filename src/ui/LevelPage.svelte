@@ -114,7 +114,7 @@
       wave: waveIndex,
       individual: individual.id,
     };
-    if (changed && (!drawerMode || drawerOpen)) void revealSelectedRow();
+    if (changed && (!drawerMode.current || drawerOpen)) void revealSelectedRow();
   }
 
   let sideColumn: HTMLElement;
@@ -168,8 +168,7 @@
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page. Keep the width in step with the `@media` rules below.
    */
-  const wide = new MediaQuery("min-width: 1440px");
-  const drawerMode = $derived(!wide.current);
+  const drawerMode = new MediaQuery("width < 1440px");
   let drawerOpen = $state(false);
   /** Opening the drawer shows the selected individual's row. */
   function setDrawerOpen(open: boolean) {
@@ -188,7 +187,7 @@
       return;
     }
     endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
-    if (drawerMode) setDrawerOpen(true);
+    if (drawerMode.current) setDrawerOpen(true);
   }
 
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
