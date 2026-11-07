@@ -1,5 +1,6 @@
 // 地形 marks drawn over a cell's base colour, and the legend entries of the marks a map has.
 import type { LevelMap, TerrainTable } from "../level/index.ts";
+import { strings } from "./strings.ts";
 
 /** Hand-drawn structure icons; `TerrainIcon.svelte` draws each. */
 export type TerrainIcon =
@@ -17,7 +18,8 @@ export type TerrainIcon =
 
 /**
  * The tile keys each icon is drawn on, whether or not the 地形表 calls them functional. A key the
- * 地形表 has no entry for borrows the name and description of the row's first key.
+ * 地形表 has no entry for borrows the name and description of the row's first key; when that is
+ * missing too, the icon still shows, under its built-in name.
  */
 const drawnIcons: { icon: TerrainIcon; tileKeys: string[] }[] = [
   {
@@ -38,9 +40,10 @@ const drawnIcons: { icon: TerrainIcon; tileKeys: string[] }[] = [
 
 /**
  * What a cell shows over its base colour, named as the legend lists it: a hand-drawn icon, or for
- * any other functional 地形 the first character of its name.
+ * any other functional 地形 the first character of its name. `description` is the 地形表's; null
+ * when it has none.
  */
-export type TerrainMark = { name: string; description: string } & (
+export type TerrainMark = { name: string; description: string | null } & (
   { kind: "icon"; icon: TerrainIcon } | { kind: "glyph"; glyph: string }
 );
 
@@ -52,8 +55,9 @@ export function terrainMark(tileKey: string, terrain: TerrainTable): TerrainMark
   const drawn = drawnIcons.find((d) => d.tileKeys.includes(tileKey));
   if (drawn) {
     const info = terrain[tileKey] ?? terrain[drawn.tileKeys[0]!];
-    if (!info) return null;
-    return { kind: "icon", icon: drawn.icon, name: info.name, description: info.description };
+    const { icon } = drawn;
+    if (!info) return { kind: "icon", icon, name: strings.terrainIcon[icon], description: null };
+    return { kind: "icon", icon, name: info.name, description: info.description };
   }
   const info = terrain[tileKey];
   if (!info?.functional) return null;

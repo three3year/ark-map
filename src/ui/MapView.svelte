@@ -314,7 +314,12 @@
     {/each}
     {#each marks as mark, i (i)}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <li class="terrain-item" tabindex="0" aria-describedby="terrain-tip-{i}">
+      <li
+        class="terrain-item"
+        class:described={mark.description !== null}
+        tabindex={mark.description === null ? undefined : 0}
+        aria-describedby={mark.description === null ? undefined : `terrain-tip-${i}`}
+      >
         <!-- A glyph's box fills the swatch so the character stays legible at legend size. -->
         <svg
           class="swatch icon"
@@ -324,7 +329,9 @@
           <TerrainIcon {mark} />
         </svg>
         <span>{mark.name}</span>
-        <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
+        {#if mark.description !== null}
+          <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
+        {/if}
       </li>
     {/each}
     {#each ["spawn", "exit"] as const as kind (kind)}
@@ -564,6 +571,8 @@
   }
   .terrain-item {
     position: relative;
+  }
+  .terrain-item.described {
     cursor: help;
   }
   .terrain-item .tip {
