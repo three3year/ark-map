@@ -10,6 +10,11 @@ export function isSpawn(action: Action): boolean {
   return action.actionType === "SPAWN";
 }
 
+/** "row,col": unique within one map. */
+export function cellKey({ row, col }: Cell): string {
+  return `${row},${col}`;
+}
+
 export function tileAt(map: LevelMap, cell: Cell): Tile | undefined {
   if (cell.row < 0 || cell.row >= map.height || cell.col < 0 || cell.col >= map.width) {
     return undefined;

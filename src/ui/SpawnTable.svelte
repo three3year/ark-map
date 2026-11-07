@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     actionKey,
+    endpointKey,
     endpointRows,
     sameAction,
     type Individual,
@@ -63,7 +64,7 @@
 <section aria-label={strings.spawnTable}>
   <h3>{strings.spawnTable}</h3>
   {#if filter}
-    <p class="filter" data-endpoint-filter="{filter.kind}@{filter.cell.row},{filter.cell.col}">
+    <p class="filter" data-endpoint-filter={endpointKey(filter)}>
       <span class="dot {filter.kind}" aria-hidden="true"></span>
       <span>{strings.endpointFilter(endpointName(filter))}</span>
       <button type="button" onclick={onClearFilter}>{strings.clearFilter}</button>
@@ -196,10 +197,10 @@
     flex: none;
   }
   .filter .dot.spawn {
-    background: #e5484d;
+    background: var(--spawn-red);
   }
   .filter .dot.exit {
-    background: #3e83f8;
+    background: var(--exit-blue);
   }
   .filter button {
     margin-left: auto;

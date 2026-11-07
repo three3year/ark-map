@@ -1,11 +1,12 @@
 // 地形 marks drawn over a cell's base colour, and the legend entries of the marks a map has.
-import type { LevelMap, TerrainInfo } from "../level/index.ts";
+import type { LevelMap, TerrainTable } from "../level/index.ts";
+import { strings } from "./strings.ts";
 
 /** Hand-drawn structure icons; `TerrainIcon.svelte` draws each. */
 export type TerrainIcon =
-  | "start"
-  | "flystart"
-  | "end"
+  | "incursion"
+  | "airIncursion"
+  | "protectTarget"
   | "tunnelIn"
   | "tunnelOut"
   | "hole"
@@ -17,15 +18,16 @@ export type TerrainIcon =
 
 /**
  * The tile keys each icon is drawn on, whether or not the 地形表 calls them functional. A key the
- * 地形表 has no entry for borrows the name and description of the row's first key.
+ * 地形表 has no entry for borrows the name and description of the row's first key; when that is
+ * missing too, the icon still shows, under its built-in name.
  */
 const drawnIcons: { icon: TerrainIcon; tileKeys: string[] }[] = [
   {
-    icon: "start",
+    icon: "incursion",
     tileKeys: ["tile_start", "tile_start_cooperate", "tile_start_dqq", "tile_ftstart"],
   },
-  { icon: "flystart", tileKeys: ["tile_flystart"] },
-  { icon: "end", tileKeys: ["tile_end", "tile_end_cooperate", "tile_end_dqq"] },
+  { icon: "airIncursion", tileKeys: ["tile_flystart"] },
+  { icon: "protectTarget", tileKeys: ["tile_end", "tile_end_cooperate", "tile_end_dqq"] },
   { icon: "tunnelIn", tileKeys: ["tile_telin"] },
   { icon: "tunnelOut", tileKeys: ["tile_telout"] },
   { icon: "hole", tileKeys: ["tile_hole"] },
@@ -38,9 +40,10 @@ const drawnIcons: { icon: TerrainIcon; tileKeys: string[] }[] = [
 
 /**
  * What a cell shows over its base colour, named as the legend lists it: a hand-drawn icon, or for
- * any other functional 地形 the first character of its name.
+ * any other functional 地形 the first character of its name. `description` is the 地形表's; null
+ * when it has none.
  */
-export type TerrainMark = { name: string; description: string } & (
+export type TerrainMark = { name: string; description: string | null } & (
   { kind: "icon"; icon: TerrainIcon } | { kind: "glyph"; glyph: string }
 );
 
@@ -48,15 +51,13 @@ export type TerrainMark = { name: string; description: string } & (
 const firstLetter = (name: string) => name.match(/[\p{L}\p{N}]/u)?.[0] ?? name.slice(0, 1);
 
 /** The mark drawn on a `tileKey` cell; null when the cell shows its base colour only. */
-export function terrainMark(
-  tileKey: string,
-  terrain: Record<string, TerrainInfo>,
-): TerrainMark | null {
+export function terrainMark(tileKey: string, terrain: TerrainTable): TerrainMark | null {
   const drawn = drawnIcons.find((d) => d.tileKeys.includes(tileKey));
   if (drawn) {
     const info = terrain[tileKey] ?? terrain[drawn.tileKeys[0]!];
-    if (!info) return null;
-    return { kind: "icon", icon: drawn.icon, name: info.name, description: info.description };
+    const { icon } = drawn;
+    if (!info) return { kind: "icon", icon, name: strings.terrainIcon[icon], description: null };
+    return { kind: "icon", icon, name: info.name, description: info.description };
   }
   const info = terrain[tileKey];
   if (!info?.functional) return null;
@@ -75,7 +76,7 @@ function legendOrder(a: TerrainMark, b: TerrainMark): number {
 }
 
 /** The distinct marks on `map`, in the legend's order. */
-export function legendMarks(map: LevelMap, terrain: Record<string, TerrainInfo>): TerrainMark[] {
+export function legendMarks(map: LevelMap, terrain: TerrainTable): TerrainMark[] {
   const marks = new Map<string, TerrainMark>();
   for (const tileKey of new Set(map.tiles.map((t) => t.tileKey))) {
     const mark = terrainMark(tileKey, terrain);

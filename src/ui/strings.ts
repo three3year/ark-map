@@ -1,6 +1,9 @@
 // 介面文字(繁中)。All user-facing text lives here.
 import type { AreaKind, KnownModifierKey, NamedVariantId, VariantId } from "../level/index.ts";
-import type { EndpointPlace } from "../timeline/index.ts";
+import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
+import type { TerrainIcon } from "./terrain.ts";
+
+const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
 
 export const strings = {
   siteTitle: "明日方舟時刻快照",
@@ -84,10 +87,24 @@ export const strings = {
   legend: "圖例",
   /** A 格's base colour by its height, placement and passability. */
   legendTileKind: { lowland: "平地", floor: "不可放置", highland: "高台", forbidden: "禁入" },
-  endpoint: { spawn: "出生點", exit: "消失點" },
+  /** A hand-drawn 地形 icon's name when the 地形表 names neither its tile nor its row's first. */
+  terrainIcon: {
+    incursion: "侵入點",
+    airIncursion: "空襲侵入點",
+    protectTarget: "保護目標",
+    tunnelIn: "通道入口",
+    tunnelOut: "通道出口",
+    hole: "地穴",
+    fence: "圍欄",
+    fenceBound: "圍牆",
+    deepWater: "深水區",
+    grass: "草叢",
+    infection: "活性源石",
+  } satisfies Record<TerrainIcon, string>,
+  endpoint: endpointKinds,
   /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */
-  endpointAt: (kind: string, row: number, col: number) => `${kind}(${row}, ${col})`,
-  endpointFilterHint: "點一下篩選出兵表,再點一次取消",
+  endpointAt: (kind: EndpointKind, row: number, col: number) =>
+    `${endpointKinds[kind]}(${row}, ${col})`,
   /** The 端點篩選's caption above the spawn table; `endpoint` is an endpoint's name. */
   endpointFilter: (endpoint: string) => `篩選:本波的${endpoint}`,
   clearFilter: "清除",
@@ -207,7 +224,7 @@ export const strings = {
 
 /** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */
 export function endpointName({ kind, cell }: EndpointPlace): string {
-  return strings.endpointAt(strings.endpoint[kind], cell.row, cell.col);
+  return strings.endpointAt(kind, cell.row, cell.col);
 }
 
 export function variantLabel(id: VariantId): string {

@@ -1,4 +1,4 @@
-// Raw game data -> the 名稱表's 地形表.
+// Seam 2: raw game data -> the 名稱表's 地形表.
 import { describe, expect, it } from "vitest";
 import { rawTables } from "../test-fixtures/load.ts";
 import { terrainTable } from "./terrainTable.ts";

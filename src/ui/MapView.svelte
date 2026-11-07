@@ -1,9 +1,10 @@
 <script lang="ts">
   import {
+    cellKey,
     isWalkable,
     tileAt,
     type LevelMap,
-    type TerrainInfo,
+    type TerrainTable,
     type Tile,
     type Vec2,
   } from "../level/index.ts";
@@ -23,7 +24,7 @@
   interface Props {
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
-    terrain: Record<string, TerrainInfo>;
+    terrain: TerrainTable;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t`. */
@@ -120,11 +121,11 @@
    */
   const endpointDots = $derived.by(() => {
     const spawnCells = new Set(
-      endpoints.filter((e) => e.kind === "spawn").map((e) => `${e.cell.row},${e.cell.col}`),
+      endpoints.filter((e) => e.kind === "spawn").map((e) => cellKey(e.cell)),
     );
     return endpoints.map((endpoint) => {
       const { kind, cell } = endpoint;
-      const besideSpawn = kind === "exit" && spawnCells.has(`${cell.row},${cell.col}`);
+      const besideSpawn = kind === "exit" && spawnCells.has(cellKey(cell));
       return { endpoint, x: cell.col + 0.32 - (besideSpawn ? 0.22 : 0), y: svgY(cell.row) - 0.32 };
     });
   });
@@ -184,7 +185,7 @@
           class:pressed
           transform="translate({x} {y})"
           data-endpoint={endpoint.kind}
-          data-cell="{endpoint.cell.row},{endpoint.cell.col}"
+          data-cell={cellKey(endpoint.cell)}
           role="button"
           tabindex="0"
           aria-label={endpointName(endpoint)}
@@ -198,7 +199,6 @@
           }}
         >
           <g class="billboard">
-            <title>{strings.endpointFilterHint}</title>
             <circle class="dot" r="0.1" />
           </g>
         </g>
@@ -314,7 +314,12 @@
     {/each}
     {#each marks as mark, i (i)}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <li class="terrain-item" tabindex="0" aria-describedby="terrain-tip-{i}">
+      <li
+        class="terrain-item"
+        class:described={mark.description !== null}
+        tabindex={mark.description === null ? undefined : 0}
+        aria-describedby={mark.description === null ? undefined : `terrain-tip-${i}`}
+      >
         <!-- A glyph's box fills the swatch so the character stays legible at legend size. -->
         <svg
           class="swatch icon"
@@ -324,7 +329,9 @@
           <TerrainIcon {mark} />
         </svg>
         <span>{mark.name}</span>
-        <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
+        {#if mark.description !== null}
+          <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
+        {/if}
       </li>
     {/each}
     {#each ["spawn", "exit"] as const as kind (kind)}
@@ -345,9 +352,7 @@
     --tile-floor: #b9b3a5;
     --tile-highland: #a9b4c2;
     --tile-forbidden: #4a4c53;
-    --start: #e5484d;
-    --spawn-dot: #e5484d;
-    --exit-dot: #3e83f8;
+    --enemy-ring: var(--spawn-red);
     --path: #f5a524;
   }
   .toolbar {
@@ -420,10 +425,10 @@
     stroke-width: 0.03;
   }
   .endpoint.spawn .dot {
-    fill: var(--spawn-dot);
+    fill: var(--spawn-red);
   }
   .endpoint.exit .dot {
-    fill: var(--exit-dot);
+    fill: var(--exit-blue);
   }
   .endpoint.pressed .dot,
   .endpoint:focus-visible .dot {
@@ -435,7 +440,7 @@
   }
   .enemy-ring {
     fill: none;
-    stroke: var(--start);
+    stroke: var(--enemy-ring);
     stroke-width: 0.05;
   }
   .enemy-code {
@@ -566,6 +571,8 @@
   }
   .terrain-item {
     position: relative;
+  }
+  .terrain-item.described {
     cursor: help;
   }
   .terrain-item .tip {
@@ -595,9 +602,9 @@
     border: 1px solid #fff;
   }
   .swatch.dot.spawn {
-    background: var(--spawn-dot);
+    background: var(--spawn-red);
   }
   .swatch.dot.exit {
-    background: var(--exit-dot);
+    background: var(--exit-blue);
   }
 </style>

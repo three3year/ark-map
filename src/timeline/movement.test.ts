@@ -9,7 +9,7 @@ import type {
   Tile,
   Vec2,
 } from "../level/index.ts";
-import { buildTimeline, takeSnapshot, type IndividualState } from "./index.ts";
+import { buildTimeline, takeSnapshot, type IndividualState, type Stay } from "./index.ts";
 
 const road: Tile = {
   tileKey: "tile_road",
@@ -175,7 +175,7 @@ function expectAt(state: IndividualState, x: number, y: number, invisible = fals
 }
 
 const p = (x: number, y: number) => ({ x, y });
-const at = (x: number, y: number, stay: { start: number; end: number } | null = null) => ({
+const at = (x: number, y: number, stay: Stay | null = null) => ({
   kind: "onField",
   position: { x, y },
   invisible: false,

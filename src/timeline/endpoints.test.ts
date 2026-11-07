@@ -1,7 +1,14 @@
 // Seam 1: level model + 開關狀態 -> 出生點 and 消失點 of one wave's timeline.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import type { Checkpoint, CheckpointType, Level, Route, Tile } from "../level/index.ts";
+import {
+  cellKey,
+  type Checkpoint,
+  type CheckpointType,
+  type Level,
+  type Route,
+  type Tile,
+} from "../level/index.ts";
 import {
   buildTimeline,
   endpointRows,
@@ -16,7 +23,7 @@ import {
 const cellsOf = (timeline: Timeline, kind: EndpointKind) =>
   routeEndpoints(timeline)
     .filter((e) => e.kind === kind)
-    .map((e) => `${e.cell.row},${e.cell.col}`)
+    .map((e) => cellKey(e.cell))
     .sort();
 
 describe("出生點 and 消失點", () => {
@@ -123,7 +130,7 @@ describe("出生點 and 消失點", () => {
 });
 
 function endpointAt(endpoints: RouteEndpoint[], kind: EndpointKind, cell: string): RouteEndpoint {
-  const found = endpoints.find((e) => e.kind === kind && `${e.cell.row},${e.cell.col}` === cell);
+  const found = endpoints.find((e) => e.kind === kind && cellKey(e.cell) === cell);
   if (!found) throw new Error(`no ${kind} at ${cell}`);
   return found;
 }

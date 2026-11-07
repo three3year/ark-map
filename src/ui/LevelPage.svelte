@@ -4,7 +4,7 @@
     type Area,
     type Level,
     type StageEntry,
-    type TerrainInfo,
+    type TerrainTable,
     type Variant,
     type VariantId,
   } from "../level/index.ts";
@@ -22,6 +22,7 @@
     takeSnapshot,
     timelineEnd,
     type ConditionalTrigger,
+    type EndpointPlace,
     type Individual,
     type RouteEndpoint,
     type SpawnRow,
@@ -42,7 +43,7 @@
     variant: Variant;
     level: Level;
     /** The 名稱表's 地形表. */
-    terrain: Record<string, TerrainInfo>;
+    terrain: TerrainTable;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
@@ -110,12 +111,12 @@
     };
   }
 
-  /** The 端點篩選, by {@link endpointKey}, in one variant's wave. */
+  /** The 端點篩選 in one variant's wave. */
   interface EndpointFilter {
     levelId: string;
     variant: VariantId;
     wave: number;
-    endpoint: string;
+    endpoint: EndpointPlace;
   }
   let endpointFilter = $state<EndpointFilter | null>(null);
   const filtered = $derived.by(() => {
@@ -123,7 +124,8 @@
     if (f?.levelId !== level.levelId || f.variant !== variant.id || f.wave !== waveIndex) {
       return null;
     }
-    return endpoints.find((e) => endpointKey(e) === f.endpoint) ?? null;
+    const key = endpointKey(f.endpoint);
+    return endpoints.find((e) => endpointKey(e) === key) ?? null;
   });
   // Another wave, variant or level, or switches that remove the dot, clear the filter for good:
   // coming back to that wave or dot does not bring it back.
@@ -132,12 +134,12 @@
   });
 
   /** A dot filters the spawn table to it; the dot of the filter on screen clears it. */
-  function toggleFilter(endpoint: RouteEndpoint) {
-    const key = endpointKey(endpoint);
+  function toggleFilter({ kind, cell }: RouteEndpoint) {
+    const endpoint = { kind, cell };
     endpointFilter =
-      filtered && endpointKey(filtered) === key
+      filtered && endpointKey(filtered) === endpointKey(endpoint)
         ? null
-        : { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint: key };
+        : { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
   }
 
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */

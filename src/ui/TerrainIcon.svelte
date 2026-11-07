@@ -12,18 +12,18 @@
     <rect x="-0.25" y="-0.25" width="0.5" height="0.5" rx="0.1" />
     <text>{mark.glyph}</text>
   </g>
-{:else if mark.icon === "start"}
-  <g class="start">
+{:else if mark.icon === "incursion"}
+  <g class="incursion">
     <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" />
     <path d="M -0.13 -0.08 L 0 0.08 L 0.13 -0.08" />
   </g>
-{:else if mark.icon === "flystart"}
-  <g class="start">
+{:else if mark.icon === "airIncursion"}
+  <g class="incursion">
     <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" stroke-dasharray="0.1 0.06" />
     <path d="M -0.16 0.06 L 0 -0.08 L 0.16 0.06 M -0.16 0.16 L 0 0.02 L 0.16 0.16" />
   </g>
-{:else if mark.icon === "end"}
-  <g class="end">
+{:else if mark.icon === "protectTarget"}
+  <g class="protect-target">
     <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" />
     <circle r="0.13" />
     <circle class="core" r="0.045" />
@@ -94,21 +94,21 @@
     dominant-baseline: central;
     fill: #f5f5f7;
   }
-  .start {
-    stroke: #e5484d;
+  .incursion {
+    stroke: var(--spawn-red);
   }
-  .start rect {
-    fill: #e5484d33;
+  .incursion rect {
+    fill: color-mix(in srgb, var(--spawn-red) 20%, transparent);
   }
-  .end {
-    stroke: #3e83f8;
+  .protect-target {
+    stroke: var(--exit-blue);
   }
-  .end rect,
-  .end circle {
-    fill: #3e83f833;
+  .protect-target rect,
+  .protect-target circle {
+    fill: color-mix(in srgb, var(--exit-blue) 20%, transparent);
   }
-  .end .core {
-    fill: #3e83f8;
+  .protect-target .core {
+    fill: var(--exit-blue);
   }
   .tunnel {
     stroke: #8e4ec6;

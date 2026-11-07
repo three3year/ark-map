@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import type { Difficulty, Level, Modifier } from "../level/index.ts";
-import { buildTimeline, takeSnapshot } from "./index.ts";
+import { buildTimeline, takeSnapshot, type Stay } from "./index.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
 const prts107 = [
@@ -102,12 +102,12 @@ describe("4-10: waits and teleports", () => {
   // appear at (1,1); 2 cells to (1,3) -> 199, wait -> 219; 7 cells to the end (1,10) -> 247.
   const timeline = buildTimeline(loadFixtureLevel("level_main_04-10"));
   const frostNova = timeline.individuals.find((i) => i.enemy.id === "enemy_1505_frstar")!;
-  const at = (
-    x: number,
-    y: number,
-    invisible = false,
-    stay: { start: number; end: number } | null = null,
-  ) => ({ kind: "onField", position: { x, y }, invisible, stay });
+  const at = (x: number, y: number, invisible = false, stay: Stay | null = null) => ({
+    kind: "onField",
+    position: { x, y },
+    invisible,
+    stay,
+  });
 
   it("walks, waits, hides and reappears on schedule", () => {
     expect(frostNova.spawnTime).toBe(3);
