@@ -28,7 +28,7 @@
   /** Only what differs from the variant's default. */
   let switches = $state.raw<SpawnSwitches>({});
 
-  /** The variant a level route shows: no `v` is the stage's base variant. */
+  /** The id of the variant a level route shows: no `v` is the stage's base variant. */
   const variantId = (r: LevelRoute) => r.variant ?? stages[r.stageId]?.stage.variants[0]?.id;
 
   /**
@@ -87,10 +87,8 @@
   );
   const found = $derived(route.page === "level" ? stages[route.stageId] : undefined);
   const variant = $derived(
-    route.page === "level" && found
-      ? route.variant === null
-        ? found.stage.variants[0]
-        : found.stage.variants.find((v) => v.id === route.variant)
+    route.page === "level"
+      ? found?.stage.variants.find((v) => v.id === variantId(route))
       : undefined,
   );
 
