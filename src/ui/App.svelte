@@ -118,7 +118,7 @@
   });
 </script>
 
-<main>
+<main class:level={route.page === "level"}>
   <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
   {#if error}
     <p role="alert">{strings.loadFailed}:{error}</p>
@@ -164,6 +164,10 @@
     max-width: 960px;
     margin: 0 auto;
     padding: 12px 16px 32px;
+  }
+  /* The level page puts the spawn table beside the map on a wide screen. */
+  main.level {
+    max-width: 1440px;
   }
   h1 {
     font-size: 1.1rem;

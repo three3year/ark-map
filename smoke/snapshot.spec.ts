@@ -26,6 +26,7 @@ import {
   selectWave,
   shownOpacity,
   timeDisplay,
+  wideWindow,
 } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
@@ -226,6 +227,7 @@ test("seeking, picking a 波次 and jumping from the spawn table leave the URL a
 }) => {
   const level = readSiteLevel(siteStage("ro2_n_2_6").variants[0]!.levelFile);
   const firstRow = spawnTable(level).find((r) => r.waveIndex === 0)!;
+  await page.setViewportSize(wideWindow);
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await expect(page.locator("svg.map")).toBeVisible();
   const url = page.url();
