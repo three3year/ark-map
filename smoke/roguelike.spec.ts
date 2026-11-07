@@ -25,7 +25,7 @@ test("a theme lists emergency operations apart, with their condition text", asyn
   await expect(row).toContainText(emergency.emergencyCondition!);
 
   await row.click();
-  await expect(page).toHaveURL(/#\/level\/ro1_e_1_1\?v=emergency/);
+  await expect(page).toHaveURL(/#\/level\/ro1_e_1_1\?v=emergency$/);
   await expect(page.locator("[data-emergency-condition]")).toHaveText(
     emergency.emergencyCondition!,
   );
@@ -34,11 +34,11 @@ test("a theme lists emergency operations apart, with their condition text", asyn
 
 test("a theme-4 node switches to its 替換地圖", async ({ page }) => {
   expect(stage("ro4_n_1_1").variants.map((v) => v.id)).toContain("replace1");
-  await page.goto("#/level/ro4_n_1_1?t=0");
+  await page.goto("#/level/ro4_n_1_1");
 
   await page.locator('button[data-variant="replace1"]').click();
 
-  await expect(page).toHaveURL(/v=replace1/);
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=replace1$/);
   await expect(page.locator('button[data-variant="replace1"]')).toHaveAttribute(
     "aria-pressed",
     "true",

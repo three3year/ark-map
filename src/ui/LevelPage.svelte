@@ -37,7 +37,7 @@
     stage: StageEntry;
     variant: Variant;
     level: Level;
-    /** 0-based wave index from the URL; out-of-range indices show the first wave. */
+    /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
     /** 開關狀態 from the URL: only what differs from the variant's default. */
@@ -45,7 +45,7 @@
     onSeek: (t: number) => void;
     onSelectWave: (wave: number) => void;
     onVariant: (variant: VariantId) => void;
-    /** Go to `t` of `wave` in one URL change. */
+    /** Go to `t` of `wave` in one step. */
     onJump: (wave: number, t: number) => void;
     onSwitches: (switches: SpawnSwitches) => void;
   }

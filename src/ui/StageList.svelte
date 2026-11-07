@@ -26,13 +26,7 @@
     {#each section.stages as stage (stage.id)}
       <li>
         <a
-          href={formatHash({
-            page: "level",
-            stageId: stage.id,
-            variant: stage.variants[0]!.id,
-            wave: 0,
-            t: 0,
-          })}
+          href={formatHash({ page: "level", stageId: stage.id, variant: stage.variants[0]!.id })}
           data-stage={stage.id}
         >
           <span class="code">{stage.code}</span>
