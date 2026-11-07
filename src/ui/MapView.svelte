@@ -112,7 +112,6 @@
     const kinds = new Set(map.tiles.map(tileKind));
     return tileKindOrder.filter((kind) => kinds.has(kind));
   });
-  const hasHole = $derived(map.tiles.some((tile) => tile.tileKey === "tile_hole"));
   const marks = $derived(legendMarks(map, terrain));
 
   /**
@@ -165,12 +164,6 @@
 
       {#each cells as { tile, row, col } (`${row},${col}`)}
         {@const mark = terrainMark(tile.tileKey, terrain)}
-        {#if tile.tileKey === "tile_hole"}
-          <g class="hole" transform="translate({col} {svgY(row)})">
-            <rect x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.12" />
-            <path d="M -0.22 -0.22 L 0.22 0.22 M 0.22 -0.22 L -0.22 0.22" />
-          </g>
-        {/if}
         {#if mark}
           <g
             class="terrain"
@@ -179,7 +172,7 @@
             role="img"
             aria-label={mark.name}
           >
-            <TerrainIcon icon={mark.icon} />
+            <TerrainIcon {mark} />
           </g>
         {/if}
       {/each}
@@ -319,14 +312,16 @@
     {#each legendTileKinds as kind (kind)}
       <li><span class="swatch {kind}"></span>{strings.legendTileKind[kind]}</li>
     {/each}
-    {#if hasHole}
-      <li><span class="swatch hole-swatch"></span>{strings.legendHole}</li>
-    {/if}
     {#each marks as mark, i (i)}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <li class="terrain-item" tabindex="0" aria-describedby="terrain-tip-{i}">
-        <svg class="swatch icon" viewBox="-0.5 -0.5 1 1" aria-hidden="true">
-          <TerrainIcon icon={mark.icon} />
+        <!-- A glyph's box fills the swatch so the character stays legible at legend size. -->
+        <svg
+          class="swatch icon"
+          viewBox={mark.kind === "glyph" ? "-0.27 -0.27 0.54 0.54" : "-0.5 -0.5 1 1"}
+          aria-hidden="true"
+        >
+          <TerrainIcon {mark} />
         </svg>
         <span>{mark.name}</span>
         <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
@@ -351,7 +346,6 @@
     --tile-highland: #a9b4c2;
     --tile-forbidden: #4a4c53;
     --start: #e5484d;
-    --hole: #121316;
     --spawn-dot: #e5484d;
     --exit-dot: #3e83f8;
     --path: #f5a524;
@@ -411,16 +405,6 @@
   }
   .ledge {
     fill: #00000059;
-  }
-  .hole rect {
-    fill: var(--hole);
-    stroke: #000;
-    stroke-width: 0.04;
-  }
-  .hole path {
-    stroke: #8a8d96;
-    stroke-width: 0.06;
-    stroke-linecap: round;
   }
   .terrain {
     pointer-events: none;
@@ -615,11 +599,5 @@
   }
   .swatch.dot.exit {
     background: var(--exit-dot);
-  }
-  .swatch.hole-swatch {
-    background: var(--hole);
-    background-image:
-      linear-gradient(45deg, transparent 44%, #8a8d96 44% 56%, transparent 56%),
-      linear-gradient(-45deg, transparent 44%, #8a8d96 44% 56%, transparent 56%);
   }
 </style>

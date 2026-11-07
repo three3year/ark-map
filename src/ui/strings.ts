@@ -84,7 +84,6 @@ export const strings = {
   legend: "圖例",
   /** A 格's base colour by its height, placement and passability. */
   legendTileKind: { lowland: "平地", floor: "不可放置", highland: "高台", forbidden: "禁入" },
-  legendHole: "坑",
   endpoint: { spawn: "出生點", exit: "消失點" },
   /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */
   endpointAt: (kind: string, row: number, col: number) => `${kind}(${row}, ${col})`,
