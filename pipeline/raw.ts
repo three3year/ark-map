@@ -146,8 +146,17 @@ export interface RawStage {
   isStoryOnly: boolean;
 }
 
+/** A 地形's name and description; descriptions may hold rich-text tags (`<@ba.kw>…</>`). */
+export interface RawTileInfo {
+  tileKey: string;
+  name: string;
+  description: string;
+  isFunctional: boolean;
+}
+
 export interface RawStageTable {
   stages: Record<string, RawStage>;
+  tileInfo: Record<string, RawTileInfo>;
 }
 
 export interface RawZone {

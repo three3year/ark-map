@@ -318,7 +318,7 @@ describe("名稱表", () => {
 
   it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_main_01-07");
-    const names: NameTable = { enemies: {} };
+    const names: NameTable = { enemies: {}, terrain: {} };
     const file = siteLevelFile(level, catalog(), names);
     expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
     expect(names.enemies).toMatchObject({
@@ -330,7 +330,7 @@ describe("名稱表", () => {
   });
 
   it("one table serves every level; a name only one level gives stays in its level file", () => {
-    const names: NameTable = { enemies: {} };
+    const names: NameTable = { enemies: {}, terrain: {} };
     const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
     const raw = rawFixture("level_main_01-07");
     // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.

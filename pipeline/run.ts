@@ -26,6 +26,7 @@ import {
   type GameTables,
   type LevelFacts,
 } from "./stageIndex.ts";
+import { terrainTable } from "./terrainTable.ts";
 
 const started = performance.now();
 const log = (message: string) => console.log(`[資料管線] ${message}`);
@@ -133,7 +134,9 @@ const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
 const facts = new Map<string, LevelFacts>();
 const failures: ConversionFailure[] = [];
-const names: NameTable = { enemies: {} };
+const names: NameTable = { enemies: {}, terrain: {} };
+/** Every `tileKey` the converted level files use. */
+const tileKeys = new Set<string>();
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
@@ -160,6 +163,7 @@ await forEachLimit(wanted, 8, async (levelPath) => {
       }
       await writeJson(path.join(outDir, "levels", file), siteLevelFile(level, catalog, names));
       facts.set(levelPath, levelFacts(raw));
+      for (const tile of level.map.tiles) tileKeys.add(tile.tileKey);
       for (const { key } of level.modifiers)
         modifierKeys.set(key, (modifierKeys.get(key) ?? 0) + 1);
     } catch (e) {
@@ -172,9 +176,16 @@ await forEachLimit(wanted, 8, async (levelPath) => {
 const { index, skipped } = buildStageIndex(tables, facts);
 await writeJson(path.join(outDir, "index.json"), index);
 const sortedNames = Object.keys(names.enemies).sort();
+const terrain = terrainTable([...tileKeys].sort(), tables.cn.stage, tables.tw.stage);
 await writeJson(path.join(outDir, "names.json"), {
   enemies: Object.fromEntries(sortedNames.map((id) => [id, names.enemies[id]!])),
+  terrain,
 } satisfies NameTable);
+const unnamedTiles = [...tileKeys].filter((key) => !terrain[key]);
+log(
+  `地形 ${tileKeys.size} 種,地形表收錄 ${Object.keys(terrain).length} 種;` +
+    `台服、國服都沒有名稱 ${unnamedTiles.length} 種`,
+);
 
 const outcome = pipelineOutcome(skipped, failures);
 if (outcome.missing.length > 0) {

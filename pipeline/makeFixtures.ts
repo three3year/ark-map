@@ -3,10 +3,12 @@
 // in the fixture directory (old and new), the enemies already in the subset, and any
 // `--enemy` ids. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
-// pipeline reads. The CN and TW roguelike topic tables keep every theme, the numbered zones, and
-// the `--rogue` stage ids plus the stages already in the fixture table.
+// pipeline reads. The stage tables' `tileInfo` keeps the tile keys the fixture levels use, the
+// keys already in the fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
+// keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
+// the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
-//                      [--rogue <roguelike stage id>...]
+//                      [--rogue <roguelike stage id>...] [--tile <tile key>...]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,9 +40,11 @@ const levelPaths: string[] = [];
 const enemyIds = new Set<string>();
 const zoneIds = new Set<string>();
 const rogueStageIds = new Set<string>();
+const tileKeys = new Set<string>();
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!;
   if (arg === "--enemy") enemyIds.add(args[++i]!);
+  else if (arg === "--tile") tileKeys.add(args[++i]!);
   else if (arg === "--zone") zoneIds.add(args[++i]!);
   else if (arg === "--rogue") rogueStageIds.add(args[++i]!);
   else levelPaths.push(arg);
@@ -62,6 +66,7 @@ const levelFiles = (await readdir(fixtureDir)).filter((f) => f.startsWith("level
 for (const file of levelFiles) {
   const level = JSON.parse(await readFile(path.join(fixtureDir, file), "utf8")) as RawLevel;
   for (const ref of level.enemyDbRefs ?? []) enemyIds.add(ref.id);
+  for (const tile of level.mapData.tiles) tileKeys.add(tile.tileKey);
 }
 
 const db = await fetchJson<RawEnemyDatabase>(sources.cn, "levels/enemydata/enemy_database.json");
@@ -129,6 +134,7 @@ async function writeTables(source: RepoSource, suffix: string): Promise<void> {
         filterEntries(stage.stages, (_, s) => zoneIds.has(s.zoneId)),
         (s) => pick(s, stageKeys),
       ),
+      tileInfo: filterEntries(stage.tileInfo, (key) => tileKeys.has(key)),
     } satisfies RawStageTable,
     zone_table: {
       zones: mapValues(
@@ -157,6 +163,11 @@ const existingZones = await readFile(path.join(fixtureDir, "zone_table.json"), "
   () => [],
 );
 for (const id of existingZones) zoneIds.add(id);
+const existingTiles = await readFile(path.join(fixtureDir, "stage_table.json"), "utf8").then(
+  (text) => Object.keys((JSON.parse(text) as Partial<RawStageTable>).tileInfo ?? {}),
+  () => [],
+);
+for (const key of existingTiles) tileKeys.add(key);
 if (zoneIds.size > 0) {
   await writeTables(sources.cn, "");
   await writeTables(sources.tw, ".tw");

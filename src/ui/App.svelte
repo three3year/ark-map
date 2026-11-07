@@ -92,8 +92,12 @@
       : undefined,
   );
 
-  /** The last level JSON fetched, with the file it came from. */
-  let loaded = $state<{ file: string; level: Level } | null>(null);
+  /** The last level JSON fetched, with the file it came from and the 地形表. */
+  let loaded = $state<{
+    file: string;
+    level: Level;
+    terrain: NameTable["terrain"];
+  } | null>(null);
   let requested: string | null = null;
   /** The 名稱表, fetched with the first level. */
   let names: Promise<NameTable> | null = null;
@@ -104,7 +108,9 @@
     names ??= fetchJson<NameTable>("data/names.json");
     Promise.all([fetchJson<LevelFile>(file), names]).then(
       ([levelFile, nameTable]) => {
-        if (requested === file) loaded = { file, level: withNames(levelFile, nameTable) };
+        if (requested === file) {
+          loaded = { file, level: withNames(levelFile, nameTable), terrain: nameTable.terrain };
+        }
       },
       (e: unknown) => (error = String(e)),
     );
@@ -137,6 +143,7 @@
       stage={found.stage}
       {variant}
       level={loaded.level}
+      terrain={loaded.terrain}
       wave={position.wave}
       t={position.t}
       {switches}
