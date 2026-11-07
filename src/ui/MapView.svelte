@@ -285,6 +285,10 @@
               >
                 <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
                 <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
+                <!-- Seconds left, over the bar's right end. -->
+                <text class="stay-seconds" x={stayBarWidth} y="-0.02"
+                  >{(stay.end - t).toFixed(1)}</text
+                >
               </g>
             {/if}
           </g>
@@ -464,6 +468,16 @@
   }
   .stay-fill {
     fill: var(--path);
+  }
+  .stay-seconds {
+    font-size: 0.2px;
+    font-weight: 700;
+    text-anchor: end;
+    dominant-baseline: text-after-edge;
+    fill: #fff;
+    paint-order: stroke;
+    stroke: #1d1d1f;
+    stroke-width: 0.05px;
   }
   .enemy {
     cursor: pointer;
