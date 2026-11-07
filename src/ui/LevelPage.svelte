@@ -10,6 +10,7 @@
   } from "../level/index.ts";
   import LevelInfo from "./LevelInfo.svelte";
   import {
+    actionKey,
     buildTimeline,
     endpointKey,
     individualKey,
@@ -32,6 +33,7 @@
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
+  import { tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
@@ -104,12 +106,40 @@
   });
   const selectedState = $derived(selected?.stateAt(t).kind);
 
+  /** A selection on the map: the spawn table, if on screen, scrolls to its row. */
   function select(individual: Individual | null) {
+    const changed = individual !== null && individual.id !== selected?.id;
     selection = individual && {
       levelId: level.levelId,
       wave: waveIndex,
       individual: individual.id,
     };
+    if (changed && (!drawerMode || drawerOpen)) void revealSelectedRow();
+  }
+
+  let sideColumn: HTMLElement;
+  /**
+   * Scroll the spawn table to put the selected individual's row in the middle, unless the row
+   * already shows whole. It shows in the column's part inside the window: at the top of the page
+   * the wide column runs past the window's bottom edge. A row the 端點篩選 hides stays hidden.
+   */
+  async function revealSelectedRow() {
+    await tick();
+    if (!selected) return;
+    const row = sideColumn.querySelector(
+      `tr[data-wave="${waveIndex}"][data-action="${actionKey(selected)}"]`,
+    );
+    if (!row) return;
+    const column = sideColumn.getBoundingClientRect();
+    const top = Math.max(column.top, 0);
+    const bottom = Math.min(column.bottom, window.innerHeight);
+    const box = row.getBoundingClientRect();
+    if (box.top >= top && box.bottom <= bottom) return;
+    sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
+    // The table's last rows cannot scroll above the wide column's part below the window: scroll
+    // the page just enough to bring them up.
+    const below = row.getBoundingClientRect().bottom - window.innerHeight;
+    if (below > 0) window.scrollBy(0, below);
   }
 
   /** The 端點篩選 in one variant's wave. */
@@ -141,6 +171,11 @@
   const wide = new MediaQuery("min-width: 1440px");
   const drawerMode = $derived(!wide.current);
   let drawerOpen = $state(false);
+  /** Opening the drawer shows the selected individual's row. */
+  function setDrawerOpen(open: boolean) {
+    if (open && !drawerOpen) void revealSelectedRow();
+    drawerOpen = open;
+  }
 
   /**
    * A dot filters the spawn table to it, opening the drawer to show it; the dot of the filter on
@@ -153,7 +188,7 @@
       return;
     }
     endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
-    if (drawerMode) drawerOpen = true;
+    if (drawerMode) setDrawerOpen(true);
   }
 
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
@@ -260,11 +295,11 @@
       class="drawer-button"
       aria-expanded={drawerOpen}
       aria-controls="spawn-table-drawer"
-      onclick={() => (drawerOpen = !drawerOpen)}
+      onclick={() => setDrawerOpen(!drawerOpen)}
     >
       {strings.spawnTable}
     </button>
-    <div class="side-column" id="spawn-table-drawer">
+    <div class="side-column" id="spawn-table-drawer" bind:this={sideColumn}>
       <SpawnTable
         {rows}
         wave={waveIndex}
