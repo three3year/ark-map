@@ -40,7 +40,7 @@
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
-    /** 開關狀態 from the URL: only what differs from the variant's default. */
+    /** 開關狀態: only what differs from the variant's default. */
     switches: SpawnSwitches;
     onSeek: (t: number) => void;
     onSelectWave: (wave: number) => void;

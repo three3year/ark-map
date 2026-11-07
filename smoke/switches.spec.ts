@@ -1,4 +1,4 @@
-// Smoke test: 隱藏組 and 隨機出兵組 switches drive the snapshot and live in the URL.
+// Smoke test: 隱藏組, 隨機出兵組 and 條件出兵 switches drive the snapshot; the URL never carries them.
 // Expected counts come from 基準時間軸 run on the same data the site ships.
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -11,7 +11,7 @@ import {
   type StageIndex,
 } from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, type TimelineOptions } from "../src/timeline/index.ts";
-import { seek, selectWave } from "./levelPage.ts";
+import { seek, selectWave, timeDisplay } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
@@ -30,7 +30,9 @@ function siteLevel(stageId: string): Level {
 const onField = (level: Level, t: number, options: TimelineOptions) =>
   takeSnapshot(buildTimeline(level, options), t).counts.onField;
 
-test("15-13: switching hidden group1 on adds its enemies and writes the URL", async ({ page }) => {
+test("15-13: switching hidden group1 on adds its enemies and leaves the URL alone", async ({
+  page,
+}) => {
   const level = siteLevel("main_15-12");
   const withGroup1 = { switches: { hiddenOn: ["group1", "group2"] } };
   const t = Array.from({ length: 400 }, (_, i) => i).find(
@@ -45,17 +47,26 @@ test("15-13: switching hidden group1 on adds its enemies and writes the URL", as
   await expect(page.locator('input[data-hidden-group="group2"]')).toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t!, {}));
   await expect(page.locator('tr[data-hidden-group="group1"]')).toHaveCount(0);
+  const url = page.url();
 
   await group1.check();
 
-  await expect(page).toHaveURL(/h=group1&h=group2/);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t!, withGroup1));
   await expect(page.locator('tr[data-hidden-group="group1"]')).toHaveCount(3);
+  expect(page.url()).toBe(url);
 
-  // The URL alone reproduces the state.
+  // Editing only the URL's other parameters leaves the page as it is.
+  await page.evaluate(() => (location.hash = "#/level/main_15-12?v=normal&h=group2"));
+  await expect(timeDisplay(page)).toHaveText(`${t!.toFixed(1)} 秒`);
+  await expect(group1).toBeChecked();
+
+  // An old link's switches are ignored: the page opens at 0 s with the variant's default.
   await page.goto("#/level/main_15-12?v=normal&h=group1&h=group2");
-  await seek(page, t!);
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t!, withGroup1));
+  await page.reload();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(group1).not.toBeChecked();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, 0, {}));
+  await expect(page).toHaveURL(/#\/level\/main_15-12\?v=normal&h=group1&h=group2$/);
 });
 
 test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page }) => {
