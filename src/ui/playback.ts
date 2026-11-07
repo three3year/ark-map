@@ -8,12 +8,15 @@ export function roundTenth(t: number): number {
 }
 
 /**
- * `t` rounded up to the tenth, never landing before it: a second already on the tenth up to float
- * error stays put, and 0 stays 0 rather than -0. The spawn table's jump uses it so the jump lands
- * on or after the spawn.
+ * The first tenth of a second not before `t`: a second on the tenth stays put, and one that float
+ * error leaves just past it (60.400000000000006) moves on to the next (60.5), since the timeline
+ * compares seconds exactly. 0 stays 0 rather than -0. The spawn table's jump uses it so the jump
+ * lands on or after the 出生時刻.
  */
 export function ceilTenth(t: number): number {
-  return Math.ceil(t * 10 - 1e-9) / 10 + 0;
+  let tenths = Math.round(t * 10);
+  if (tenths / 10 < t) tenths++;
+  return tenths / 10 + 0;
 }
 
 export const playbackSpeeds = [0.5, 1, 2, 4, 8] as const;
