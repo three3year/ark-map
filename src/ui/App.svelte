@@ -12,7 +12,7 @@
   import type { SpawnSwitches } from "../timeline/index.ts";
   import AreaList from "./AreaList.svelte";
   import LevelPage from "./LevelPage.svelte";
-  import { roundTenth } from "./playback.ts";
+  import { ceilTenth, roundTenth } from "./playback.ts";
   import { formatHash, parseHash, type LevelRoute, type Route } from "./route.ts";
   import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
@@ -150,7 +150,7 @@
       {switches}
       onSeek={(t) => (position.t = roundTenth(t))}
       onSelectWave={(wave) => (position = { wave, t: 0 })}
-      onJump={(wave, t) => (position = { wave, t: roundTenth(t) })}
+      onJump={(wave, t) => (position = { wave, t: ceilTenth(t) })}
       onSwitches={(next) => (switches = next)}
       onVariant={(v) => navigate({ ...route, variant: v })}
     />

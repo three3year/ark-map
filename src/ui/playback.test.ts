@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { buildTimeline, takeSnapshot } from "../timeline/index.ts";
-import { advancePlayback, afterStop, playbackSpeeds, playbackStop } from "./playback.ts";
+import { advancePlayback, afterStop, ceilTenth, playbackSpeeds, playbackStop } from "./playback.ts";
 
 describe("playback auto-stop", () => {
   const timeline = buildTimeline(loadFixtureLevel("level_main_01-07"));
@@ -32,6 +32,24 @@ describe("playback speeds", () => {
 
   it("covers 24 wave seconds in 3 s at 8x", () => {
     expect(advancePlayback(10, 3, 8, 100)).toEqual({ t: 34, done: false });
+  });
+});
+
+describe("jumping to a spawn second", () => {
+  it("rounds up to the tenth, so the jump lands on or after the spawn", () => {
+    expect(ceilTenth(111.71)).toBe(111.8);
+    expect(ceilTenth(254.200001)).toBe(254.3);
+  });
+
+  it("keeps a second already on the tenth, despite float error", () => {
+    expect(ceilTenth(111.7)).toBe(111.7);
+    expect(ceilTenth(0.1 + 0.2)).toBe(0.3);
+    expect(ceilTenth(0)).toBe(0);
+  });
+
+  it("never lands before the second it was given", () => {
+    for (const t of [0, 0.05, 1.04, 12.345, 111.71, 254.200001, 999.99])
+      expect(ceilTenth(t)).toBeGreaterThanOrEqual(t);
   });
 });
 
