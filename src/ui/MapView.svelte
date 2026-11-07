@@ -493,7 +493,7 @@
   .enemy:focus {
     outline: none;
   }
-  /* 隱形 and 被篩掉 fade on different layers so the two multiply. */
+  /* 隱形 and 端點篩選外 fade on different layers so the two multiply. */
   .enemy.invisible > .billboard {
     opacity: 0.7;
   }
