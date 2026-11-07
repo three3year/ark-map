@@ -154,6 +154,24 @@ describe("movement model: ground follows the nextNode chain", () => {
     expect(enemy.leakTime).toBeNull();
     expect(enemy.stateAt(100)).toMatchObject({ kind: "onField", position: { x: 0, y: 0 } });
   });
+
+  it("剩下的路徑 starts where the individual is and drops the corners it has passed", () => {
+    const enemy = only(level(uTurn, { motionMode: "WALK", ...across, allowDiagonalMove: false }));
+    // (0, 0) -> (0, 1) -> (2, 1) -> (2, 0); at 1.5 s it is a quarter of the way across.
+    expect(enemy.remainingPathAt(1.5)).toEqual([
+      {
+        kind: "move",
+        start: 1.5,
+        end: 4,
+        points: [
+          { x: 0.5, y: 1 },
+          { x: 2, y: 1 },
+          { x: 2, y: 0 },
+        ],
+        invisible: false,
+      },
+    ]);
+  });
 });
 
 /** A checkpoint at `cell`; `time` is the wait for the WAIT types. */
@@ -301,7 +319,7 @@ describe("movement model: checkpoints", () => {
     });
   });
 
-  describe("剩下的路徑 off the map", () => {
+  describe("剩下的路徑", () => {
     // Spawns at 1 s: (1, 0) at 2 s, hides and waits until 4 s, appears at (3, 0), leaks at 5 s.
     const enemy = only(
       level(
@@ -334,14 +352,60 @@ describe("movement model: checkpoints", () => {
       expect(enemy.remainingPathAt(1)).toEqual(whole);
     });
 
-    it("is there while on the field, hidden or not", () => {
-      expect(enemy.remainingPathAt(1.5)).toEqual(whole);
-      expect(enemy.remainingPathAt(3)).toEqual(whole);
+    const [, wait, teleport, lastWalk] = whole;
+
+    it("cuts the walk it is on at where it is", () => {
+      expect(enemy.remainingPathAt(1.5)).toEqual([
+        { kind: "move", start: 1.5, end: 2, points: [p(0.5, 0), p(1, 0)], invisible: false },
+        wait,
+        teleport,
+        lastWalk,
+      ]);
+    });
+
+    it("keeps the whole wait it is in, hidden or not, and drops it once over", () => {
+      expect(enemy.remainingPathAt(2)).toEqual([wait, teleport, lastWalk]);
+      expect(enemy.remainingPathAt(3.9)).toEqual([wait, teleport, lastWalk]);
+      expect(enemy.remainingPathAt(4)).not.toContainEqual(wait);
+    });
+
+    it("drops the teleport from the second it happens", () => {
+      expect(enemy.remainingPathAt(4)).toEqual([lastWalk]);
     });
 
     it("is empty from the second it reaches the end point", () => {
       expect(enemy.remainingPathAt(5)).toEqual([]);
       expect(enemy.remainingPathAt(6)).toEqual([]);
+    });
+
+    it("is empty once it stands at the end of its walk with no way to the end point", () => {
+      // Walks to (1, 0) by 1 s; the wall cuts it off from the end point, so it stays there.
+      const stuck = only(
+        level(["..#."], {
+          ...ground,
+          start: { row: 0, col: 0 },
+          end: { row: 0, col: 3 },
+          checkpoints: [cp("MOVE", { row: 0, col: 1 })],
+        }),
+      );
+      expect(stuck.leakTime).toBeNull();
+      expect(stuck.remainingPathAt(0.5)).toEqual([
+        { kind: "move", start: 0.5, end: 1, points: [p(0.5, 0), p(1, 0)], invisible: false },
+      ]);
+      expect(stuck.remainingPathAt(1)).toEqual([]);
+      expect(stuck.remainingPathAt(100)).toEqual([]);
+    });
+
+    it("is each individual's own when one action spawns several", () => {
+      // Two from one action, 1 s apart: at 1.5 s the first is 1.5 cells in, the second 0.5.
+      const l = level(corridor, straight);
+      const action = l.waves[0]!.fragments[0]!.actions[0]!;
+      Object.assign(action, { count: 2, interval: 1 });
+      const [first, second] = buildTimeline(l).individuals;
+      expect(first!.remainingPathAt(1.5)[0]).toMatchObject({ start: 1.5, end: 4 });
+      expect(first!.remainingPathAt(1.5)[0]).toMatchObject({ points: [p(1.5, 0), p(4, 0)] });
+      expect(second!.remainingPathAt(1.5)[0]).toMatchObject({ points: [p(0.5, 0), p(4, 0)] });
+      expect(second!.remainingPathAt(1.5)[0]).toMatchObject({ start: 1.5, end: 5 });
     });
   });
 
