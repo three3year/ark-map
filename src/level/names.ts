@@ -10,11 +10,13 @@ export interface TerrainInfo {
   functional: boolean;
 }
 
+/** 地形表: `tileKey` -> TW entry, else CN; keys neither server names are absent. */
+export type TerrainTable = Record<string, TerrainInfo>;
+
 export interface NameTable {
   /** Enemy id -> TW handbook name, else the CN database's name. */
   enemies: Record<string, string>;
-  /** 地形表: `tileKey` -> TW entry, else CN; keys neither server names are absent. */
-  terrain: Record<string, TerrainInfo>;
+  terrain: TerrainTable;
 }
 
 /** An 敵人 as written to a level file: `name` only when the name table lacks it or differs. */

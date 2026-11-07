@@ -1,5 +1,5 @@
 // 地形 marks drawn over a cell's base colour, and the legend entries of the marks a map has.
-import type { LevelMap, TerrainInfo } from "../level/index.ts";
+import type { LevelMap, TerrainTable } from "../level/index.ts";
 
 /** Hand-drawn structure icons; `TerrainIcon.svelte` draws each. */
 export type TerrainIcon =
@@ -48,10 +48,7 @@ export type TerrainMark = { name: string; description: string } & (
 const firstLetter = (name: string) => name.match(/[\p{L}\p{N}]/u)?.[0] ?? name.slice(0, 1);
 
 /** The mark drawn on a `tileKey` cell; null when the cell shows its base colour only. */
-export function terrainMark(
-  tileKey: string,
-  terrain: Record<string, TerrainInfo>,
-): TerrainMark | null {
+export function terrainMark(tileKey: string, terrain: TerrainTable): TerrainMark | null {
   const drawn = drawnIcons.find((d) => d.tileKeys.includes(tileKey));
   if (drawn) {
     const info = terrain[tileKey] ?? terrain[drawn.tileKeys[0]!];
@@ -75,7 +72,7 @@ function legendOrder(a: TerrainMark, b: TerrainMark): number {
 }
 
 /** The distinct marks on `map`, in the legend's order. */
-export function legendMarks(map: LevelMap, terrain: Record<string, TerrainInfo>): TerrainMark[] {
+export function legendMarks(map: LevelMap, terrain: TerrainTable): TerrainMark[] {
   const marks = new Map<string, TerrainMark>();
   for (const tileKey of new Set(map.tiles.map((t) => t.tileKey))) {
     const mark = terrainMark(tileKey, terrain);

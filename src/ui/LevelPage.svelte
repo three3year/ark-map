@@ -4,7 +4,7 @@
     type Area,
     type Level,
     type StageEntry,
-    type TerrainInfo,
+    type TerrainTable,
     type Variant,
     type VariantId,
   } from "../level/index.ts";
@@ -42,7 +42,7 @@
     variant: Variant;
     level: Level;
     /** The 名稱表's 地形表. */
-    terrain: Record<string, TerrainInfo>;
+    terrain: TerrainTable;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;

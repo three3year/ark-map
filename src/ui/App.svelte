@@ -7,6 +7,7 @@
     type NameTable,
     type StageEntry,
     type StageIndex,
+    type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
   import AreaList from "./AreaList.svelte";
@@ -96,7 +97,7 @@
   let loaded = $state<{
     file: string;
     level: Level;
-    terrain: NameTable["terrain"];
+    terrain: TerrainTable;
   } | null>(null);
   let requested: string | null = null;
   /** The 名稱表, fetched with the first level. */

@@ -4,7 +4,7 @@
     isWalkable,
     tileAt,
     type LevelMap,
-    type TerrainInfo,
+    type TerrainTable,
     type Tile,
     type Vec2,
   } from "../level/index.ts";
@@ -24,7 +24,7 @@
   interface Props {
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
-    terrain: Record<string, TerrainInfo>;
+    terrain: TerrainTable;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t`. */
