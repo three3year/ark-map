@@ -171,3 +171,52 @@ test("entering a stage starts at wave 1, 0 s; changing only the variant keeps th
   await expectVariantShown(page, "easy");
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
+
+test("a variant without the 波次 on screen shows 第 1 波; switching back returns to that 波次", async ({
+  page,
+}) => {
+  const variants = siteStage("ro4_b_5").variants;
+  const view = (id: string) => {
+    const variant = variants.find((v) => v.id === id)!;
+    const level = readSiteLevel(variant.levelFile);
+    const timelines = level.waves.map((_, waveIndex) =>
+      buildTimeline(level, { waveIndex, difficulty: variant.difficulty }),
+    );
+    return {
+      waves: level.waves.length,
+      onField: (waveIndex: number, t: number) =>
+        takeSnapshot(timelines[waveIndex]!, t).counts.onField,
+    };
+  };
+  const normal = view("normal");
+  const replace = view("replace1");
+  expect(normal.waves, "the base map has 2 波次").toBe(2);
+  expect(replace.waves, "the 替換地圖 has 3 波次").toBe(3);
+  // The 替換地圖's third 波次 spawns nothing by default, so its time slider ends at 0 s; the
+  // seconds move on the base map's first 波次 instead. The two 波次 differ at 0 s and at `t`, so
+  // each count says which one is shown.
+  const t = 30;
+  for (const s of [0, t]) {
+    expect(normal.onField(0, s), `the two 波次 differ at ${s} s`).not.toBe(replace.onField(2, s));
+  }
+
+  await page.goto("#/level/ro4_b_5?v=replace1");
+  await selectWave(page, 2);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(replace.onField(2, 0));
+
+  await page.locator('button[data-variant="normal"]').click();
+
+  await expectVariantShown(page, "normal");
+  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(normal.onField(0, 0));
+  await seek(page, t);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(normal.onField(0, t));
+
+  await page.locator('button[data-variant="replace1"]').click();
+
+  await expectVariantShown(page, "replace1");
+  await expect(page.getByRole("radio", { name: "第 3 波" })).toBeChecked();
+  await expect(timeDisplay(page)).toHaveText(`${t.toFixed(1)} 秒`);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(replace.onField(2, t));
+});
