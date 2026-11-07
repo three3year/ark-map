@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
-import { roundTenth } from "../src/ui/playback.ts";
+import { ceilTenth } from "../src/ui/playback.ts";
 import { seek, timeDisplay } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
@@ -36,7 +36,7 @@ test("1-7: clicking a row away from the name jumps to its spawn and shows the ro
 
   await orderCell(page, row).click();
 
-  await expect(timeDisplay(page)).toHaveText(`${roundTenth(row.waveTime).toFixed(1)} 秒`);
+  await expect(timeDisplay(page)).toHaveText(`${ceilTenth(row.waveTime).toFixed(1)} 秒`);
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", firstIndividual(row));
   await expect(page.locator(`g.path[data-path="${firstIndividual(row)}"]`)).toBeVisible();
   await expect(rowOf(page, row).locator("button.enemy")).toHaveAttribute("aria-pressed", "true");
@@ -70,7 +70,7 @@ test("1-7: Enter on a row's enemy name jumps to its spawn", async ({ page }) => 
 
   await rowOf(page, row).locator("button.enemy").press("Enter");
 
-  await expect(timeDisplay(page)).toHaveText(`${roundTenth(row.waveTime).toFixed(1)} 秒`);
+  await expect(timeDisplay(page)).toHaveText(`${ceilTenth(row.waveTime).toFixed(1)} 秒`);
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", firstIndividual(row));
 });
 
@@ -80,7 +80,7 @@ test("ro2_n_2_6: 切換 switches the candidate and keeps the selection and the t
   const rows = siteRows("ro2_n_2_6");
   const selectedRow = rows.find((r) => r.waveIndex === 0 && r.waveTime > 0)!;
   const candidate = rows.find((r) => r.random && !r.random.picked)!;
-  const at = `${roundTenth(selectedRow.waveTime).toFixed(1)} 秒`;
+  const at = `${ceilTenth(selectedRow.waveTime).toFixed(1)} 秒`;
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await orderCell(page, selectedRow).click();
   await expect(timeDisplay(page)).toHaveText(at);
