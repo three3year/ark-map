@@ -10,7 +10,12 @@ import {
   type NameTable,
   type StageIndex,
 } from "../src/level/index.ts";
-import { buildTimeline, takeSnapshot, type TimelineOptions } from "../src/timeline/index.ts";
+import {
+  buildTimeline,
+  routeEndpoints,
+  takeSnapshot,
+  type TimelineOptions,
+} from "../src/timeline/index.ts";
 import {
   conditionalSwitch,
   openLink,
@@ -73,6 +78,30 @@ test("15-13: switching hidden group1 on adds its enemies and leaves the URL alon
   await expect(group1).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, 0, {}));
   await expect(page).toHaveURL(/#\/level\/main_15-12\?v=normal&h=group1&h=group2$/);
+});
+
+test("15-13: 出生點 and 消失點 dots follow hidden group1, in both views", async ({ page }) => {
+  const level = siteLevel("main_15-12");
+  const dotCount = (options: TimelineOptions) =>
+    routeEndpoints(buildTimeline(level, options)).length;
+  const dots = page.locator("svg.map g.endpoint");
+  const group1Spawn = page.locator('svg.map [data-endpoint="spawn"][data-cell="3,8"]');
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await expect(dots).toHaveCount(dotCount({}));
+  await expect(group1Spawn).toHaveCount(0);
+  const legend = page.getByRole("list", { name: "圖例" });
+  await expect(legend.getByText("出生點", { exact: true })).toBeVisible();
+  await expect(legend.getByText("消失點", { exact: true })).toBeVisible();
+
+  await page.locator('input[data-hidden-group="group1"]').check();
+  await expect(dots).toHaveCount(dotCount({ switches: { hiddenOn: ["group1", "group2"] } }));
+  await expect(group1Spawn).toHaveAttribute("aria-label", "出生點(3, 8)");
+
+  for (const view of ["平面俯視", "傾斜視角"]) {
+    await page.getByRole("button", { name: view }).click();
+    await expect(group1Spawn).toBeVisible();
+  }
 });
 
 test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page }) => {

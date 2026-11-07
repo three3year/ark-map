@@ -88,6 +88,9 @@ export const strings = {
   legendFloor: "不可放置",
   legendForbidden: "禁入",
   legendHole: "坑",
+  endpoint: { spawn: "出生點", exit: "消失點" },
+  /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */
+  endpointAt: (kind: string, row: number, col: number) => `${kind}(${row}, ${col})`,
   levelInfo: "關卡資訊",
   characterLimit: "可部署人數",
   maxLifePoint: "生命值",

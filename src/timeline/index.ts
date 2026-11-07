@@ -22,6 +22,7 @@ import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 
+export * from "./endpoints.ts";
 export * from "./identity.ts";
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
