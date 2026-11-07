@@ -7,20 +7,26 @@
     type Tile,
     type Vec2,
   } from "../level/index.ts";
-  import type { Individual } from "../timeline/index.ts";
+  import type { Individual, Snapshot, Stay } from "../timeline/index.ts";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
     map: LevelMap;
     routes: Route[];
-    enemies: { individual: Individual; position: Vec2; invisible: boolean }[];
+    /** The 時刻快照's individuals on field at second `t`. */
+    enemies: Snapshot["onField"];
+    t: number;
     /** The selected individual, whose 路徑 is drawn; it may be off the field right now. */
     selected: Individual | null;
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
   }
-  let { map, routes, enemies, selected, onSelect }: Props = $props();
+  let { map, routes, enemies, t, selected, onSelect }: Props = $props();
+
+  /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
+  const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
+  const stayBarWidth = 0.64;
 
   function toggleSelect(individual: Individual) {
     onSelect(individual.id === selected?.id ? null : individual);
@@ -174,7 +180,7 @@
         </g>
       {/if}
 
-      {#each enemies as { individual, position, invisible } (individual.id)}
+      {#each enemies as { individual, position, invisible, stay } (individual.id)}
         <g
           class="enemy"
           class:invisible
@@ -218,6 +224,18 @@
             <circle r="0.36" class="enemy-ring" />
             {#if individual.harmless}
               <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
+            {/if}
+            {#if stay}
+              {@const remaining = remainingOf(stay)}
+              <!-- Above the 無害敵人 tag when there is one. -->
+              <g
+                class="stay-bar"
+                data-remaining={remaining.toFixed(3)}
+                transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})"
+              >
+                <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
+                <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
+              </g>
             {/if}
           </g>
         </g>
@@ -376,6 +394,12 @@
     text-anchor: middle;
     fill: #2e9e5b;
     font-weight: 700;
+  }
+  .stay-track {
+    fill: #1d1d1fb3;
+  }
+  .stay-fill {
+    fill: var(--path);
   }
   .enemy {
     cursor: pointer;

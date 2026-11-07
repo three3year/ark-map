@@ -119,7 +119,8 @@ export const nextNodeModel: MovementModel = (input) => {
       while (i > 0 && steps[i]!.leg.start > t) i--;
       const leg = steps[i]?.leg;
       if (!leg || t >= leg.end) return { kind: "onField", ...rest!, stay: null };
-      const stay = leg.kind === "wait" && !leg.invisible ? { start: leg.start, end: leg.end } : null;
+      const stay =
+        leg.kind === "wait" && !leg.invisible ? { start: leg.start, end: leg.end } : null;
       return {
         kind: "onField",
         position: positionOn(leg, t, speed),

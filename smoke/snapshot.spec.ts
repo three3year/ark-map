@@ -43,6 +43,32 @@ test("1-7 at 35 s shows as many enemy individuals as the timeline has on field",
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
 });
 
+test("4-10: an enemy standing still has a shrinking bar over it, gone once it moves on", async ({
+  page,
+}) => {
+  const timeline = buildTimeline(readSiteLevel(siteStage("main_04-10").variants[0]!.levelFile));
+  // The first whole second at which some individual is in a visible stay, a second into it.
+  const t = Array.from({ length: 300 }, (_, i) => i).find((s) =>
+    takeSnapshot(timeline, s).onField.some((e) => e.stay && e.stay.start <= s - 1),
+  );
+  expect(t, "4-10 has an enemy standing still").toBeDefined();
+  const { individual, stay } = takeSnapshot(timeline, t!).onField.find(
+    (e) => e.stay && e.stay.start <= t! - 1,
+  )!;
+  const bar = page.locator(`svg.map g.enemy[data-individual="${individual.id}"] .stay-bar`);
+
+  await page.goto("#/level/main_04-10?v=normal");
+  await seek(page, t!);
+
+  await expect(bar).toHaveCount(1);
+  const remaining = (stay!.end - t!) / (stay!.end - stay!.start);
+  expect(Number(await bar.getAttribute("data-remaining"))).toBeCloseTo(remaining, 2);
+
+  await seek(page, Math.ceil(stay!.end));
+
+  await expect(bar).toHaveCount(0);
+});
+
 test("4-4 challenge runs its 難度修正 move speed and lists its modifiers", async ({ page }) => {
   const stage = siteStage("main_04-04");
   const level = readSiteLevel(stage.variants[0]!.levelFile);
