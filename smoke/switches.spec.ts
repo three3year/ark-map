@@ -2,7 +2,7 @@
 // Expected counts come from 基準時間軸 run on the same data the site ships.
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   withNames,
   type Level,
@@ -12,8 +12,11 @@ import {
 } from "../src/level/index.ts";
 import {
   buildTimeline,
+  endpointRows,
   routeEndpoints,
+  spawnTable,
   takeSnapshot,
+  type EndpointKind,
   type TimelineOptions,
 } from "../src/timeline/index.ts";
 import {
@@ -209,4 +212,100 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
   await expect(conditional).not.toBeChecked();
   await expect(enemy).toHaveCount(onField(level, 0, {}));
+});
+
+/** How many rows the 端點篩選 on `kind` at `cell` ("row,col") leaves in wave `waveIndex`. */
+function filteredCount(
+  level: Level,
+  kind: EndpointKind,
+  cell: string,
+  options: TimelineOptions = {},
+): number {
+  const waveIndex = options.waveIndex ?? 0;
+  const endpoint = routeEndpoints(buildTimeline(level, options)).find(
+    (e) => e.kind === kind && `${e.cell.row},${e.cell.col}` === cell,
+  );
+  expect(endpoint, `wave ${waveIndex} has a ${kind} at ${cell}`).toBeDefined();
+  return endpointRows(spawnTable(level, options), waveIndex, endpoint!).length;
+}
+
+const tableRows = (page: Page) =>
+  page.getByRole("region", { name: "出兵表" }).locator("tr[data-action]");
+const filterCaption = (page: Page) => page.locator("[data-endpoint-filter]");
+
+test("15-13: a 出生點 or 消失點 filters the spawn table; again, 清除 or a switch clears it", async ({
+  page,
+}) => {
+  const level = siteLevel("main_15-12");
+  const allRows = spawnTable(level).length;
+  const withGroup1 = { switches: { hiddenOn: ["group1", "group2"] } };
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await expect(tableRows(page)).toHaveCount(allRows);
+  await expect(filterCaption(page)).toHaveCount(0);
+
+  const spawn = page.getByRole("button", { name: "出生點(3, 0)" });
+  await spawn.click();
+  await expect(spawn).toHaveAttribute("aria-pressed", "true");
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "3,0"));
+  await expect(filterCaption(page)).toContainText("出生點(3, 0)");
+
+  // A row of the filtered table still jumps to its spawn.
+  const row = tableRows(page).nth(1);
+  const individual = `${await row.getAttribute("data-action")}-0`;
+  await row.click();
+  await expect(page.locator(`g.path[data-path="${individual}"]`)).toBeVisible();
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "3,0"));
+
+  // Another dot, from the keyboard: its filter replaces the first.
+  const exit = page.getByRole("button", { name: "消失點(5, 5)" });
+  await exit.focus();
+  await page.keyboard.press("Enter");
+  await expect(spawn).toHaveAttribute("aria-pressed", "false");
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "exit", "5,5"));
+  await expect(filterCaption(page)).toContainText("消失點(5, 5)");
+
+  // The same dot again clears it.
+  await exit.click();
+  await expect(tableRows(page)).toHaveCount(allRows);
+  await expect(filterCaption(page)).toHaveCount(0);
+
+  // So does 清除.
+  await spawn.click();
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "3,0"));
+  await page.getByRole("button", { name: "清除", exact: true }).click();
+  await expect(tableRows(page)).toHaveCount(allRows);
+  await expect(filterCaption(page)).toHaveCount(0);
+
+  // A switch that keeps the dot updates the rows; one that removes it clears the filter.
+  await page.getByRole("button", { name: "出生點(5, 1)" }).click();
+  const group1 = page.locator('input[data-hidden-group="group1"]');
+  await group1.check();
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "5,1", withGroup1));
+  await page.getByRole("button", { name: "出生點(3, 8)" }).click();
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "3,8", withGroup1));
+  await group1.uncheck();
+  await expect(filterCaption(page)).toHaveCount(0);
+  await expect(tableRows(page)).toHaveCount(allRows);
+  // Switching the group back on does not bring the filter back.
+  await group1.check();
+  await expect(filterCaption(page)).toHaveCount(0);
+});
+
+test("ro2_n_2_6: switching 波次 clears the 端點篩選", async ({ page }) => {
+  const level = siteLevel("ro2_n_2_6");
+  const allRows = spawnTable(level).length;
+
+  await page.goto("#/level/ro2_n_2_6?v=normal");
+  await page.getByRole("button", { name: "出生點(5, 6)" }).click();
+  await expect(tableRows(page)).toHaveCount(filteredCount(level, "spawn", "5,6"));
+  await expect(tableRows(page).and(page.locator('[data-wave="1"]'))).toHaveCount(0);
+
+  await selectWave(page, 1);
+  await expect(filterCaption(page)).toHaveCount(0);
+  await expect(tableRows(page)).toHaveCount(allRows);
+
+  // Back on the first wave the filter stays cleared.
+  await selectWave(page, 0);
+  await expect(filterCaption(page)).toHaveCount(0);
 });
