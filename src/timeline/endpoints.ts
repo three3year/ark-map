@@ -1,6 +1,6 @@
 // 出生點 and 消失點 of one wave's timeline: the cells its individuals come out of and leave at.
 // Pure; no DOM or network.
-import type { Cell } from "../level/index.ts";
+import { cellKey, type Cell } from "../level/index.ts";
 import { actionKey, sameAction, type WaveActionId } from "./identity.ts";
 import type { Timeline } from "./index.ts";
 
@@ -21,7 +21,7 @@ export interface RouteEndpoint extends EndpointPlace {
 
 /** "spawn@row,col" / "exit@row,col": unique within one timeline's endpoints. */
 export function endpointKey({ kind, cell }: EndpointPlace): string {
-  return `${kind}@${cell.row},${cell.col}`;
+  return `${kind}@${cellKey(cell)}`;
 }
 
 /**

@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    cellKey,
     isWalkable,
     tileAt,
     type LevelMap,
@@ -120,11 +121,11 @@
    */
   const endpointDots = $derived.by(() => {
     const spawnCells = new Set(
-      endpoints.filter((e) => e.kind === "spawn").map((e) => `${e.cell.row},${e.cell.col}`),
+      endpoints.filter((e) => e.kind === "spawn").map((e) => cellKey(e.cell)),
     );
     return endpoints.map((endpoint) => {
       const { kind, cell } = endpoint;
-      const besideSpawn = kind === "exit" && spawnCells.has(`${cell.row},${cell.col}`);
+      const besideSpawn = kind === "exit" && spawnCells.has(cellKey(cell));
       return { endpoint, x: cell.col + 0.32 - (besideSpawn ? 0.22 : 0), y: svgY(cell.row) - 0.32 };
     });
   });
@@ -184,7 +185,7 @@
           class:pressed
           transform="translate({x} {y})"
           data-endpoint={endpoint.kind}
-          data-cell="{endpoint.cell.row},{endpoint.cell.col}"
+          data-cell={cellKey(endpoint.cell)}
           role="button"
           tabindex="0"
           aria-label={endpointName(endpoint)}

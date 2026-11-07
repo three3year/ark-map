@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import {
+  cellKey,
   withNames,
   type Level,
   type LevelFile,
@@ -223,7 +224,7 @@ function filteredCount(
 ): number {
   const waveIndex = options.waveIndex ?? 0;
   const endpoint = routeEndpoints(buildTimeline(level, options)).find(
-    (e) => e.kind === kind && `${e.cell.row},${e.cell.col}` === cell,
+    (e) => e.kind === kind && cellKey(e.cell) === cell,
   );
   expect(endpoint, `wave ${waveIndex} has a ${kind} at ${cell}`).toBeDefined();
   return endpointRows(spawnTable(level, options), waveIndex, endpoint!).length;
