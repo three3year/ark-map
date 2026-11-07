@@ -50,8 +50,11 @@ export interface Trajectory {
   stateAt(t: number): IndividualState;
   /** Second the individual reaches the end point; null if it never does (patrols). */
   leakTime: number | null;
-  /** 路徑 from spawn to the end point; a patrol's first lap and its walk back to the start. */
-  path: PathLeg[];
+  /**
+   * 路徑 left at second `t` of the wave; empty while 未出現 or 已進點. While on the field it
+   * is the whole 路徑 from spawn to the end point (a patrol's first lap and its walk back).
+   */
+  remainingPathAt(t: number): PathLeg[];
 }
 
 export type MovementModel = (input: MovementInput) => Trajectory;
@@ -110,7 +113,10 @@ export const nextNodeModel: MovementModel = (input) => {
 
   return {
     leakTime,
-    path,
+    remainingPathAt(t) {
+      const offMap = t < spawnTime || (leakTime !== null && t >= leakTime);
+      return offMap ? [] : path;
+    },
     stateAt(t) {
       if (t < spawnTime) return { kind: "pending" };
       if (leakTime !== null && t >= leakTime) return { kind: "leaked" };

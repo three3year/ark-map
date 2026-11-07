@@ -92,7 +92,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
         spawnTime,
         harmless: action.harmless,
         leakTime: trajectory.leakTime,
-        path: trajectory.path,
+        remainingPathAt: trajectory.remainingPathAt,
         stateAt: trajectory.stateAt,
       });
     }

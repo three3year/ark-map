@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
-import { timeDisplay } from "./levelPage.ts";
+import { seek, timeDisplay } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
@@ -40,6 +40,28 @@ test("1-7: clicking a row away from the name jumps to its spawn and shows the ro
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", firstIndividual(row));
   await expect(page.locator(`g.path[data-path="${firstIndividual(row)}"]`)).toBeVisible();
   await expect(rowOf(page, row).locator("button.enemy")).toHaveAttribute("aria-pressed", "true");
+});
+
+test("1-7: the 路徑 hides before the selected individual spawns and comes back once it is on the field", async ({
+  page,
+}) => {
+  const row = siteRows("main_01-07").find((r) => r.waveTime >= 1)!;
+  const individual = firstIndividual(row);
+  const path = page.locator(`g.path[data-path="${individual}"]`);
+  const legend = page.getByRole("list", { name: "圖例" });
+  await page.goto("#/level/main_01-07?v=normal");
+  await orderCell(page, row).click();
+
+  await seek(page, 0);
+
+  await expect(path).toHaveCount(0);
+  await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual);
+  await expect(page.locator("p.selection")).toContainText("未出現");
+  await expect(legend.getByText("路徑", { exact: true })).toBeVisible();
+
+  await seek(page, Math.ceil(row.waveTime) + 0.5);
+
+  await expect(path).toBeVisible();
 });
 
 test("1-7: Enter on a row's enemy name jumps to its spawn", async ({ page }) => {
