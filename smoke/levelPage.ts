@@ -10,6 +10,9 @@ import { spawnPlan } from "../src/timeline/index.ts";
  */
 export const wideWindow = { width: 1600, height: 900 };
 
+/** A phone's window, well below the breakpoint: the spawn table is in a drawer. */
+export const phoneWindow = { width: 390, height: 844 };
+
 /** Open `hash` in a fresh page load, as pasting a link into a new tab does. */
 export async function openLink(page: Page, hash: string) {
   await page.goto("about:blank");

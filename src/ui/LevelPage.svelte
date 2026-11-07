@@ -32,6 +32,7 @@
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
+  import { MediaQuery } from "svelte/reactivity";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
@@ -133,13 +134,26 @@
     if (endpointFilter && !filtered) endpointFilter = null;
   });
 
-  /** A dot filters the spawn table to it; the dot of the filter on screen clears it. */
+  /**
+   * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
+   * the level page. Keep the width in step with the `@media` rules below.
+   */
+  const wide = new MediaQuery("min-width: 1440px");
+  const drawerMode = $derived(!wide.current);
+  let drawerOpen = $state(false);
+
+  /**
+   * A dot filters the spawn table to it, opening the drawer to show it; the dot of the filter on
+   * screen clears it.
+   */
   function toggleFilter({ kind, cell }: RouteEndpoint) {
     const endpoint = { kind, cell };
-    endpointFilter =
-      filtered && endpointKey(filtered) === endpointKey(endpoint)
-        ? null
-        : { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    if (filtered && endpointKey(filtered) === endpointKey(endpoint)) {
+      endpointFilter = null;
+      return;
+    }
+    endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    if (drawerMode) drawerOpen = true;
   }
 
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
@@ -236,19 +250,33 @@
       enemies={level.enemies}
     />
   </div>
-  <!-- Wide screens: a column beside the map that stays on screen and scrolls on its own. -->
-  <div class="side-column">
-    <SpawnTable
-      {rows}
-      wave={waveIndex}
-      multiWave={level.waves.length > 1}
-      {selected}
-      onJump={jumpTo}
-      onPick={pick}
-      branchKeys={level.branches.map((b) => b.key)}
-      filter={filtered}
-      onClearFilter={() => (endpointFilter = null)}
-    />
+  <!--
+    Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the
+    page, its button sticking out on the right edge. Either way .side-column scrolls the table.
+  -->
+  <div class="side" class:open={drawerOpen}>
+    <button
+      type="button"
+      class="drawer-button"
+      aria-expanded={drawerOpen}
+      aria-controls="spawn-table-drawer"
+      onclick={() => (drawerOpen = !drawerOpen)}
+    >
+      {strings.spawnTable}
+    </button>
+    <div class="side-column" id="spawn-table-drawer">
+      <SpawnTable
+        {rows}
+        wave={waveIndex}
+        multiWave={level.waves.length > 1}
+        {selected}
+        onJump={jumpTo}
+        onPick={pick}
+        branchKeys={level.branches.map((b) => b.key)}
+        filter={filtered}
+        onClearFilter={() => (endpointFilter = null)}
+      />
+    </div>
   </div>
 </div>
 
@@ -284,11 +312,80 @@
       padding-bottom: 32px;
     }
     /* Stays on screen as the page scrolls; the spawn table scrolls inside it. */
-    .side-column {
+    .side {
       position: sticky;
       top: 0;
       height: 100vh;
+    }
+    .side-column {
+      height: 100%;
       overflow-y: auto;
+    }
+    .drawer-button {
+      display: none;
+    }
+  }
+  /*
+   * Below the breakpoint: a drawer sliding out from the right over the page, so the map keeps its
+   * size. Its button sticks out of its left edge, on the window's right edge while it is closed.
+   * The 48px left uncovered keeps the button on screen while the drawer is open.
+   */
+  @media (width < 1440px) {
+    .side {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      width: min(824px, calc(100% - 48px));
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+    }
+    .side.open {
+      transform: none;
+      box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
+    }
+    /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
+    .side-column {
+      box-sizing: border-box;
+      height: 100%;
+      padding: 0 12px 12px;
+      overflow-y: auto;
+      visibility: hidden;
+      transition: visibility 0s 0.2s;
+    }
+    .side.open .side-column {
+      visibility: visible;
+      transition-delay: 0s;
+    }
+    .drawer-button {
+      position: absolute;
+      top: 50%;
+      right: 100%;
+      transform: translateY(-50%);
+      writing-mode: vertical-rl;
+      padding: 12px 6px;
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      background: var(--panel);
+      color: var(--fg);
+      font: inherit;
+      cursor: pointer;
+      box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
+    }
+    .drawer-button[aria-expanded="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+  }
+  @media (width < 1440px) and (prefers-reduced-motion: reduce) {
+    .side,
+    .side-column {
+      transition: none;
     }
   }
   nav a {
