@@ -3,6 +3,13 @@ import { expect, type Page } from "@playwright/test";
 import type { Difficulty, Level } from "../src/level/index.ts";
 import { spawnPlan } from "../src/timeline/index.ts";
 
+/**
+ * A window clearly wider than the level page's breakpoint, where the spawn table sits in a column
+ * beside the map. Tests that use the spawn table run in it, so they do not depend on the narrow
+ * layout. Desktop Chrome's default 1280px is below the breakpoint.
+ */
+export const wideWindow = { width: 1600, height: 900 };
+
 /** Open `hash` in a fresh page load, as pasting a link into a new tab does. */
 export async function openLink(page: Page, hash: string) {
   await page.goto("about:blank");

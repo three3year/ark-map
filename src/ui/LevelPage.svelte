@@ -161,91 +161,130 @@
   }
 </script>
 
-<nav>
-  <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
-</nav>
-<h2>{stage.code} {stage.name}</h2>
-{#if stage.emergencyCondition}
-  <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
-{/if}
-{#if stage.variants.length > 1}
-  <div class="variants" role="group" aria-label={strings.variantPicker}>
-    {#each stage.variants as v (v.id)}
-      <button
-        type="button"
-        aria-pressed={v.id === variant.id}
-        data-variant={v.id}
-        onclick={() => onVariant(v.id)}
-      >
-        {variantLabel(v.id)}
-      </button>
-    {/each}
+<div class="level-page">
+  <div class="main-column">
+    <nav>
+      <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
+    </nav>
+    <h2>{stage.code} {stage.name}</h2>
+    {#if stage.emergencyCondition}
+      <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
+    {/if}
+    {#if stage.variants.length > 1}
+      <div class="variants" role="group" aria-label={strings.variantPicker}>
+        {#each stage.variants as v (v.id)}
+          <button
+            type="button"
+            aria-pressed={v.id === variant.id}
+            data-variant={v.id}
+            onclick={() => onVariant(v.id)}
+          >
+            {variantLabel(v.id)}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <MapView
+      map={level.map}
+      {terrain}
+      {endpoints}
+      enemies={snapshot.onField}
+      {t}
+      {selected}
+      onSelect={select}
+      filter={filtered}
+      onFilter={toggleFilter}
+    />
+    {#if selected && selectedState}
+      <p class="selection" data-selected={selected.id}>
+        <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
+        <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+      </p>
+    {/if}
+    {#if level.waves.length > 1}
+      <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+    {/if}
+    <TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
+    <dl class="counts" aria-live="polite">
+      <div>
+        <dt>{strings.countPending}</dt>
+        <dd data-count="pending">{snapshot.counts.pending}</dd>
+      </div>
+      <div>
+        <dt>{strings.countOnField}</dt>
+        <dd data-count="onField">{snapshot.counts.onField}</dd>
+      </div>
+      <div>
+        <dt>{strings.countLeaked}</dt>
+        <dd data-count="leaked">{snapshot.counts.leaked}</dd>
+      </div>
+    </dl>
+    <SwitchPanel
+      {level}
+      {plan}
+      conditional={switches.conditional ?? {}}
+      wave={waveIndex}
+      {t}
+      onHidden={setHidden}
+      onPick={pick}
+      onConditional={setConditional}
+    />
+    <LevelInfo
+      options={level.options}
+      {modifiers}
+      variantName={variantLabel(variant.id)}
+      enemies={level.enemies}
+    />
   </div>
-{/if}
-<MapView
-  map={level.map}
-  {terrain}
-  {endpoints}
-  enemies={snapshot.onField}
-  {t}
-  {selected}
-  onSelect={select}
-  filter={filtered}
-  onFilter={toggleFilter}
-/>
-{#if selected && selectedState}
-  <p class="selection" data-selected={selected.id}>
-    <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
-    <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
-  </p>
-{/if}
-{#if level.waves.length > 1}
-  <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
-{/if}
-<TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
-<dl class="counts" aria-live="polite">
-  <div>
-    <dt>{strings.countPending}</dt>
-    <dd data-count="pending">{snapshot.counts.pending}</dd>
+  <!-- Wide screens: a column beside the map that stays on screen and scrolls on its own. -->
+  <div class="side-column">
+    <SpawnTable
+      {rows}
+      wave={waveIndex}
+      multiWave={level.waves.length > 1}
+      {selected}
+      onJump={jumpTo}
+      onPick={pick}
+      branchKeys={level.branches.map((b) => b.key)}
+      filter={filtered}
+      onClearFilter={() => (endpointFilter = null)}
+    />
   </div>
-  <div>
-    <dt>{strings.countOnField}</dt>
-    <dd data-count="onField">{snapshot.counts.onField}</dd>
-  </div>
-  <div>
-    <dt>{strings.countLeaked}</dt>
-    <dd data-count="leaked">{snapshot.counts.leaked}</dd>
-  </div>
-</dl>
-<SwitchPanel
-  {level}
-  {plan}
-  conditional={switches.conditional ?? {}}
-  wave={waveIndex}
-  {t}
-  onHidden={setHidden}
-  onPick={pick}
-  onConditional={setConditional}
-/>
-<SpawnTable
-  {rows}
-  wave={waveIndex}
-  multiWave={level.waves.length > 1}
-  {selected}
-  onJump={jumpTo}
-  onPick={pick}
-  branchKeys={level.branches.map((b) => b.key)}
-  filter={filtered}
-  onClearFilter={() => (endpointFilter = null)}
-/>
-<LevelInfo
-  options={level.options}
-  {modifiers}
-  variantName={variantLabel(variant.id)}
-  enemies={level.enemies}
-/>
+</div>
 
 <style>
+  /*
+   * Wide screens: the map beside a column holding the spawn table.
+   * - The column is 824px: the widest spawn table of any level, measured in Chrome with its 標記
+   *   wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the column's scrollbar.
+   *   A fixed width keeps the map from resizing as a 端點篩選 or a switch changes the rows.
+   * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
+   *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
+   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px.
+   */
+  @media (min-width: 1440px) {
+    .level-page {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 824px;
+      gap: 24px;
+      align-items: start;
+      /*
+       * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
+       * so with the padding below the row it slid 32px up off screen at the bottom of the page.
+       */
+      margin-bottom: -32px;
+    }
+    .main-column {
+      padding-bottom: 32px;
+    }
+    /* Stays on screen as the page scrolls; the spawn table scrolls inside it. */
+    .side-column {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+  }
   nav a {
     color: var(--accent);
   }
