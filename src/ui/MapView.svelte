@@ -52,7 +52,7 @@
 
   const points = (ps: Vec2[]) => ps.map((p) => `${p.x},${svgY(p.y)}`).join(" ");
   const tenth = (s: number) => Math.round(s * 10) / 10;
-  /** The selected individual's 路徑 left at `t`; empty while it is off the map. */
+  /** The selected individual's 路徑 left at `t`; `Trajectory.remainingPathAt` says when it is empty. */
   const path = $derived(selected?.remainingPathAt(t) ?? []);
   /** Where each walk ends: a MOVE / PATROL_MOVE checkpoint, or the end point. */
   const checkpointMarks = $derived(
@@ -206,8 +206,8 @@
         </g>
       {/each}
 
-      {#if selected && path.length > 0}
-        <g class="path" data-path={selected.id}>
+      {#if path.length > 0}
+        <g class="path" data-path={selected?.id}>
           {#each path as leg, i (i)}
             {#if leg.kind === "move"}
               <polyline class="walk" class:invisible={leg.invisible} points={points(leg.points)} />
