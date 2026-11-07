@@ -165,11 +165,13 @@
     if (endpointFilter && !filtered) endpointFilter = null;
   });
 
+  /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
+  const breakpoint = 1440;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
-   * the level page. Keep the width in step with the `@media` rules below.
+   * the level page.
    */
-  const drawerMode = new MediaQuery("width < 1440px");
+  const drawerMode = new MediaQuery(`width < ${breakpoint}px`);
   let drawerOpen = $state(false);
   /** Opening the drawer shows the selected individual's row. */
   function setDrawerOpen(open: boolean) {
@@ -319,15 +321,21 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is 824px: the widest spawn table of any level, measured in Chrome with its 標記
-   *   wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the column's scrollbar.
-   *   A fixed width keeps the map from resizing as a 端點篩選 or a switch changes the rows.
+   * - The column is --side-column-width, 824px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
+   *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px.
+   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
+   *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   *   above and the two `@media` rules below. App.svelte's `main.level` max-width, the level
+   *   page's cap, is also 1440px (smoke/layout.spec.ts checks it); it must stay at least
+   *   540 + 24 + 824 + 32 = 1420px.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
+    --side-column-width: 824px;
     max-width: 960px;
     margin: 0 auto;
   }
@@ -335,7 +343,7 @@
     .level-page {
       max-width: none;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 824px;
+      grid-template-columns: minmax(0, 1fr) var(--side-column-width);
       gap: 24px;
       align-items: start;
       /*
@@ -377,7 +385,7 @@
       right: 0;
       bottom: 0;
       z-index: 10;
-      width: min(824px, calc(100% - 48px));
+      width: min(var(--side-column-width), calc(100% - 48px));
       transform: translateX(100%);
       transition: transform 0.2s ease;
       background: var(--bg);
@@ -422,7 +430,8 @@
       color: #fff;
     }
   }
-  @media (width < 1440px) and (prefers-reduced-motion: reduce) {
+  /* Only the drawer has transitions to drop. */
+  @media (prefers-reduced-motion: reduce) {
     .side,
     .side-column {
       transition: none;
