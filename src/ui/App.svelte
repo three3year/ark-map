@@ -10,21 +10,36 @@
   } from "../level/index.ts";
   import AreaList from "./AreaList.svelte";
   import LevelPage from "./LevelPage.svelte";
-  import { formatHash, parseHash, type Route } from "./route.ts";
+  import { formatHash, parseHash, roundTenth, type Route } from "./route.ts";
   import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
 
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
 
-  /** Write the URL first; the page renders from what the URL says. */
+  /**
+   * The level page's 播放位置. It lives here rather than in the level page, which only exists
+   * once the variant's level file has loaded, so a variant switch that loads another file keeps it.
+   */
+  let position = $state({ wave: 0, t: 0 });
+
+  /** Follow a new hash; entering a level page, or moving to another stage, starts at wave 1, 0 s. */
+  function followHash(next: string) {
+    const to = parseHash(next);
+    if (to.page === "level" && (route.page !== "level" || route.stageId !== to.stageId)) {
+      position = { wave: 0, t: 0 };
+    }
+    hash = next;
+  }
+
+  /** Write the URL first; the page renders the stage, variant and switches the URL says. */
   function navigate(next: Route) {
     history.replaceState(null, "", formatHash(next));
-    hash = location.hash;
+    followHash(location.hash);
   }
 
   $effect(() => {
-    const onHashChange = () => (hash = location.hash);
+    const onHashChange = () => followHash(location.hash);
     addEventListener("hashchange", onHashChange);
     return () => removeEventListener("hashchange", onHashChange);
   });
@@ -107,12 +122,12 @@
       stage={found.stage}
       {variant}
       level={loaded.level}
-      wave={route.wave}
-      t={route.t}
+      wave={position.wave}
+      t={position.t}
       switches={route.switches ?? {}}
-      onSeek={(t) => navigate({ ...route, t })}
-      onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
-      onJump={(wave, t) => navigate({ ...route, wave, t })}
+      onSeek={(t) => (position.t = roundTenth(t))}
+      onSelectWave={(wave) => (position = { wave, t: 0 })}
+      onJump={(wave, t) => (position = { wave, t: roundTenth(t) })}
       onSwitches={(switches) => navigate({ ...route, switches })}
       onVariant={(v) => navigate({ ...route, variant: v, switches: undefined })}
     />
