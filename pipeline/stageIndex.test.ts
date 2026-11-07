@@ -97,9 +97,12 @@ describe("stage index", () => {
       ["MAINLINE", "main_6", "第六章", "局部壞死"],
       ["MAINLINE", "main_10", "第十章", "破碎日冕"],
       ["MAINLINE", "act4mainss_zone1", "第十七章", "相變臨界"],
-      // Neither activity is in the TW tables yet: CN names.
-      ["ACTIVITY", "act52side", null, "昨日海"],
-      ["ACTIVITY", "act24sre", null, "落叶逐火·复刻"],
+      // An activity's code is the letters its stage codes start with (YW-1 -> YW).
+      // Neither of these two is in the TW tables yet: CN names.
+      ["ACTIVITY", "act52side", "YW", "昨日海"],
+      ["ACTIVITY", "act24sre", "CF", "落叶逐火·复刻"],
+      // Stage codes start TB-, LK- and FIN-: no single code.
+      ["ACTIVITY", "act1lock", null, "荷謨伊智境"],
       ["CAMPAIGN", "camp_zone_1", null, "炎國龍門"],
       ["CAMPAIGN", "camp_zone_3", null, "烏薩斯"],
       ["ROGUELIKE", "rogue_1", null, "傀影與猩紅孤鑽"],
