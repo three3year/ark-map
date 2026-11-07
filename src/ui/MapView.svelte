@@ -10,6 +10,7 @@
   } from "../level/index.ts";
   import {
     endpointKey,
+    matchesEndpoint,
     type EndpointPlace,
     type Individual,
     type RouteEndpoint,
@@ -34,7 +35,10 @@
     selected: Individual | null;
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
-    /** The 端點篩選's dot, drawn pressed; null when the spawn table is not filtered. */
+    /**
+     * The 端點篩選's dot, drawn pressed; the individuals outside it fade unless selected. Null when
+     * the spawn table is not filtered.
+     */
     filter: EndpointPlace | null;
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
@@ -231,14 +235,18 @@
       {/if}
 
       {#each enemies as { individual, position, invisible, stay } (individual.id)}
+        {@const filteredOut =
+          filter !== null && individual.id !== selected?.id && !matchesEndpoint(individual, filter)}
         <g
           class="enemy"
           class:invisible
+          class:filtered-out={filteredOut}
           class:harmless={individual.harmless}
           class:selected={individual.id === selected?.id}
           transform="translate({position.x} {svgY(position.y)})"
           data-enemy={individual.enemy.id}
           data-individual={individual.id}
+          data-filtered-out={filteredOut || undefined}
           role="button"
           tabindex="0"
           aria-label={individual.enemy.name}
@@ -471,7 +479,11 @@
   .enemy:focus {
     outline: none;
   }
-  .enemy.invisible {
+  /* 隱形 and 被篩掉 fade on different layers so the two multiply. */
+  .enemy.invisible > .billboard {
+    opacity: 0.7;
+  }
+  .enemy.filtered-out {
     opacity: 0.4;
   }
   .enemy.invisible .enemy-ring {

@@ -3,8 +3,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
-import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.ts";
+import {
+  cellKey,
+  withNames,
+  type LevelFile,
+  type NameTable,
+  type StageIndex,
+} from "../src/level/index.ts";
+import {
+  buildTimeline,
+  matchesEndpoint,
+  routeEndpoints,
+  spawnTable,
+  takeSnapshot,
+} from "../src/timeline/index.ts";
 import { playbackStop, roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
@@ -12,6 +24,7 @@ import {
   expectVariantShown,
   seek,
   selectWave,
+  shownOpacity,
   timeDisplay,
 } from "./levelPage.ts";
 
@@ -67,6 +80,36 @@ test("4-10: an enemy standing still has a shrinking bar over it, gone once it mo
   await seek(page, Math.ceil(stay!.end));
 
   await expect(bar).toHaveCount(0);
+});
+
+test("4-10: 霜星 is drawn at 0.7 opacity while 隱形", async ({ page }) => {
+  const timeline = buildTimeline(readSiteLevel(siteStage("main_04-10").variants[0]!.levelFile));
+  // The first whole second at which 霜星 is 隱形.
+  const t = Array.from({ length: 400 }, (_, i) => i).find((s) =>
+    takeSnapshot(timeline, s).onField.some(
+      (e) => e.invisible && e.individual.enemy.name === "霜星",
+    ),
+  );
+  expect(t, "4-10's 霜星 goes 隱形").toBeDefined();
+  const { individual } = takeSnapshot(timeline, t!).onField.find(
+    (e) => e.invisible && e.individual.enemy.name === "霜星",
+  )!;
+  const enemy = page.locator(`svg.map g.enemy[data-individual="${individual.id}"]`);
+
+  await page.goto("#/level/main_04-10?v=normal");
+  await seek(page, t!);
+
+  await expect(enemy).toHaveClass(/\binvisible\b/);
+  expect(await shownOpacity(enemy.locator(".enemy-bg"))).toBeCloseTo(0.7, 2);
+
+  // Filtered out as well, the two fades multiply.
+  const elsewhere = routeEndpoints(timeline).find((e) => !matchesEndpoint(individual, e))!;
+  await page
+    .locator(`svg.map [data-endpoint="${elsewhere.kind}"][data-cell="${cellKey(elsewhere.cell)}"]`)
+    .click();
+
+  await expect(enemy).toHaveAttribute("data-filtered-out");
+  expect(await shownOpacity(enemy.locator(".enemy-bg"))).toBeCloseTo(0.28, 2);
 });
 
 test("4-4 challenge runs its 難度修正 move speed and lists its modifiers", async ({ page }) => {
