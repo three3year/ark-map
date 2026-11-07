@@ -176,6 +176,8 @@
     font-size: 1.1rem;
   }
   fieldset {
+    /* A fieldset is never narrower than its content by default: a long 隨機出兵組 option overflowed. */
+    min-width: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 6px 16px;
