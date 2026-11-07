@@ -87,3 +87,56 @@ test("seeking, picking a wave and jumping from the spawn table leave the URL alo
   await expect(timeDisplay(page)).toHaveText(`${jumpedTo.toFixed(1)} 秒`);
   expect(page.url()).toBe(url);
 });
+
+test("switching to a variant with its own level file keeps the time", async ({ page }) => {
+  const variants = siteStage("main_11-06").variants;
+  const tough = variants.find((v) => v.id === "tough")!;
+  expect(tough.levelFile, "磨難 has its own level file").not.toBe(variants[0]!.levelFile);
+  await page.goto("#/level/main_11-06?v=normal");
+  await seek(page, 30);
+
+  await page.locator('button[data-variant="tough"]').click();
+
+  await expect(page).toHaveURL(/#\/level\/main_11-06\?v=tough$/);
+  await expect(page.locator('button[data-variant="tough"]')).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(timeDisplay(page)).toHaveText("30.0 秒");
+});
+
+test("an old link's wave and seconds are ignored", async ({ page }) => {
+  await page.goto("#/level/ro2_n_2_6?v=normal&w=1&t=5");
+
+  await expect(page.locator("svg.map")).toBeVisible();
+  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(page).toHaveURL(/#\/level\/ro2_n_2_6\?v=normal&w=1&t=5$/);
+});
+
+test("entering a stage starts at wave 1, 0 s; changing only the variant keeps the time", async ({
+  page,
+}) => {
+  await page.goto("#/level/main_11-06?v=normal");
+  await seek(page, 30);
+
+  // Back to the stage list and into the same stage again.
+  await page.locator("nav a").click();
+  await page.locator('a[data-stage="main_11-06"]').click();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+
+  // Editing the URL to another variant keeps the time; to another stage starts over.
+  await seek(page, 30);
+  await page.evaluate(() => (location.hash = "#/level/main_11-06?v=easy"));
+  await expect(page.locator('button[data-variant="easy"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(timeDisplay(page)).toHaveText("30.0 秒");
+  await page.evaluate(() => (location.hash = "#/level/main_01-07?v=normal"));
+  await expect(page.locator("h2")).toContainText("1-7");
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+
+  // The browser's back button to 11-6 starts over too.
+  await seek(page, 30);
+  await page.goBack();
+  await expect(page.locator('button[data-variant="easy"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+});
