@@ -97,7 +97,7 @@ describe("stage index", () => {
       ["MAINLINE", "main_6", "第六章", "局部壞死"],
       ["MAINLINE", "main_10", "第十章", "破碎日冕"],
       ["MAINLINE", "act4mainss_zone1", "第十七章", "相變臨界"],
-      // An activity's code is the letters its stage codes start with (YW-1 -> YW).
+      // An activity's 區域代號 is the letters its stage codes start with (YW-1 -> YW).
       // Not in the TW tables yet: CN name.
       ["ACTIVITY", "act52side", "YW", "昨日海"],
       // Not a 復刻, though its stages are act17d7_*: its own name and date.
