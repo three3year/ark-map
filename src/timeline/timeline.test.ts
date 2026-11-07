@@ -102,16 +102,17 @@ describe("4-10: waits and teleports", () => {
   // appear at (1,1); 2 cells to (1,3) -> 199, wait -> 219; 7 cells to the end (1,10) -> 247.
   const timeline = buildTimeline(loadFixtureLevel("level_main_04-10"));
   const frostNova = timeline.individuals.find((i) => i.enemy.id === "enemy_1505_frstar")!;
-  const at = (x: number, y: number, invisible = false) => ({
-    kind: "onField",
-    position: { x, y },
-    invisible,
-  });
+  const at = (
+    x: number,
+    y: number,
+    invisible = false,
+    stay: { start: number; end: number } | null = null,
+  ) => ({ kind: "onField", position: { x, y }, invisible, stay });
 
   it("walks, waits, hides and reappears on schedule", () => {
     expect(frostNova.spawnTime).toBe(3);
     expect(frostNova.stateAt(7)).toEqual(at(1, 5));
-    expect(frostNova.stateAt(20)).toEqual(at(2, 5));
+    expect(frostNova.stateAt(20)).toEqual(at(2, 5, false, { start: 11, end: 31 }));
     expect(frostNova.stateAt(39)).toEqual(at(4, 5));
     expect(frostNova.stateAt(90)).toEqual(at(9, 5, true));
     expect(frostNova.stateAt(99)).toEqual(at(9, 3));
@@ -210,11 +211,13 @@ describe("movement model v0", () => {
       kind: "onField",
       position: { x: 0, y: 0 },
       invisible: false,
+      stay: null,
     });
     expect(enemy!.stateAt(4.5)).toEqual({
       kind: "onField",
       position: { x: 2.5, y: 0 },
       invisible: false,
+      stay: null,
     });
     expect(enemy!.leakTime).toBe(6);
     expect(enemy!.stateAt(6)).toEqual({ kind: "leaked" });
@@ -226,6 +229,7 @@ describe("movement model v0", () => {
       kind: "onField",
       position: { x: 0.5, y: 0 },
       invisible: false,
+      stay: null,
     });
     expect(enemy!.leakTime).toBe(5.5);
   });

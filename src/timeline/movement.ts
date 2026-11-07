@@ -10,10 +10,19 @@ import {
 } from "../level/index.ts";
 import type { NextNodeLookup } from "../pathfinding/index.ts";
 
-/** An individual's state at one second of its wave: 未出現 / 在場 / 已進點. */
+/** A visible stand-still at a wait checkpoint, in seconds of the wave; it moves on at `end`. */
+export interface Stay {
+  start: number;
+  end: number;
+}
+
+/**
+ * An individual's state at one second of its wave: 未出現 / 在場 / 已進點. `stay` is the
+ * visible wait it is in, if any; a hidden wait has none.
+ */
 export type IndividualState =
   | { kind: "pending" }
-  | { kind: "onField"; position: Vec2; invisible: boolean }
+  | { kind: "onField"; position: Vec2; invisible: boolean; stay: Stay | null }
   | { kind: "leaked" };
 
 export interface MovementInput {
@@ -109,8 +118,14 @@ export const nextNodeModel: MovementModel = (input) => {
       let i = steps.length - 1;
       while (i > 0 && steps[i]!.leg.start > t) i--;
       const leg = steps[i]?.leg;
-      if (!leg || t >= leg.end) return { kind: "onField", ...rest! };
-      return { kind: "onField", position: positionOn(leg, t, speed), invisible: leg.invisible };
+      if (!leg || t >= leg.end) return { kind: "onField", ...rest!, stay: null };
+      const stay = leg.kind === "wait" && !leg.invisible ? { start: leg.start, end: leg.end } : null;
+      return {
+        kind: "onField",
+        position: positionOn(leg, t, speed),
+        invisible: leg.invisible,
+        stay,
+      };
     },
   };
 };
