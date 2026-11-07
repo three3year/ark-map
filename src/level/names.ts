@@ -1,10 +1,20 @@
-// 名稱表: one site file (data/names.json) of enemy display names, so level files need not repeat
-// them. A level file keeps an enemy's name only when it differs from the table's.
+// 名稱表: one site file (data/names.json) of enemy display names and the 地形表, so level files
+// need not repeat them. A level file keeps an enemy's name only when it differs from the table's.
 import type { EnemyRef, Level } from "./types.ts";
+
+/** A 地形 as the game's stage table describes it. */
+export interface TerrainInfo {
+  name: string;
+  description: string;
+  /** The game's `isFunctional`: the terrain does something beyond height and placement. */
+  functional: boolean;
+}
 
 export interface NameTable {
   /** Enemy id -> TW handbook name, else the CN database's name. */
   enemies: Record<string, string>;
+  /** 地形表: `tileKey` -> TW entry, else CN; keys neither server names are absent. */
+  terrain: Record<string, TerrainInfo>;
 }
 
 /** An 敵人 as written to a level file: `name` only when the name table lacks it or differs. */
