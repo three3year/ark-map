@@ -262,8 +262,14 @@
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
    * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px.
    */
+  /* Below the breakpoint: one column, as wide as the other pages. */
+  .level-page {
+    max-width: 960px;
+    margin: 0 auto;
+  }
   @media (min-width: 1440px) {
     .level-page {
+      max-width: none;
       display: grid;
       grid-template-columns: minmax(0, 1fr) 824px;
       gap: 24px;
