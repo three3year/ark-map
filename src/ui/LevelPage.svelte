@@ -146,6 +146,7 @@
   map={level.map}
   routes={level.routes}
   enemies={snapshot.onField}
+  {t}
   {selected}
   onSelect={select}
 />
