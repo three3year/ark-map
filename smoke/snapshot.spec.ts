@@ -76,7 +76,7 @@ test("playback leaves the URL alone", async ({ page }) => {
   expect(page.url()).toBe(url);
 });
 
-test("seeking, picking a wave and jumping from the spawn table leave the URL alone", async ({
+test("seeking, picking a 波次 and jumping from the spawn table leave the URL alone", async ({
   page,
 }) => {
   const level = readSiteLevel(siteStage("ro2_n_2_6").variants[0]!.levelFile);
@@ -130,7 +130,7 @@ test("switching between variants that share a level file resets the switches", a
   await expect(conditional).not.toBeChecked();
 });
 
-test("an old link's wave and seconds are ignored", async ({ page }) => {
+test("an old link's 波次 and seconds are ignored", async ({ page }) => {
   const variant = siteStage("ro2_n_2_6").variants[0]!;
   const level = readSiteLevel(variant.levelFile);
   const atStart = takeSnapshot(buildTimeline(level, { difficulty: variant.difficulty }), 0);
@@ -145,7 +145,7 @@ test("an old link's wave and seconds are ignored", async ({ page }) => {
   await expect(page).toHaveURL(/#\/level\/ro2_n_2_6\?v=normal&w=1&t=5$/);
 });
 
-test("entering a stage starts at wave 1, 0 s; changing only the variant keeps the time", async ({
+test("entering a stage starts at 第 1 波, 0 s; changing only the variant keeps the time", async ({
   page,
 }) => {
   await page.goto("#/level/main_11-06?v=normal");
