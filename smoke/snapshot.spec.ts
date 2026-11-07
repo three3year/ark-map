@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
-import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.ts";
+import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../src/timeline/index.ts";
 import { ceilTenth, playbackStop, roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
@@ -41,6 +41,32 @@ test("1-7 at 35 s shows as many enemy individuals as the timeline has on field",
   await seek(page, 35);
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
+});
+
+test("RM-2: a patrol selected long after its first lap shows the 路徑 left of the lap it is on", async ({
+  page,
+}) => {
+  const timeline = buildTimeline(
+    readSiteLevel(siteStage("act1halfidle_02").variants[0]!.levelFile),
+  );
+  // RM-2's patrols open each lap with a wait.
+  const patrol = timeline.individuals.find(
+    (i) => i.leakTime === null && i.route.checkpoints[0]?.type === "WAIT_FOR_SECONDS",
+  );
+  expect(patrol, "RM-2 has a patrol whose first checkpoint is a wait").toBeDefined();
+  const firstLapEnd = patrol!.remainingPathAt(patrol!.spawnTime).at(-1)!.end;
+  const t = Math.ceil(timelineEnd(timeline));
+  expect(t, "the time slider reaches past the patrol's first lap").toBeGreaterThan(firstLapEnd);
+  const walks = patrol!.remainingPathAt(t).filter((leg) => leg.kind === "move").length;
+  const path = page.locator(`g.path[data-path="${patrol!.id}"]`);
+
+  await page.goto("#/level/act1halfidle_02?v=normal");
+  await seek(page, t);
+  // Other enemies stand on top of it by then; Enter selects it as a click does.
+  await page.locator(`svg.map g.enemy[data-individual="${patrol!.id}"]`).press("Enter");
+
+  await expect(path).toBeVisible();
+  await expect(path.locator("polyline.walk")).toHaveCount(walks);
 });
 
 test("4-10: an enemy standing still has a shrinking bar over it, gone once it moves on", async ({
