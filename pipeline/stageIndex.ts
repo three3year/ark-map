@@ -178,6 +178,13 @@ function chapterCode(zone: RawZone): string | null {
   return Number.isInteger(n) ? `第${chineseNumber(n)}章` : zone.zoneNameFirst;
 }
 
+/** 區域代號: the letters every stage code starts with (IS-1 -> IS); null when they differ. */
+function activityCode(stages: StageEntry[]): string | null {
+  const prefixes = new Set(stages.map((s) => /^[A-Za-z]*/.exec(s.code)![0]));
+  const [only] = prefixes;
+  return prefixes.size === 1 && only ? only : null;
+}
+
 interface AreaDraft {
   area: Area;
   sortKey: number;
@@ -287,6 +294,7 @@ export function buildStageIndex(
       sortKey,
       area: {
         ...area,
+        code: area.kind === "ACTIVITY" ? activityCode([...sections.values()].flat()) : area.code,
         sections: [...sections].map(([zoneId, stages]) => ({
           name: sections.size > 1 ? zoneName(zoneId) : null,
           stages,
