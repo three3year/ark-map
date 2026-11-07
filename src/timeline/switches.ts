@@ -217,7 +217,8 @@ const nonEmpty = <T extends object>(record: T): T | undefined =>
 
 /**
  * `switches` with hidden group `name` switched on or off. The on-set is stored in level order,
- * and dropped when it equals the variant's default, so the switches only carry changes.
+ * and dropped when it equals the variant's default, so the switches hold only what differs from
+ * the variant's default.
  */
 export function switchHidden(
   level: Level,
