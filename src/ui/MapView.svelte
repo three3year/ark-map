@@ -199,7 +199,6 @@
           }}
         >
           <g class="billboard">
-            <title>{strings.endpointFilterHint}</title>
             <circle class="dot" r="0.1" />
           </g>
         </g>

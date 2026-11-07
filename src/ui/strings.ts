@@ -90,7 +90,6 @@ export const strings = {
   /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */
   endpointAt: (kind: EndpointKind, row: number, col: number) =>
     `${endpointKinds[kind]}(${row}, ${col})`,
-  endpointFilterHint: "點一下篩選出兵表,再點一次取消",
   /** The 端點篩選's caption above the spawn table; `endpoint` is an endpoint's name. */
   endpointFilter: (endpoint: string) => `篩選:本波的${endpoint}`,
   clearFilter: "清除",
