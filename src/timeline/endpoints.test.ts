@@ -10,12 +10,16 @@ import {
   type Tile,
 } from "../level/index.ts";
 import {
+  actionKey,
   buildTimeline,
+  endpointKey,
   endpointRows,
+  matchesEndpoint,
   routeEndpoints,
   spawnTable,
   type EndpointKind,
   type RouteEndpoint,
+  type SpawnSwitches,
   type Timeline,
 } from "./index.ts";
 
@@ -86,6 +90,36 @@ describe("出生點 and 消失點", () => {
     expect(added?.actions).toEqual([{ branchIndex: 0, fragmentIndex: 0, actionIndex: 0 }]);
   });
 
+  describe("the map and the spawn table filter the same individuals", () => {
+    // Each fixture with the switches that put its 隱藏組, 條件出兵 or picked thief on screen.
+    const cases: [string, SpawnSwitches][] = [
+      ["level_main_01-07", {}],
+      ["level_main_04-10", {}],
+      ["level_main_15-12", { hiddenOn: ["group1", "group2"] }],
+      ["level_main_11-06", { conditional: { 0: { wave: 0, t: 30 } } }],
+      ["level_rogue2_2-6", { picks: { 0: 1 } }],
+      ["level_rogue3_5-5", {}],
+    ];
+    it.each(cases)("%s: every endpoint of every wave", (fixture, switches) => {
+      const level = loadFixtureLevel(fixture);
+      const rows = spawnTable(level, { switches });
+      level.waves.forEach((_, waveIndex) => {
+        const timeline = buildTimeline(level, { waveIndex, switches });
+        for (const endpoint of routeEndpoints(timeline)) {
+          const fromMap = timeline.individuals
+            .filter((individual) => matchesEndpoint(individual, endpoint))
+            .map(actionKey);
+          const fromTable = endpointRows(rows, waveIndex, endpoint).map(actionKey);
+          expect(fromMap.length, `${endpointKey(endpoint)} matches someone`).toBeGreaterThan(0);
+          expect(
+            [...new Set(fromMap)].sort(),
+            `wave ${waveIndex} ${endpointKey(endpoint)}`,
+          ).toEqual([...fromTable].sort());
+        }
+      });
+    });
+  });
+
   describe("a walker through a 通道 and a patrol, on one row of eight cells", () => {
     // Action 0 walks (0, 0) -> (0, 7), vanishing into a 通道 at (0, 2) and coming out at (0, 5).
     // Action 1 spawns at (0, 6) and patrols (0, 6) <-> (0, 4) forever.
@@ -112,6 +146,21 @@ describe("出生點 and 消失點", () => {
     it("the 通道's cells get neither a 出生點 nor a 消失點", () => {
       expect(cellsOf(timeline, "spawn")).toEqual(["0,0", "0,6"]);
       expect(cellsOf(timeline, "exit")).toEqual(["0,7"]);
+    });
+
+    it("a 出生點 matches only the individuals coming out of it, a 消失點 only those leaving at it", () => {
+      const [walker, patrol] = timeline.individuals;
+      const at = (kind: EndpointKind, col: number) => ({ kind, cell: { row: 0, col } });
+      expect(matchesEndpoint(walker!, at("spawn", 0))).toBe(true);
+      expect(matchesEndpoint(walker!, at("exit", 0))).toBe(false);
+      expect(matchesEndpoint(walker!, at("exit", 7))).toBe(true);
+      expect(matchesEndpoint(walker!, at("spawn", 7))).toBe(false);
+      expect(matchesEndpoint(patrol!, at("spawn", 6))).toBe(true);
+    });
+
+    it("the patrol, ending its route where it started but never leaving, matches no 消失點", () => {
+      const patrol = timeline.individuals[1]!;
+      expect(matchesEndpoint(patrol, { kind: "exit", cell: patrol.route.end })).toBe(false);
     });
 
     it("the patrol, never leaving, has a 出生點 and no 消失點", () => {

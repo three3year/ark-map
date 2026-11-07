@@ -1,5 +1,5 @@
 // Level page controls as a player uses them: 播放位置 lives on the page, not in the URL.
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import type { Difficulty, Level } from "../src/level/index.ts";
 import { spawnPlan } from "../src/timeline/index.ts";
 
@@ -65,4 +65,15 @@ export async function expectVariantShown(page: Page, variant: string) {
     "aria-pressed",
     "true",
   );
+}
+
+/** The opacity `locator` is drawn with: its own times every ancestor's. */
+export function shownOpacity(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => {
+    let opacity = 1;
+    for (let e: Element | null = el; e; e = e.parentElement) {
+      opacity *= Number(getComputedStyle(e).opacity);
+    }
+    return opacity;
+  });
 }

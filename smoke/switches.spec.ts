@@ -14,6 +14,7 @@ import {
 import {
   buildTimeline,
   endpointRows,
+  matchesEndpoint,
   routeEndpoints,
   spawnTable,
   takeSnapshot,
@@ -26,6 +27,7 @@ import {
   seek,
   selectWave,
   setConditionalSecond,
+  shownOpacity,
   timeDisplay,
   wideWindow,
 } from "./levelPage.ts";
@@ -294,6 +296,57 @@ test("15-13: a 出生點 or 消失點 filters the spawn table; again, 清除 or 
   // Switching the group back on does not bring the filter back.
   await group1.check();
   await expect(filterCaption(page)).toHaveCount(0);
+});
+
+test("15-13: a 端點篩選 fades the enemies outside it until selected or cleared", async ({
+  page,
+}) => {
+  const level = siteLevel("main_15-12");
+  const spawn = { kind: "spawn" as const, cell: { row: 3, col: 0 } };
+  const timeline = buildTimeline(level);
+  // The first whole second with a visible enemy both inside and outside the filter.
+  const t = Array.from({ length: 400 }, (_, i) => i).find((s) => {
+    const shown = takeSnapshot(timeline, s).onField.filter((e) => !e.invisible);
+    return (
+      shown.some((e) => matchesEndpoint(e.individual, spawn)) &&
+      shown.some((e) => !matchesEndpoint(e.individual, spawn))
+    );
+  });
+  expect(t, "15-13 has enemies inside and outside the filter at once").toBeDefined();
+  const onFieldNow = takeSnapshot(timeline, t!).onField.filter((e) => !e.invisible);
+  const inside = onFieldNow.filter((e) => matchesEndpoint(e.individual, spawn));
+  const outside = onFieldNow.filter((e) => !matchesEndpoint(e.individual, spawn));
+  const enemy = (id: string) => page.locator(`svg.map g.enemy[data-individual="${id}"]`);
+  const fadedEnemies = page.locator("svg.map g.enemy[data-filtered-out]");
+  const opacityOf = (id: string) => shownOpacity(enemy(id).locator(".enemy-bg"));
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await seek(page, t!);
+  await expect(fadedEnemies).toHaveCount(0);
+
+  await page.getByRole("button", { name: "出生點(3, 0)" }).click();
+
+  for (const { individual } of outside) {
+    await expect(enemy(individual.id)).toHaveAttribute("data-filtered-out");
+    expect(await opacityOf(individual.id)).toBeCloseTo(0.4, 2);
+  }
+  for (const { individual } of inside) {
+    await expect(enemy(individual.id)).not.toHaveAttribute("data-filtered-out");
+    expect(await opacityOf(individual.id)).toBeCloseTo(1, 2);
+  }
+
+  // A faded enemy can still be selected, and shows in full while it is.
+  const picked = outside[0]!.individual.id;
+  await enemy(picked).dispatchEvent("click");
+  await expect(page.locator(`g.path[data-path="${picked}"]`)).toBeVisible();
+  await expect(enemy(picked)).not.toHaveAttribute("data-filtered-out");
+  expect(await opacityOf(picked)).toBeCloseTo(1, 2);
+  await expect(filterCaption(page)).toContainText("出生點(3, 0)");
+
+  await page.getByRole("button", { name: "清除", exact: true }).click();
+
+  await expect(fadedEnemies).toHaveCount(0);
+  for (const { individual } of outside) expect(await opacityOf(individual.id)).toBeCloseTo(1, 2);
 });
 
 test("ro2_n_2_6: switching 波次 clears the 端點篩選", async ({ page }) => {

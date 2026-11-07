@@ -2,7 +2,7 @@
 // Pure; no DOM or network.
 import { cellKey, type Cell } from "../level/index.ts";
 import { actionKey, sameAction, type WaveActionId } from "./identity.ts";
-import type { Timeline } from "./types.ts";
+import type { Individual, Timeline } from "./types.ts";
 
 /** 出生點 ("spawn") or 消失點 ("exit"). */
 export type EndpointKind = "spawn" | "exit";
@@ -55,6 +55,16 @@ export function routeEndpoints(timeline: Timeline): RouteEndpoint[] {
       (a, b) =>
         kindOrder[a.kind] - kindOrder[b.kind] || a.cell.row - b.cell.row || a.cell.col - b.cell.col,
     );
+}
+
+/**
+ * The 端點篩選 on the map: whether `individual` comes out of (spawn) or leaves at (exit)
+ * `endpoint`, by the rule of {@link routeEndpoints}. The individuals it matches are exactly those
+ * of the rows {@link endpointRows} lists.
+ */
+export function matchesEndpoint(individual: Individual, { kind, cell }: EndpointPlace): boolean {
+  if (kind === "spawn") return cellKey(individual.route.start) === cellKey(cell);
+  return individual.leakTime !== null && cellKey(individual.route.end) === cellKey(cell);
 }
 
 /**
