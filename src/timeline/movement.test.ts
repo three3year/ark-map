@@ -175,7 +175,12 @@ function expectAt(state: IndividualState, x: number, y: number, invisible = fals
 }
 
 const p = (x: number, y: number) => ({ x, y });
-const at = (x: number, y: number) => ({ kind: "onField", position: { x, y }, invisible: false });
+const at = (x: number, y: number, stay: { start: number; end: number } | null = null) => ({
+  kind: "onField",
+  position: { x, y },
+  invisible: false,
+  stay,
+});
 
 describe("movement model: checkpoints", () => {
   const corridor = ["....."];
@@ -225,8 +230,8 @@ describe("movement model: checkpoints", () => {
       }),
     );
     expect(enemy.stateAt(1)).toEqual(at(1, 0));
-    expect(enemy.stateAt(2)).toEqual(at(2, 0));
-    expect(enemy.stateAt(4.9)).toEqual(at(2, 0));
+    expect(enemy.stateAt(2)).toEqual(at(2, 0, { start: 2, end: 5 }));
+    expect(enemy.stateAt(4.9)).toEqual(at(2, 0, { start: 2, end: 5 }));
     expect(enemy.stateAt(6)).toEqual(at(3, 0));
     expect(enemy.leakTime).toBe(7);
   });
@@ -253,7 +258,7 @@ describe("movement model: checkpoints", () => {
         { fragmentDelay: 4, spawnDelay: 1 },
       ),
     );
-    expect(enemy.stateAt(9)).toEqual(at(2, 0));
+    expect(enemy.stateAt(9)).toEqual(at(2, 0, { start: 7, end: 10 }));
     expect(enemy.leakTime).toBe(12);
   });
 
@@ -335,5 +340,83 @@ describe("movement model: checkpoints", () => {
       }),
     );
     expect(enemy.leakTime).toBe(1);
+  });
+});
+
+describe("時刻快照: 目前的停留", () => {
+  const corridor = ["....."];
+  const straight = {
+    motionMode: "WALK",
+    allowDiagonalMove: true,
+    start: { row: 0, col: 0 },
+    end: { row: 0, col: 4 },
+  } as const;
+  const halfway = { row: 0, col: 2 };
+  const stayAt = (l: Level, t: number) => takeSnapshot(buildTimeline(l), t).onField[0]?.stay;
+
+  // Reaches (2, 0) at 2 s, stands there until 5 s, leaks at 7 s.
+  const waitThree = level(corridor, {
+    ...straight,
+    checkpoints: [cp("MOVE", halfway), cp("WAIT_FOR_SECONDS", halfway, 3)],
+  });
+
+  it("is empty a second before the stay, carries its start and end during it, empty after", () => {
+    expect(stayAt(waitThree, 1)).toBeNull();
+    expect(stayAt(waitThree, 2)).toEqual({ start: 2, end: 5 });
+    expect(stayAt(waitThree, 4)).toEqual({ start: 2, end: 5 });
+    expect(stayAt(waitThree, 5)).toBeNull();
+    expect(stayAt(waitThree, 6)).toBeNull();
+  });
+
+  it("waiting until a second of the wave or the fragment has the same shape", () => {
+    const untilWave = level(corridor, {
+      ...straight,
+      checkpoints: [cp("MOVE", halfway), cp("WAIT_CURRENT_WAVE_TIME", halfway, 5)],
+    });
+    // The fragment starts at 1 s and the individual spawns then, reaching (2, 0) at 3 s.
+    const untilFragment = level(
+      corridor,
+      {
+        ...straight,
+        checkpoints: [cp("MOVE", halfway), cp("WAIT_CURRENT_FRAGMENT_TIME", halfway, 6)],
+      },
+      { fragmentDelay: 1 },
+    );
+    expect(stayAt(untilWave, 3)).toEqual({ start: 2, end: 5 });
+    expect(stayAt(untilFragment, 4)).toEqual({ start: 3, end: 7 });
+  });
+
+  it("is empty while the individual waits hidden", () => {
+    const hidden = level(corridor, {
+      ...straight,
+      checkpoints: [
+        cp("MOVE", { row: 0, col: 1 }),
+        cp("DISAPPEAR"),
+        cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 2),
+        cp("APPEAR_AT_POS", { row: 0, col: 3 }),
+      ],
+    });
+    expect(takeSnapshot(buildTimeline(hidden), 2).onField[0]).toMatchObject({
+      invisible: true,
+      stay: null,
+    });
+  });
+
+  it("covers a pause on a patrol's later laps", () => {
+    // Spawns at (1, 0): (3, 0) at 2 s, waits until 3 s, (0, 0) at 6 s; then laps of 7 s.
+    const patrol = level(["...."], {
+      motionMode: "WALK",
+      allowDiagonalMove: true,
+      start: { row: 0, col: 1 },
+      end: { row: 0, col: 3 },
+      checkpoints: [
+        cp("PATROL_MOVE", { row: 0, col: 3 }),
+        cp("WAIT_FOR_SECONDS", { row: 0, col: 3 }, 1),
+        cp("PATROL_MOVE", { row: 0, col: 0 }),
+      ],
+    });
+    expect(stayAt(patrol, 2.5)).toEqual({ start: 2, end: 3 });
+    // Second lap: (3, 0) at 9 s, waits until 10 s.
+    expect(stayAt(patrol, 9.5)).toEqual({ start: 9, end: 10 });
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { buildTimeline, takeSnapshot } from "../timeline/index.ts";
-import { advancePlayback, playbackStop } from "./playback.ts";
+import { advancePlayback, afterStop, playbackSpeeds, playbackStop } from "./playback.ts";
 
 describe("playback auto-stop", () => {
   const timeline = buildTimeline(loadFixtureLevel("level_main_01-07"));
@@ -22,5 +22,27 @@ describe("playback speed", () => {
 
   it("clamps to the stop second and reports done", () => {
     expect(advancePlayback(10, 3, 2, 15)).toEqual({ t: 15, done: true });
+  });
+});
+
+describe("playback speeds", () => {
+  it("offers 0.5x, 1x, 2x, 4x and 8x, in that order", () => {
+    expect(playbackSpeeds).toEqual([0.5, 1, 2, 4, 8]);
+  });
+
+  it("covers 24 wave seconds in 3 s at 8x", () => {
+    expect(advancePlayback(10, 3, 8, 100)).toEqual({ t: 34, done: false });
+  });
+});
+
+describe("after the stop second", () => {
+  it("moves on to 0 s of the next 波次 when this is not the last one", () => {
+    expect(afterStop(0, 3)).toEqual({ kind: "nextWave", wave: 1, t: 0 });
+    expect(afterStop(1, 3)).toEqual({ kind: "nextWave", wave: 2, t: 0 });
+  });
+
+  it("stops on the last 波次", () => {
+    expect(afterStop(2, 3)).toEqual({ kind: "stop" });
+    expect(afterStop(0, 1)).toEqual({ kind: "stop" });
   });
 });

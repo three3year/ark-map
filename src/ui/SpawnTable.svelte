@@ -61,11 +61,14 @@
               <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
+          <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
           <tr
+            onclick={() => onJump(row)}
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
             class:unpicked={row.random && !row.random.picked}
             data-wave={row.waveIndex}
+            data-action={actionKey(row)}
             data-hidden-group={row.hiddenGroup}
             data-conditional={row.branchIndex}
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
@@ -78,7 +81,6 @@
                 class="enemy"
                 title={strings.jumpToSpawn}
                 aria-pressed={isSelected(row)}
-                onclick={() => onJump(row)}
               >
                 {#if row.enemy?.avatar}
                   <img src={row.enemy.avatar} alt="" width="28" height="28" />
@@ -123,7 +125,10 @@
                       type="button"
                       class="pick"
                       title={strings.pickCandidateHint}
-                      onclick={() => onPick(random.group, random.candidate)}
+                      onclick={(event) => {
+                        event.stopPropagation();
+                        onPick(random.group, random.candidate);
+                      }}
                     >
                       {strings.pickCandidate}
                     </button>
@@ -197,6 +202,12 @@
   }
   .enemy:hover span:not(.count, .badge) {
     text-decoration: underline;
+  }
+  tr[data-action] {
+    cursor: pointer;
+  }
+  tr[data-action]:not(.selected):hover td {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
   tr.selected td {
     background: color-mix(in srgb, #f5a524 22%, transparent);

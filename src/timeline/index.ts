@@ -16,6 +16,7 @@ import {
   type IndividualState,
   type MovementModel,
   type PathLeg,
+  type Stay,
 } from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
@@ -55,7 +56,7 @@ export interface TimelineOptions {
 }
 
 export interface Snapshot {
-  onField: { individual: Individual; position: Vec2; invisible: boolean }[];
+  onField: { individual: Individual; position: Vec2; invisible: boolean; stay: Stay | null }[];
   counts: { pending: number; onField: number; leaked: number };
 }
 
@@ -65,7 +66,8 @@ export function takeSnapshot(timeline: Timeline, t: number): Snapshot {
     const state = individual.stateAt(t);
     snapshot.counts[state.kind]++;
     if (state.kind === "onField") {
-      snapshot.onField.push({ individual, position: state.position, invisible: state.invisible });
+      const { position, invisible, stay } = state;
+      snapshot.onField.push({ individual, position, invisible, stay });
     }
   }
   return snapshot;

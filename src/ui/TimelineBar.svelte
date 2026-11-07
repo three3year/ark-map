@@ -10,24 +10,36 @@
     /** Playback stops here: the wave's last individual has leaked. */
     stop: number;
     onSeek: (t: number) => void;
+    /**
+     * Playback has reached `stop`. Returns true when the page has moved on to 0 s of another
+     * 波次 and playback carries on there; false to stop.
+     */
+    onReachStop: () => boolean;
   }
-  let { t, end, stop, onSeek }: Props = $props();
+  let { t, end, stop, onSeek, onReachStop }: Props = $props();
 
   let playing = $state(false);
   let speed = $state<PlaybackSpeed>(1);
 
   // Playback advances the page's seconds against the wall clock. A speed change restarts
-  // the run from the current second.
+  // the run from the current second; moving on to another 波次 restarts it from 0 s.
   $effect(() => {
     if (!playing) return;
     const currentSpeed = speed;
-    const startT = untrack(() => (t >= stop ? 0 : t));
-    const startWall = performance.now();
+    let startT = untrack(() => (t >= stop ? 0 : t));
+    let startWall = performance.now();
     let frame = requestAnimationFrame(function tick(now) {
       const next = advancePlayback(startT, (now - startWall) / 1000, currentSpeed, stop);
       onSeek(next.t);
-      if (next.done) playing = false;
-      else frame = requestAnimationFrame(tick);
+      if (next.done && !onReachStop()) {
+        playing = false;
+        return;
+      }
+      if (next.done) {
+        startT = 0;
+        startWall = now;
+      }
+      frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
   });
