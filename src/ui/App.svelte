@@ -8,23 +8,55 @@
     type StageEntry,
     type StageIndex,
   } from "../level/index.ts";
+  import type { SpawnSwitches } from "../timeline/index.ts";
   import AreaList from "./AreaList.svelte";
   import LevelPage from "./LevelPage.svelte";
-  import { formatHash, parseHash, type Route } from "./route.ts";
+  import { roundTenth } from "./playback.ts";
+  import { formatHash, parseHash, type LevelRoute, type Route } from "./route.ts";
   import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
 
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
 
-  /** Write the URL first; the page renders from what the URL says. */
+  /**
+   * The level page's 播放位置 and 開關狀態; the URL only picks the stage and variant. They live
+   * here rather than in the level page, which only exists once the variant's level file has
+   * loaded, so a variant switch that loads another file keeps the 播放位置.
+   */
+  let position = $state({ wave: 0, t: 0 });
+  /** Only what differs from the variant's default. */
+  let switches = $state.raw<SpawnSwitches>({});
+
+  /** The id of the variant a level route shows: no `v` is the stage's base variant. */
+  const variantId = (r: LevelRoute) => r.variant ?? stages[r.stageId]?.stage.variants[0]?.id;
+
+  /**
+   * Follow a new hash. Entering a level page, or moving to another stage, starts at wave 1, 0 s
+   * with the variant's default switches; moving to another variant resets only the switches.
+   */
+  function followHash(next: string) {
+    const to = parseHash(next);
+    if (to.page === "level") {
+      const from = route.page === "level" ? route : null;
+      if (!from || from.stageId !== to.stageId) {
+        position = { wave: 0, t: 0 };
+        switches = {};
+      } else if (variantId(from) !== variantId(to)) {
+        switches = {};
+      }
+    }
+    hash = next;
+  }
+
+  /** Write the URL, replacing the current history entry, and follow it. */
   function navigate(next: Route) {
     history.replaceState(null, "", formatHash(next));
-    hash = location.hash;
+    followHash(location.hash);
   }
 
   $effect(() => {
-    const onHashChange = () => (hash = location.hash);
+    const onHashChange = () => followHash(location.hash);
     addEventListener("hashchange", onHashChange);
     return () => removeEventListener("hashchange", onHashChange);
   });
@@ -55,10 +87,8 @@
   );
   const found = $derived(route.page === "level" ? stages[route.stageId] : undefined);
   const variant = $derived(
-    route.page === "level" && found
-      ? route.variant === null
-        ? found.stage.variants[0]
-        : found.stage.variants.find((v) => v.id === route.variant)
+    route.page === "level"
+      ? found?.stage.variants.find((v) => v.id === variantId(route))
       : undefined,
   );
 
@@ -107,14 +137,14 @@
       stage={found.stage}
       {variant}
       level={loaded.level}
-      wave={route.wave}
-      t={route.t}
-      switches={route.switches ?? {}}
-      onSeek={(t) => navigate({ ...route, t })}
-      onSelectWave={(wave) => navigate({ ...route, wave, t: 0 })}
-      onJump={(wave, t) => navigate({ ...route, wave, t })}
-      onSwitches={(switches) => navigate({ ...route, switches })}
-      onVariant={(v) => navigate({ ...route, variant: v, switches: undefined })}
+      wave={position.wave}
+      t={position.t}
+      {switches}
+      onSeek={(t) => (position.t = roundTenth(t))}
+      onSelectWave={(wave) => (position = { wave, t: 0 })}
+      onJump={(wave, t) => (position = { wave, t: roundTenth(t) })}
+      onSwitches={(next) => (switches = next)}
+      onVariant={(v) => navigate({ ...route, variant: v })}
     />
   {:else}
     <p>{strings.loading}</p>

@@ -49,7 +49,7 @@ export type RandomGroup = FragmentRef & {
 /** The switches a level offers, in level-file order: waves first, then 條件出兵. */
 export interface LevelGroups {
   hidden: HiddenGroup[];
-  /** Groups with at least one spawn action; indices into this list name groups in URLs. */
+  /** Groups with at least one spawn action; indices into this list key `SpawnSwitches.picks`. */
   random: RandomGroup[];
 }
 
@@ -217,7 +217,8 @@ const nonEmpty = <T extends object>(record: T): T | undefined =>
 
 /**
  * `switches` with hidden group `name` switched on or off. The on-set is stored in level order,
- * and dropped when it equals the variant's default, so the URL only carries changes.
+ * and dropped when it equals the variant's default, so the switches hold only what differs from
+ * the variant's default.
  */
 export function switchHidden(
   level: Level,

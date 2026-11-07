@@ -7,7 +7,7 @@
     type RandomGroup,
     type SpawnPlan,
   } from "../timeline/index.ts";
-  import { roundTenth } from "./route.ts";
+  import { roundTenth } from "./playback.ts";
   import { strings } from "./strings.ts";
 
   interface Props {

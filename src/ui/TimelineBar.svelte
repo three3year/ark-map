@@ -16,7 +16,7 @@
   let playing = $state(false);
   let speed = $state<PlaybackSpeed>(1);
 
-  // Playback advances the URL's seconds against the wall clock. A speed change restarts
+  // Playback advances the page's seconds against the wall clock. A speed change restarts
   // the run from the current second.
   $effect(() => {
     if (!playing) return;
