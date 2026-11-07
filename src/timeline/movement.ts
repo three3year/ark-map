@@ -114,8 +114,9 @@ export const nextNodeModel: MovementModel = (input) => {
   return {
     leakTime,
     remainingPathAt(t) {
-      const offMap = t < spawnTime || (leakTime !== null && t >= leakTime);
-      return offMap ? [] : path;
+      if (t < spawnTime) return [];
+      if (patrols(route)) return path;
+      return path.flatMap((leg) => (leg.end > t ? [legFrom(leg, t, speed)] : []));
     },
     stateAt(t) {
       if (t < spawnTime) return { kind: "pending" };
@@ -262,22 +263,32 @@ function positionOn(leg: PathLeg, t: number, speed: number): Vec2 {
       return leg.position;
     case "teleport":
       return leg.to;
-    case "move": {
-      let left = (t - leg.start) * speed;
-      const { points } = leg;
-      for (let i = 1; i < points.length; i++) {
-        const a = points[i - 1]!;
-        const b = points[i]!;
-        const length = distance(a, b);
-        if (left < length) {
-          const f = left / length;
-          return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
-        }
-        left -= length;
-      }
-      return points.at(-1)!;
-    }
+    case "move":
+      return pointsAhead(leg, t, speed)[0]!;
   }
+}
+
+/** The part of `leg` left from second `t`: a walk cut where the individual is; else as is. */
+function legFrom(leg: PathLeg, t: number, speed: number): PathLeg {
+  if (leg.kind !== "move" || t <= leg.start) return leg;
+  return { ...leg, start: t, points: pointsAhead(leg, t, speed) };
+}
+
+/** The walk's polyline from where the individual is at `t` to its end. */
+function pointsAhead(leg: PathLeg & { kind: "move" }, t: number, speed: number): Vec2[] {
+  let left = (t - leg.start) * speed;
+  const { points } = leg;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const length = distance(a, b);
+    if (left < length) {
+      const f = left / length;
+      return [{ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }, ...points.slice(i)];
+    }
+    left -= length;
+  }
+  return [points.at(-1)!];
 }
 
 function offset(p: Vec2, by: Vec2): Vec2 {
