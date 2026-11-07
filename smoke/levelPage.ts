@@ -19,3 +19,22 @@ export async function seek(page: Page, t: number) {
 export async function selectWave(page: Page, wave: number) {
   await page.getByRole("radio", { name: `第 ${wave + 1} 波` }).click();
 }
+
+/** The on/off switch of 條件出兵 `branch` (0-based, level-file order). */
+export const conditionalSwitch = (page: Page, branch: number) =>
+  page.locator(`[data-conditional="${branch}"] input[type="checkbox"]`);
+
+/** Type `seconds` as the trigger second of 條件出兵 `branch`, already switched on. */
+export async function setConditionalSecond(page: Page, branch: number, seconds: number) {
+  const second = page.locator(`[data-conditional="${branch}"] input[type="number"]`);
+  await second.fill(String(seconds));
+  await second.press("Enter");
+}
+
+/** The variant buttons show `variant` as the one on screen. */
+export async function expectVariantShown(page: Page, variant: string) {
+  await expect(page.locator(`button[data-variant="${variant}"]`)).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+}

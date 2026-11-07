@@ -5,7 +5,14 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.ts";
-import { seek, selectWave, timeDisplay } from "./levelPage.ts";
+import { roundTenth } from "../src/ui/playback.ts";
+import {
+  conditionalSwitch,
+  expectVariantShown,
+  seek,
+  selectWave,
+  timeDisplay,
+} from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
@@ -83,7 +90,7 @@ test("seeking, picking a wave and jumping from the spawn table leave the URL alo
   await page.locator('tr[data-wave="0"] button.enemy').first().click();
 
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
-  const jumpedTo = Math.round(firstRow.waveTime * 10) / 10;
+  const jumpedTo = roundTenth(firstRow.waveTime);
   await expect(timeDisplay(page)).toHaveText(`${jumpedTo.toFixed(1)} 秒`);
   expect(page.url()).toBe(url);
 });
@@ -97,16 +104,13 @@ test("switching to a variant with its own level file keeps the time and resets t
   expect(readSiteLevel(tough.levelFile).branches, "磨難 has a 條件出兵").not.toHaveLength(0);
   await page.goto("#/level/main_11-06?v=normal");
   await seek(page, 30);
-  const conditional = page.locator('[data-conditional="0"] input[type="checkbox"]');
+  const conditional = conditionalSwitch(page, 0);
   await conditional.check();
 
   await page.locator('button[data-variant="tough"]').click();
 
   await expect(page).toHaveURL(/#\/level\/main_11-06\?v=tough$/);
-  await expect(page.locator('button[data-variant="tough"]')).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expectVariantShown(page, "tough");
   await expect(timeDisplay(page)).toHaveText("30.0 秒");
   // 條件出兵 are off by default in every variant.
   await expect(conditional).not.toBeChecked();
@@ -115,7 +119,7 @@ test("switching to a variant with its own level file keeps the time and resets t
 test("switching between variants that share a level file resets the switches", async ({ page }) => {
   await page.goto("#/level/main_11-06?v=normal");
   await seek(page, 30);
-  const conditional = page.locator('[data-conditional="0"] input[type="checkbox"]');
+  const conditional = conditionalSwitch(page, 0);
   await conditional.check();
 
   await page.locator('button[data-variant="easy"]').click();
@@ -148,7 +152,7 @@ test("entering a stage starts at wave 1, 0 s; changing only the variant keeps th
   // Editing the URL to another variant keeps the time; to another stage starts over.
   await seek(page, 30);
   await page.evaluate(() => (location.hash = "#/level/main_11-06?v=easy"));
-  await expect(page.locator('button[data-variant="easy"]')).toHaveAttribute("aria-pressed", "true");
+  await expectVariantShown(page, "easy");
   await expect(timeDisplay(page)).toHaveText("30.0 秒");
   await page.evaluate(() => (location.hash = "#/level/main_01-07?v=normal"));
   await expect(page.locator("h2")).toContainText("1-7");
@@ -157,6 +161,6 @@ test("entering a stage starts at wave 1, 0 s; changing only the variant keeps th
   // The browser's back button to 11-6 starts over too.
   await seek(page, 30);
   await page.goBack();
-  await expect(page.locator('button[data-variant="easy"]')).toHaveAttribute("aria-pressed", "true");
+  await expectVariantShown(page, "easy");
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
