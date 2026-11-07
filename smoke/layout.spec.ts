@@ -21,6 +21,8 @@ test("the spawn table sits right of the map; only the level page is wider than 9
 
   expect(tableBox.x).toBeGreaterThanOrEqual(mapBox.x + mapBox.width);
   expect(tableBox.y).toBeLessThan(mapBox.y + mapBox.height);
+  // No drawer: the column cannot be closed.
+  await expect(page.getByRole("button", { name: "出兵表" })).toBeHidden();
   expect(await pageWidth(page)).toBeGreaterThan(1400);
   expect(await pageWidth(page)).toBeLessThanOrEqual(1440);
 
