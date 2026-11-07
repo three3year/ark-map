@@ -72,7 +72,15 @@ describe("jumping to an 出生時刻", () => {
 
   it("never lands before the second it was given", () => {
     for (const t of [
-      0, 0.05, 0.1 + 0.2, 1.04, 12.345, 33.400000000000006, 60.400000000000006, 111.71, 254.200001,
+      0,
+      0.05,
+      0.1 + 0.2,
+      1.04,
+      12.345,
+      33.400000000000006,
+      60.400000000000006,
+      111.71,
+      254.200001,
       999.99,
     ])
       expect(ceilTenth(t)).toBeGreaterThanOrEqual(t);
