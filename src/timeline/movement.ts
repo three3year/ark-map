@@ -51,8 +51,9 @@ export interface Trajectory {
   /** Second the individual reaches the end point; null if it never does (patrols). */
   leakTime: number | null;
   /**
-   * 路徑 left at second `t` of the wave; empty while 未出現 or 已進點. While on the field it
-   * is the whole 路徑 from spawn to the end point (a patrol's first lap and its walk back).
+   * 路徑 left at second `t` of the wave: the legs ending after `t`, the walk it is on starting
+   * where it is now; empty while 未出現, once 已進點, or once it rests at the end of its walk.
+   * A patrol still gets its whole first lap and its walk back.
    */
   remainingPathAt(t: number): PathLeg[];
 }
