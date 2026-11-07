@@ -39,8 +39,6 @@ export const strings = {
   countOnField: "在場",
   countLeaked: "已進點",
   mapLabel: "關卡地圖",
-  start: "起點",
-  end: "終點",
   waveSelect: "波次",
   wave: (index: number) => `第 ${index + 1} 波`,
   spawnTable: "出兵表",
@@ -83,10 +81,8 @@ export const strings = {
   viewTilted: "傾斜視角",
   viewFlat: "平面俯視",
   legend: "圖例",
-  legendLowland: "平地",
-  legendHighland: "高台",
-  legendFloor: "不可放置",
-  legendForbidden: "禁入",
+  /** A 格's base colour by its height, placement and passability. */
+  legendTileKind: { lowland: "平地", floor: "不可放置", highland: "高台", forbidden: "禁入" },
   legendHole: "坑",
   endpoint: { spawn: "出生點", exit: "消失點" },
   /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */

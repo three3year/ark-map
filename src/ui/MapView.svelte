@@ -3,7 +3,7 @@
     isWalkable,
     tileAt,
     type LevelMap,
-    type Route,
+    type TerrainInfo,
     type Tile,
     type Vec2,
   } from "../level/index.ts";
@@ -16,10 +16,13 @@
   } from "../timeline/index.ts";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { strings } from "./strings.ts";
+  import { legendMarks, terrainMark } from "./terrain.ts";
+  import TerrainIcon from "./TerrainIcon.svelte";
 
   interface Props {
     map: LevelMap;
-    routes: Route[];
+    /** The 名稱表's 地形表, naming the structures drawn on the map. */
+    terrain: Record<string, TerrainInfo>;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t`. */
@@ -30,7 +33,7 @@
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
   }
-  let { map, routes, endpoints, enemies, t, selected, onSelect }: Props = $props();
+  let { map, terrain, endpoints, enemies, t, selected, onSelect }: Props = $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
@@ -97,20 +100,14 @@
     })),
   );
 
-  const starts = $derived(
-    new Set(
-      routes.filter((r) => r.motionMode !== "E_NUM").map((r) => `${r.start.row},${r.start.col}`),
-    ),
-  );
-  const ends = $derived(
-    new Set(routes.filter((r) => r.motionMode !== "E_NUM").map((r) => `${r.end.row},${r.end.col}`)),
-  );
-  const markerOf = (row: number, col: number, tile: Tile) =>
-    tile.tileKey === "tile_start" || starts.has(`${row},${col}`)
-      ? "start"
-      : tile.tileKey === "tile_end" || ends.has(`${row},${col}`)
-        ? "end"
-        : null;
+  /** The legend lists only what the map shows. */
+  const tileKindOrder: TileKind[] = ["lowland", "floor", "highland", "forbidden"];
+  const legendTileKinds = $derived.by(() => {
+    const kinds = new Set(map.tiles.map(tileKind));
+    return tileKindOrder.filter((kind) => kinds.has(kind));
+  });
+  const hasHole = $derived(map.tiles.some((tile) => tile.tileKey === "tile_hole"));
+  const marks = $derived(legendMarks(map, terrain));
 
   /**
    * Endpoint dots sit in their cell's top-right corner, clear of the cell centre; a 消失點 on a
@@ -161,19 +158,22 @@
       {/each}
 
       {#each cells as { tile, row, col } (`${row},${col}`)}
-        {@const marker = markerOf(row, col, tile)}
+        {@const mark = terrainMark(tile.tileKey, terrain)}
         {#if tile.tileKey === "tile_hole"}
           <g class="hole" transform="translate({col} {svgY(row)})">
             <rect x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.12" />
             <path d="M -0.22 -0.22 L 0.22 0.22 M 0.22 -0.22 L -0.22 0.22" />
           </g>
         {/if}
-        {#if marker}
-          <g class="marker {marker}" transform="translate({col} {svgY(row)})">
-            <rect x="-0.42" y="-0.42" width="0.84" height="0.84" rx="0.08" />
-            <g class="billboard">
-              <text y="0.07">{marker === "start" ? strings.start : strings.end}</text>
-            </g>
+        {#if mark}
+          <g
+            class="terrain"
+            transform="translate({col} {svgY(row)})"
+            data-tile-key={tile.tileKey}
+            role="img"
+            aria-label={mark.name}
+          >
+            <TerrainIcon icon={mark.icon} />
           </g>
         {/if}
       {/each}
@@ -300,13 +300,22 @@
   </div>
 
   <ul class="legend" aria-label={strings.legend}>
-    <li><span class="swatch lowland"></span>{strings.legendLowland}</li>
-    <li><span class="swatch floor"></span>{strings.legendFloor}</li>
-    <li><span class="swatch highland"></span>{strings.legendHighland}</li>
-    <li><span class="swatch forbidden"></span>{strings.legendForbidden}</li>
-    <li><span class="swatch frame start"></span>{strings.start}</li>
-    <li><span class="swatch frame end"></span>{strings.end}</li>
-    <li><span class="swatch hole-swatch"></span>{strings.legendHole}</li>
+    {#each legendTileKinds as kind (kind)}
+      <li><span class="swatch {kind}"></span>{strings.legendTileKind[kind]}</li>
+    {/each}
+    {#if hasHole}
+      <li><span class="swatch hole-swatch"></span>{strings.legendHole}</li>
+    {/if}
+    {#each marks as mark, i (i)}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <li class="terrain-item" tabindex="0" aria-describedby="terrain-tip-{i}">
+        <svg class="swatch icon" viewBox="-0.5 -0.5 1 1" aria-hidden="true">
+          <TerrainIcon icon={mark.icon} />
+        </svg>
+        <span>{mark.name}</span>
+        <span class="tip" role="tooltip" id="terrain-tip-{i}">{mark.description}</span>
+      </li>
+    {/each}
     {#each ["spawn", "exit"] as const as kind (kind)}
       {#if hasEndpoint(kind)}
         <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
@@ -326,7 +335,6 @@
     --tile-highland: #a9b4c2;
     --tile-forbidden: #4a4c53;
     --start: #e5484d;
-    --end: #3e83f8;
     --hole: #121316;
     --spawn-dot: #e5484d;
     --exit-dot: #3e83f8;
@@ -398,26 +406,8 @@
     stroke-width: 0.06;
     stroke-linecap: round;
   }
-  .marker rect {
-    fill: none;
-    stroke-width: 0.08;
-  }
-  .marker.start rect {
-    stroke: var(--start);
-  }
-  .marker.end rect {
-    stroke: var(--end);
-  }
-  .marker text {
-    font-size: 0.24px;
-    font-weight: 700;
-    text-anchor: middle;
-  }
-  .marker.start text {
-    fill: var(--start);
-  }
-  .marker.end text {
-    fill: var(--end);
+  .terrain {
+    pointer-events: none;
   }
   .endpoint circle {
     stroke: #fff;
@@ -558,15 +548,34 @@
   .swatch.forbidden {
     background: var(--tile-forbidden);
   }
-  .swatch.frame {
+  .swatch.icon {
+    width: 18px;
+    height: 18px;
     background: var(--tile-lowland);
-    border: 2px solid;
   }
-  .swatch.frame.start {
-    border-color: var(--start);
+  .terrain-item {
+    position: relative;
+    cursor: help;
   }
-  .swatch.frame.end {
-    border-color: var(--end);
+  .terrain-item .tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 1;
+    width: max-content;
+    max-width: 260px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #1d1d1f;
+    color: #f5f5f7;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px #0000004d;
+  }
+  .terrain-item:hover .tip,
+  .terrain-item:focus-visible .tip {
+    display: block;
   }
   .swatch.dot {
     width: 10px;

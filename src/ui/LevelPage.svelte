@@ -4,6 +4,7 @@
     type Area,
     type Level,
     type StageEntry,
+    type TerrainInfo,
     type Variant,
     type VariantId,
   } from "../level/index.ts";
@@ -38,6 +39,8 @@
     stage: StageEntry;
     variant: Variant;
     level: Level;
+    /** The 名稱表's 地形表. */
+    terrain: Record<string, TerrainInfo>;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
@@ -55,6 +58,7 @@
     stage,
     variant,
     level,
+    terrain,
     wave,
     t,
     switches,
@@ -146,7 +150,7 @@
 {/if}
 <MapView
   map={level.map}
-  routes={level.routes}
+  {terrain}
   {endpoints}
   enemies={snapshot.onField}
   {t}
