@@ -196,10 +196,10 @@
     flex: none;
   }
   .filter .dot.spawn {
-    background: #e5484d;
+    background: var(--spawn-red);
   }
   .filter .dot.exit {
-    background: #3e83f8;
+    background: var(--exit-blue);
   }
   .filter button {
     margin-left: auto;

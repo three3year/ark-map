@@ -345,9 +345,7 @@
     --tile-floor: #b9b3a5;
     --tile-highland: #a9b4c2;
     --tile-forbidden: #4a4c53;
-    --start: #e5484d;
-    --spawn-dot: #e5484d;
-    --exit-dot: #3e83f8;
+    --enemy-ring: var(--spawn-red);
     --path: #f5a524;
   }
   .toolbar {
@@ -420,10 +418,10 @@
     stroke-width: 0.03;
   }
   .endpoint.spawn .dot {
-    fill: var(--spawn-dot);
+    fill: var(--spawn-red);
   }
   .endpoint.exit .dot {
-    fill: var(--exit-dot);
+    fill: var(--exit-blue);
   }
   .endpoint.pressed .dot,
   .endpoint:focus-visible .dot {
@@ -435,7 +433,7 @@
   }
   .enemy-ring {
     fill: none;
-    stroke: var(--start);
+    stroke: var(--enemy-ring);
     stroke-width: 0.05;
   }
   .enemy-code {
@@ -595,9 +593,9 @@
     border: 1px solid #fff;
   }
   .swatch.dot.spawn {
-    background: var(--spawn-dot);
+    background: var(--spawn-red);
   }
   .swatch.dot.exit {
-    background: var(--exit-dot);
+    background: var(--exit-blue);
   }
 </style>

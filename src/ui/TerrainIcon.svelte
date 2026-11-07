@@ -95,20 +95,20 @@
     fill: #f5f5f7;
   }
   .incursion {
-    stroke: #e5484d;
+    stroke: var(--spawn-red);
   }
   .incursion rect {
-    fill: #e5484d33;
+    fill: color-mix(in srgb, var(--spawn-red) 20%, transparent);
   }
   .protect-target {
-    stroke: #3e83f8;
+    stroke: var(--exit-blue);
   }
   .protect-target rect,
   .protect-target circle {
-    fill: #3e83f833;
+    fill: color-mix(in srgb, var(--exit-blue) 20%, transparent);
   }
   .protect-target .core {
-    fill: #3e83f8;
+    fill: var(--exit-blue);
   }
   .tunnel {
     stroke: #8e4ec6;
