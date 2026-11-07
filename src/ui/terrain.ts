@@ -3,9 +3,9 @@ import type { LevelMap, TerrainInfo } from "../level/index.ts";
 
 /** Hand-drawn structure icons; `TerrainIcon.svelte` draws each. */
 export type TerrainIcon =
-  | "start"
-  | "flystart"
-  | "end"
+  | "incursion"
+  | "airIncursion"
+  | "protectTarget"
   | "tunnelIn"
   | "tunnelOut"
   | "hole"
@@ -21,11 +21,11 @@ export type TerrainIcon =
  */
 const drawnIcons: { icon: TerrainIcon; tileKeys: string[] }[] = [
   {
-    icon: "start",
+    icon: "incursion",
     tileKeys: ["tile_start", "tile_start_cooperate", "tile_start_dqq", "tile_ftstart"],
   },
-  { icon: "flystart", tileKeys: ["tile_flystart"] },
-  { icon: "end", tileKeys: ["tile_end", "tile_end_cooperate", "tile_end_dqq"] },
+  { icon: "airIncursion", tileKeys: ["tile_flystart"] },
+  { icon: "protectTarget", tileKeys: ["tile_end", "tile_end_cooperate", "tile_end_dqq"] },
   { icon: "tunnelIn", tileKeys: ["tile_telin"] },
   { icon: "tunnelOut", tileKeys: ["tile_telout"] },
   { icon: "hole", tileKeys: ["tile_hole"] },
