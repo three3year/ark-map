@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { StageIndex } from "../src/level/index.ts";
+import { expectVariantShown } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const index = JSON.parse(readFileSync(path.join(dist, "data", "index.json"), "utf8")) as StageIndex;
@@ -39,9 +40,6 @@ test("a theme-4 node switches to its 替換地圖", async ({ page }) => {
   await page.locator('button[data-variant="replace1"]').click();
 
   await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=replace1$/);
-  await expect(page.locator('button[data-variant="replace1"]')).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expectVariantShown(page, "replace1");
   await expect(page.locator("svg.map")).toBeVisible();
 });

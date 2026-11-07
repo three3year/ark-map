@@ -1,4 +1,4 @@
-// Hash routing. The URL picks which map to show (關卡連結: stage and variant); the level page
+// Hash routing. The URL picks which level and variant to show (關卡連結); the level page
 // keeps its own 播放位置 (wave and seconds) and 開關狀態.
 
 export interface LevelRoute {

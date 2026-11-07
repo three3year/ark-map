@@ -11,7 +11,14 @@ import {
   type StageIndex,
 } from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, type TimelineOptions } from "../src/timeline/index.ts";
-import { openLink, seek, selectWave, timeDisplay } from "./levelPage.ts";
+import {
+  conditionalSwitch,
+  openLink,
+  seek,
+  selectWave,
+  setConditionalSecond,
+  timeDisplay,
+} from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const readSiteJson = <T>(file: string): T =>
@@ -98,12 +105,12 @@ test("11-7: a 條件出兵 switched on spawns at its second and shows its path",
 
   await page.goto("#/level/main_11-06?v=normal");
   await seek(page, t);
-  const toggle = page.locator('[data-conditional="0"] input[type="checkbox"]');
-  await expect(toggle).not.toBeChecked();
+  const conditional = conditionalSwitch(page, 0);
+  await expect(conditional).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, {}));
   const url = page.url();
 
-  await toggle.check();
+  await conditional.check();
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, at(t)));
   await expect(page.locator('tr[data-conditional="0"]')).toHaveCount(1);
@@ -112,15 +119,14 @@ test("11-7: a 條件出兵 switched on spawns at its second and shows its path",
   expect(page.url()).toBe(url);
 
   // A later trigger second: the enemy has not spawned yet at 30 s.
-  await page.locator('[data-conditional="0"] input[type="number"]').fill("40");
-  await page.locator('[data-conditional="0"] input[type="number"]').press("Enter");
+  await setConditionalSecond(page, 0, 40);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, at(40)));
   expect(page.url()).toBe(url);
 
   // An old link's 條件出兵 is ignored: the page opens at 0 s with every 條件出兵 off.
   await openLink(page, "#/level/main_11-06?v=normal&c=0-40");
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
-  await expect(toggle).not.toBeChecked();
+  await expect(conditional).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, 0, {}));
 });
 
@@ -133,11 +139,14 @@ test("5-10: a device-only 條件出兵 is listed without a switch", async ({ pag
 
 test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the panel", async ({ page }) => {
   const level = siteLevel("act1dp_01");
-  const conditional = { 0: { wave: 0, t: 10 } };
+  const triggeredAt10 = { 0: { wave: 0, t: 10 } };
   const t = 11;
-  const groupOn = { switches: { conditional, hiddenOn: ["random"] } };
+  const groupOn = { switches: { conditional: triggeredAt10, hiddenOn: ["random"] } };
   const picked = { switches: { ...groupOn.switches, picks: { 0: 0 } } };
-  expect(onField(level, t, { switches: { conditional } }), "the group is off by default").toBe(0);
+  expect(
+    onField(level, t, { switches: { conditional: triggeredAt10 } }),
+    "the group is off by default",
+  ).toBe(0);
   expect(onField(level, t, groupOn)).toBe(1);
   expect(onField(level, t, picked)).toBe(1);
 
@@ -145,11 +154,9 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   await expect(page.locator("svg.map")).toBeVisible();
   const url = page.url();
   // Switch the 條件出兵 on (at 0 s) and move its trigger to 10 s.
-  const toggle = page.locator('[data-conditional="0"] input[type="checkbox"]');
-  await toggle.check();
-  const second = page.locator('[data-conditional="0"] input[type="number"]');
-  await second.fill("10");
-  await second.press("Enter");
+  const conditional = conditionalSwitch(page, 0);
+  await conditional.check();
+  await setConditionalSecond(page, 0, 10);
   const group = page.locator('input[data-hidden-group="random"]');
   await expect(group).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
@@ -171,6 +178,6 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   // An old link's switches are ignored: the page opens at 0 s with the variant's default.
   await openLink(page, "#/level/act1dp_01?v=normal&c=0-10&h=random&r=0-0");
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
-  await expect(toggle).not.toBeChecked();
+  await expect(conditional).not.toBeChecked();
   await expect(enemy).toHaveCount(onField(level, 0, {}));
 });
