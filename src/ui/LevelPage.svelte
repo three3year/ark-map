@@ -11,6 +11,7 @@
   import LevelInfo from "./LevelInfo.svelte";
   import {
     buildTimeline,
+    endpointKey,
     individualKey,
     routeEndpoints,
     spawnPlan,
@@ -22,6 +23,7 @@
     timelineEnd,
     type ConditionalTrigger,
     type Individual,
+    type RouteEndpoint,
     type SpawnRow,
     type SpawnSwitches,
   } from "../timeline/index.ts";
@@ -108,6 +110,36 @@
     };
   }
 
+  /** The 端點篩選, by {@link endpointKey}, in one variant's wave. */
+  interface EndpointFilter {
+    levelId: string;
+    variant: VariantId;
+    wave: number;
+    endpoint: string;
+  }
+  let endpointFilter = $state<EndpointFilter | null>(null);
+  const filtered = $derived.by(() => {
+    const f = endpointFilter;
+    if (f?.levelId !== level.levelId || f.variant !== variant.id || f.wave !== waveIndex) {
+      return null;
+    }
+    return endpoints.find((e) => endpointKey(e) === f.endpoint) ?? null;
+  });
+  // Another wave, variant or level, or switches that remove the dot, clear the filter for good:
+  // coming back to that wave or dot does not bring it back.
+  $effect(() => {
+    if (endpointFilter && !filtered) endpointFilter = null;
+  });
+
+  /** A dot filters the spawn table to it; the dot of the filter on screen clears it. */
+  function toggleFilter(endpoint: RouteEndpoint) {
+    const key = endpointKey(endpoint);
+    endpointFilter =
+      filtered && endpointKey(filtered) === key
+        ? null
+        : { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint: key };
+  }
+
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
   function playbackReachedStop(): boolean {
     const after = afterStop(waveIndex, level.waves.length);
@@ -156,6 +188,8 @@
   {t}
   {selected}
   onSelect={select}
+  filter={filtered}
+  onFilter={toggleFilter}
 />
 {#if selected && selectedState}
   <p class="selection" data-selected={selected.id}>
@@ -199,6 +233,8 @@
   onJump={jumpTo}
   onPick={pick}
   branchKeys={level.branches.map((b) => b.key)}
+  filter={filtered}
+  onClearFilter={() => (endpointFilter = null)}
 />
 <LevelInfo
   options={level.options}

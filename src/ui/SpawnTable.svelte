@@ -1,12 +1,14 @@
 <script lang="ts">
   import {
     actionKey,
+    endpointRows,
     sameAction,
     type Individual,
+    type RouteEndpoint,
     type SpawnRow,
     type WaveEnd,
   } from "../timeline/index.ts";
-  import { strings } from "./strings.ts";
+  import { endpointName, strings } from "./strings.ts";
 
   interface Props {
     rows: SpawnRow[];
@@ -21,8 +23,27 @@
     onPick: (group: number, candidate: number) => void;
     /** 條件出兵 keys by branch index, for the rows' markers. */
     branchKeys: string[];
+    /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
+    filter: RouteEndpoint | null;
+    onClearFilter: () => void;
   }
-  let { rows, wave, multiWave, selected, onJump, onPick, branchKeys }: Props = $props();
+  let {
+    rows,
+    wave,
+    multiWave,
+    selected,
+    onJump,
+    onPick,
+    branchKeys,
+    filter,
+    onClearFilter,
+  }: Props = $props();
+
+  /** Rows keep their 編號 in the whole table while filtered. */
+  const shown = $derived.by(() => {
+    const numbered = rows.map((row, i) => ({ ...row, number: i + 1 }));
+    return filter ? endpointRows(numbered, wave, filter) : numbered;
+  });
 
   const isSelected = (r: SpawnRow) =>
     selected !== null && r.waveIndex === wave && sameAction(r, selected);
@@ -41,6 +62,13 @@
 
 <section aria-label={strings.spawnTable}>
   <h3>{strings.spawnTable}</h3>
+  {#if filter}
+    <p class="filter" data-endpoint-filter="{filter.kind}@{filter.cell.row},{filter.cell.col}">
+      <span class="dot {filter.kind}" aria-hidden="true"></span>
+      <span>{strings.endpointFilter(endpointName(filter))}</span>
+      <button type="button" onclick={onClearFilter}>{strings.clearFilter}</button>
+    </p>
+  {/if}
   <div class="scroll">
     <table>
       <thead>
@@ -55,8 +83,8 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row, i (`${row.waveIndex}-${actionKey(row)}`)}
-          {#if multiWave && (i === 0 || rows[i - 1]!.waveIndex !== row.waveIndex)}
+        {#each shown as row, i (`${row.waveIndex}-${actionKey(row)}`)}
+          {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
               <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
@@ -74,7 +102,7 @@
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
             data-picked={row.random?.picked}
           >
-            <td class="num">{i + 1}</td>
+            <td class="num">{row.number}</td>
             <td>
               <button
                 type="button"
@@ -153,6 +181,35 @@
   h3 {
     margin: 0 0 8px;
     font-size: 1.1rem;
+  }
+  .filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+  }
+  .filter .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .filter .dot.spawn {
+    background: #e5484d;
+  }
+  .filter .dot.exit {
+    background: #3e83f8;
+  }
+  .filter button {
+    margin-left: auto;
+    padding: 2px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
   }
   .scroll {
     overflow-x: auto;

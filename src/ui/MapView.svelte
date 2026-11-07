@@ -9,13 +9,14 @@
   } from "../level/index.ts";
   import {
     endpointKey,
+    type EndpointPlace,
     type Individual,
     type RouteEndpoint,
     type Snapshot,
     type Stay,
   } from "../timeline/index.ts";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
-  import { strings } from "./strings.ts";
+  import { endpointName, strings } from "./strings.ts";
   import { legendMarks, terrainMark } from "./terrain.ts";
   import TerrainIcon from "./TerrainIcon.svelte";
 
@@ -32,8 +33,13 @@
     selected: Individual | null;
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
+    /** The 端點篩選's dot, drawn pressed; null when the spawn table is not filtered. */
+    filter: EndpointPlace | null;
+    /** A dot was clicked. */
+    onFilter: (endpoint: RouteEndpoint) => void;
   }
-  let { map, terrain, endpoints, enemies, t, selected, onSelect }: Props = $props();
+  let { map, terrain, endpoints, enemies, t, selected, onSelect, filter, onFilter }: Props =
+    $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
@@ -179,19 +185,29 @@
       {/each}
 
       {#each endpointDots as { endpoint, x, y } (endpointKey(endpoint))}
+        {@const pressed = filter !== null && endpointKey(filter) === endpointKey(endpoint)}
         <g
           class="endpoint {endpoint.kind}"
+          class:pressed
           transform="translate({x} {y})"
           data-endpoint={endpoint.kind}
           data-cell="{endpoint.cell.row},{endpoint.cell.col}"
-          role="img"
-          aria-label={strings.endpointAt(
-            strings.endpoint[endpoint.kind],
-            endpoint.cell.row,
-            endpoint.cell.col,
-          )}
+          role="button"
+          tabindex="0"
+          aria-label={endpointName(endpoint)}
+          aria-pressed={pressed}
+          onclick={() => onFilter(endpoint)}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onFilter(endpoint);
+            }
+          }}
         >
-          <g class="billboard"><circle r="0.1" /></g>
+          <g class="billboard">
+            <title>{strings.endpointFilterHint}</title>
+            <circle class="dot" r="0.1" />
+          </g>
         </g>
       {/each}
 
@@ -409,15 +425,26 @@
   .terrain {
     pointer-events: none;
   }
-  .endpoint circle {
+  .endpoint {
+    cursor: pointer;
+  }
+  .endpoint:focus {
+    outline: none;
+  }
+  .endpoint .dot {
     stroke: #fff;
     stroke-width: 0.03;
   }
-  .endpoint.spawn circle {
+  .endpoint.spawn .dot {
     fill: var(--spawn-dot);
   }
-  .endpoint.exit circle {
+  .endpoint.exit .dot {
     fill: var(--exit-dot);
+  }
+  .endpoint.pressed .dot,
+  .endpoint:focus-visible .dot {
+    stroke: var(--path);
+    stroke-width: 0.06;
   }
   .enemy-bg {
     fill: #fff;

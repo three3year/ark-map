@@ -2,7 +2,15 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import type { Checkpoint, CheckpointType, Level, Route, Tile } from "../level/index.ts";
-import { buildTimeline, routeEndpoints, type EndpointKind, type Timeline } from "./index.ts";
+import {
+  buildTimeline,
+  endpointRows,
+  routeEndpoints,
+  spawnTable,
+  type EndpointKind,
+  type RouteEndpoint,
+  type Timeline,
+} from "./index.ts";
 
 /** "row,col" of each cell with an endpoint of `kind`. */
 const cellsOf = (timeline: Timeline, kind: EndpointKind) =>
@@ -37,12 +45,28 @@ describe("出生點 and 消失點", () => {
     const timelineOf = (pick: number) =>
       buildTimeline(level, { waveIndex: 1, switches: { picks: { 0: pick } } });
 
+    it("filtering by (1, 0) lists the picked thief's row only, not the other candidate there", () => {
+      const switches = { picks: { 0: 1 } };
+      const spawn = endpointAt(routeEndpoints(timelineOf(1)), "spawn", "1,0");
+      const rows = endpointRows(spawnTable(level, { switches }), 1, spawn);
+      expect(rows.map((r) => [r.waveIndex, r.random?.candidate])).toEqual([[1, 1]]);
+    });
+
     it("the empty default draws no point; each thief its own", () => {
       expect(routeEndpoints(timelineOf(0))).toEqual([]);
       expect(cellsOf(timelineOf(1), "spawn")).toEqual(["1,0"]);
       expect(cellsOf(timelineOf(3), "spawn")).toEqual(["1,7"]);
       expect(cellsOf(timelineOf(3), "exit")).toEqual(["7,4"]);
     });
+  });
+
+  it("1-7: filtering by the 消失點 (3, 0) lists every row of the wave on screen", () => {
+    const level = loadFixtureLevel("level_main_01-07");
+    const rows = spawnTable(level);
+    const exit = endpointAt(routeEndpoints(buildTimeline(level)), "exit", "3,0");
+    const listed = endpointRows(rows, 0, exit);
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed).toEqual(rows.filter((r) => r.waveIndex === 0));
   });
 
   it("11-7: a 條件出兵 switched on adds its route's 出生點 (4, 10), naming its action", () => {
@@ -97,6 +121,12 @@ describe("出生點 and 消失點", () => {
     });
   });
 });
+
+function endpointAt(endpoints: RouteEndpoint[], kind: EndpointKind, cell: string): RouteEndpoint {
+  const found = endpoints.find((e) => e.kind === kind && `${e.cell.row},${e.cell.col}` === cell);
+  if (!found) throw new Error(`no ${kind} at ${cell}`);
+  return found;
+}
 
 const road: Tile = {
   tileKey: "tile_road",

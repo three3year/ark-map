@@ -1,7 +1,7 @@
 // 出生點 and 消失點 of one wave's timeline: the cells its individuals come out of and leave at.
 // Pure; no DOM or network.
 import type { Cell } from "../level/index.ts";
-import { actionKey, type WaveActionId } from "./identity.ts";
+import { actionKey, sameAction, type WaveActionId } from "./identity.ts";
 import type { Timeline } from "./index.ts";
 
 /** 出生點 ("spawn") or 消失點 ("exit"). */
@@ -55,4 +55,19 @@ export function routeEndpoints(timeline: Timeline): RouteEndpoint[] {
       (a, b) =>
         kindOrder[a.kind] - kindOrder[b.kind] || a.cell.row - b.cell.row || a.cell.col - b.cell.col,
     );
+}
+
+/**
+ * The 端點篩選: the rows of wave `waveIndex` with an individual coming out of (spawn) or leaving
+ * at (exit) `endpoint`, an endpoint of that wave's timeline. A candidate that is not picked
+ * spawns nothing, so it is never listed.
+ */
+export function endpointRows<Row extends WaveActionId & { waveIndex: number }>(
+  rows: Row[],
+  waveIndex: number,
+  endpoint: RouteEndpoint,
+): Row[] {
+  return rows.filter(
+    (row) => row.waveIndex === waveIndex && endpoint.actions.some((a) => sameAction(a, row)),
+  );
 }
