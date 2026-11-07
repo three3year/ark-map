@@ -429,12 +429,80 @@ describe("movement model: checkpoints", () => {
       expect(enemy.stateAt(1000)).toEqual(at(1, 0));
     });
 
-    it("draws the first lap and the walk back to the first checkpoint", () => {
-      expect(enemy.remainingPathAt(0).map((leg) => [leg.kind, leg.start, leg.end])).toEqual([
-        ["move", 0, 2],
-        ["move", 2, 5],
-        ["move", 5, 8],
+    /** Each leg left at `t` as kind, start, end, then a walk's corner points. */
+    const legs = (t: number) =>
+      enemy
+        .remainingPathAt(t)
+        .map((leg) => [leg.kind, leg.start, leg.end, ...(leg.kind === "move" ? leg.points : [])]);
+
+    it("draws the first lap up to the last checkpoint at the spawn second", () => {
+      expect(legs(0)).toEqual([
+        ["move", 0, 2, p(1, 0), p(3, 0)],
+        ["move", 2, 5, p(3, 0), p(0, 0)],
       ]);
+    });
+
+    it("cuts the first lap where it is, still up to the last checkpoint", () => {
+      expect(legs(1.5)).toEqual([
+        ["move", 1.5, 2, p(2.5, 0), p(3, 0)],
+        ["move", 2, 5, p(3, 0), p(0, 0)],
+      ]);
+      expect(legs(3)).toEqual([["move", 3, 5, p(2, 0), p(0, 0)]]);
+    });
+
+    it("draws the whole next lap, from the last checkpoint back round, once a lap is done", () => {
+      expect(legs(5)).toEqual([
+        ["move", 5, 8, p(0, 0), p(3, 0)],
+        ["move", 8, 11, p(3, 0), p(0, 0)],
+      ]);
+    });
+
+    it("cuts a later lap where it is, up to that lap's end", () => {
+      expect(legs(9)).toEqual([["move", 9, 11, p(2, 0), p(0, 0)]]);
+    });
+
+    it("keeps to the lap it is on far later", () => {
+      // Lap 166 runs from 995 s to 1001 s.
+      expect(legs(995)).toEqual([
+        ["move", 995, 998, p(0, 0), p(3, 0)],
+        ["move", 998, 1001, p(3, 0), p(0, 0)],
+      ]);
+      expect(legs(1000)).toEqual([["move", 1000, 1001, p(1, 0), p(0, 0)]]);
+    });
+
+    it("opens each lap with the wait when the first checkpoint is one", () => {
+      // Like RM-2's patrols. Spawns at (1, 0): waits until 1 s, (3, 0) at 3 s, waits until
+      // 4 s, (0, 0) at 7 s; then laps of 8 s that start with the wait at (0, 0).
+      const waitFirst = only(
+        level(["...."], {
+          ...ground,
+          start: { row: 0, col: 1 },
+          end: { row: 0, col: 3 },
+          checkpoints: [
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 1),
+            cp("PATROL_MOVE", { row: 0, col: 3 }),
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 1),
+            cp("PATROL_MOVE", { row: 0, col: 0 }),
+          ],
+        }),
+      );
+      const kinds = (t: number) =>
+        waitFirst.remainingPathAt(t).map((leg) => [leg.kind, leg.start, leg.end]);
+      expect(kinds(0)).toEqual([
+        ["wait", 0, 1],
+        ["move", 1, 3],
+        ["wait", 3, 4],
+        ["move", 4, 7],
+      ]);
+      const secondLap = [
+        ["wait", 7, 8],
+        ["move", 8, 11],
+        ["wait", 11, 12],
+        ["move", 12, 15],
+      ];
+      expect(kinds(7)).toEqual(secondLap);
+      expect(kinds(7.5)).toEqual(secondLap);
+      expect(kinds(13)).toEqual([["move", 13, 15]]);
     });
   });
 

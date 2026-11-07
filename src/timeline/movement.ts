@@ -53,7 +53,8 @@ export interface Trajectory {
   /**
    * 路徑 left at second `t` of the wave: the legs ending after `t`, the walk it is on starting
    * where it is now; empty while 未出現, once 已進點, or once it rests at the end of its walk.
-   * A patrol still gets its whole first lap and its walk back.
+   * For a patrol it ends with the lap it is on: a lap is its checkpoints done first to last, the
+   * first lap counted from the spawn, each later one from when the one before it ends.
    */
   remainingPathAt(t: number): PathLeg[];
 }
@@ -105,19 +106,21 @@ export const nextNodeModel: MovementModel = (input) => {
 
   if (!patrols(route)) extendPast(Infinity);
   const leakTime = rest === null ? (steps.at(-1)?.leg.end ?? spawnTime) : null;
-  const pathDone = () =>
-    rest !== undefined || steps.some((s) => s.lap > 1 || (s.lap === 1 && s.checkpoint > 0));
-  while (!pathDone()) extendPast(steps.at(-1)?.leg.end ?? spawnTime);
-  const path = steps
-    .filter((s) => s.lap === 0 || (s.lap === 1 && s.checkpoint === 0))
-    .map((s) => s.leg);
 
   return {
     leakTime,
     remainingPathAt(t) {
       if (t < spawnTime) return [];
-      if (patrols(route)) return path;
-      return path.flatMap((leg) => (leg.end > t ? [legFrom(leg, t, speed)] : []));
+      extendPast(t);
+      const from = steps.findIndex((s) => s.leg.end > t);
+      if (from < 0) return [];
+      const { lap } = steps[from]!;
+      // Laps differ in length (waits until a wave second), so generate until this one is over.
+      while (rest === undefined && steps.at(-1)!.lap === lap) extendPast(steps.at(-1)!.leg.end);
+      return steps
+        .slice(from)
+        .filter((s) => s.lap === lap)
+        .map((s) => legFrom(s.leg, t, speed));
     },
     stateAt(t) {
       if (t < spawnTime) return { kind: "pending" };
