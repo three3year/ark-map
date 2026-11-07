@@ -88,12 +88,17 @@ test("seeking, picking a wave and jumping from the spawn table leave the URL alo
   expect(page.url()).toBe(url);
 });
 
-test("switching to a variant with its own level file keeps the time", async ({ page }) => {
+test("switching to a variant with its own level file keeps the time and resets the switches", async ({
+  page,
+}) => {
   const variants = siteStage("main_11-06").variants;
   const tough = variants.find((v) => v.id === "tough")!;
   expect(tough.levelFile, "磨難 has its own level file").not.toBe(variants[0]!.levelFile);
+  expect(readSiteLevel(tough.levelFile).branches, "磨難 has a 條件出兵").not.toHaveLength(0);
   await page.goto("#/level/main_11-06?v=normal");
   await seek(page, 30);
+  const conditional = page.locator('[data-conditional="0"] input[type="checkbox"]');
+  await conditional.check();
 
   await page.locator('button[data-variant="tough"]').click();
 
@@ -103,6 +108,21 @@ test("switching to a variant with its own level file keeps the time", async ({ p
     "true",
   );
   await expect(timeDisplay(page)).toHaveText("30.0 秒");
+  // 條件出兵 are off by default in every variant.
+  await expect(conditional).not.toBeChecked();
+});
+
+test("switching between variants that share a level file resets the switches", async ({ page }) => {
+  await page.goto("#/level/main_11-06?v=normal");
+  await seek(page, 30);
+  const conditional = page.locator('[data-conditional="0"] input[type="checkbox"]');
+  await conditional.check();
+
+  await page.locator('button[data-variant="easy"]').click();
+
+  await expect(page).toHaveURL(/#\/level\/main_11-06\?v=easy$/);
+  await expect(timeDisplay(page)).toHaveText("30.0 秒");
+  await expect(conditional).not.toBeChecked();
 });
 
 test("an old link's wave and seconds are ignored", async ({ page }) => {

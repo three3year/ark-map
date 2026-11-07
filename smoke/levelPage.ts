@@ -1,6 +1,12 @@
 // Level page controls as a player uses them: 播放位置 lives on the page, not in the URL.
 import { expect, type Page } from "@playwright/test";
 
+/** Open `hash` in a fresh page load, as pasting a link into a new tab does. */
+export async function openLink(page: Page, hash: string) {
+  await page.goto("about:blank");
+  await page.goto(hash);
+}
+
 export const timeDisplay = (page: Page) => page.locator(".controls output");
 
 /** Drag the time slider to `t` seconds. */
