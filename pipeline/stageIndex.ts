@@ -61,6 +61,14 @@ export function siteLevelFile(path: string): string {
   return `data/levels/${path}.json`;
 }
 
+/**
+ * The activity a stage was made for: its id up to the first "_" (act21side_01 -> act21side).
+ * A 復刻's stages keep their original's ids, so this names the original activity.
+ */
+export function stageActivityId(stageId: string): string {
+  return stageId.split("_")[0]!;
+}
+
 /** Where a stage-table stage is listed: the area, and the section (zone) inside it. */
 interface Placement {
   kind: Exclude<AreaKind, "ROGUELIKE">;
@@ -226,7 +234,16 @@ export function buildStageIndex(
     return tw.zone.zones[zoneId]?.zoneNameSecond ?? cn.zone.zones[zoneId]?.zoneNameSecond ?? null;
   }
 
-  function newArea({ kind, areaId }: Placement): AreaDraft {
+  /**
+   * The activity an area is listed as: a 復刻 is its original (named by its stages' ids) when
+   * the activity table has it; any other activity is itself. The area keeps its own id.
+   */
+  function listedActivity(areaId: string, stageId: string) {
+    const own = cn.activity.basicInfo[areaId]!;
+    return (own.isReplicate && cn.activity.basicInfo[stageActivityId(stageId)]) || own;
+  }
+
+  function newArea({ kind, areaId }: Placement, stageId: string): AreaDraft {
     const base = { id: areaId, kind, sections: [] };
     switch (kind) {
       case "MAINLINE": {
@@ -238,10 +255,14 @@ export function buildStageIndex(
         };
       }
       case "ACTIVITY": {
-        const name = tw.activity.basicInfo[areaId]?.name ?? cn.activity.basicInfo[areaId]!.name;
+        const listed = listedActivity(areaId, stageId);
         return {
-          area: { ...base, code: null, name },
-          sortKey: -cn.activity.basicInfo[areaId]!.startTime,
+          area: {
+            ...base,
+            code: null,
+            name: tw.activity.basicInfo[listed.id]?.name ?? listed.name,
+          },
+          sortKey: -listed.startTime,
           sections: new Map(),
         };
       }
@@ -281,7 +302,7 @@ export function buildStageIndex(
     };
     let draft = drafts.get(place.areaId);
     if (!draft) {
-      draft = newArea(place);
+      draft = newArea(place, stage.stageId);
       drafts.set(place.areaId, draft);
     }
     const section = draft.sections.get(place.sectionId) ?? [];
