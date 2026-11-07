@@ -292,12 +292,56 @@ describe("movement model: checkpoints", () => {
     });
 
     it("draws the path as walk, wait, teleport, walk", () => {
-      expect(enemy.path).toEqual([
+      expect(enemy.remainingPathAt(0)).toEqual([
         { kind: "move", start: 0, end: 1, points: [p(0, 0), p(1, 0)], invisible: false },
         { kind: "wait", start: 1, end: 3, position: p(1, 0), invisible: true },
         { kind: "teleport", start: 3, end: 3, from: p(1, 0), to: p(3, 0), invisible: false },
         { kind: "move", start: 3, end: 4, points: [p(3, 0), p(4, 0)], invisible: false },
       ]);
+    });
+  });
+
+  describe("剩下的路徑 off the map", () => {
+    // Spawns at 1 s: (1, 0) at 2 s, hides and waits until 4 s, appears at (3, 0), leaks at 5 s.
+    const enemy = only(
+      level(
+        corridor,
+        {
+          ...straight,
+          checkpoints: [
+            cp("MOVE", { row: 0, col: 1 }),
+            cp("DISAPPEAR"),
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 2),
+            cp("APPEAR_AT_POS", { row: 0, col: 3 }),
+          ],
+        },
+        { spawnDelay: 1 },
+      ),
+    );
+    const whole = [
+      { kind: "move", start: 1, end: 2, points: [p(0, 0), p(1, 0)], invisible: false },
+      { kind: "wait", start: 2, end: 4, position: p(1, 0), invisible: true },
+      { kind: "teleport", start: 4, end: 4, from: p(1, 0), to: p(3, 0), invisible: false },
+      { kind: "move", start: 4, end: 5, points: [p(3, 0), p(4, 0)], invisible: false },
+    ];
+
+    it("is empty before the individual spawns", () => {
+      expect(enemy.remainingPathAt(0)).toEqual([]);
+      expect(enemy.remainingPathAt(0.9)).toEqual([]);
+    });
+
+    it("is the whole path at the spawn second", () => {
+      expect(enemy.remainingPathAt(1)).toEqual(whole);
+    });
+
+    it("is there while on the field, hidden or not", () => {
+      expect(enemy.remainingPathAt(1.5)).toEqual(whole);
+      expect(enemy.remainingPathAt(3)).toEqual(whole);
+    });
+
+    it("is empty from the second it reaches the end point", () => {
+      expect(enemy.remainingPathAt(5)).toEqual([]);
+      expect(enemy.remainingPathAt(6)).toEqual([]);
     });
   });
 
@@ -322,7 +366,7 @@ describe("movement model: checkpoints", () => {
     });
 
     it("draws the first lap and the walk back to the first checkpoint", () => {
-      expect(enemy.path.map((leg) => [leg.kind, leg.start, leg.end])).toEqual([
+      expect(enemy.remainingPathAt(0).map((leg) => [leg.kind, leg.start, leg.end])).toEqual([
         ["move", 0, 2],
         ["move", 2, 5],
         ["move", 5, 8],

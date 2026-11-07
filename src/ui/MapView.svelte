@@ -52,9 +52,11 @@
 
   const points = (ps: Vec2[]) => ps.map((p) => `${p.x},${svgY(p.y)}`).join(" ");
   const tenth = (s: number) => Math.round(s * 10) / 10;
+  /** The selected individual's 路徑 left at `t`; empty while it is off the map. */
+  const path = $derived(selected?.remainingPathAt(t) ?? []);
   /** Where each walk ends: a MOVE / PATROL_MOVE checkpoint, or the end point. */
   const checkpointMarks = $derived(
-    (selected?.path ?? []).flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
+    path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
   /** Avatars that failed to load fall back to the enemy's code. */
@@ -204,9 +206,9 @@
         </g>
       {/each}
 
-      {#if selected}
+      {#if selected && path.length > 0}
         <g class="path" data-path={selected.id}>
-          {#each selected.path as leg, i (i)}
+          {#each path as leg, i (i)}
             {#if leg.kind === "move"}
               <polyline class="walk" class:invisible={leg.invisible} points={points(leg.points)} />
             {:else if leg.kind === "teleport"}
@@ -222,7 +224,7 @@
           {#each checkpointMarks as mark, i (i)}
             <circle class="checkpoint" r="0.09" cx={mark.x} cy={svgY(mark.y)} />
           {/each}
-          {#each selected.path as leg, i (i)}
+          {#each path as leg, i (i)}
             {#if leg.kind === "wait"}
               <circle class="wait" r="0.14" cx={leg.position.x} cy={svgY(leg.position.y)} />
             {/if}
@@ -291,10 +293,10 @@
         </g>
       {/each}
 
-      {#if selected}
+      {#if path.length > 0}
         <!-- Wait labels sit above the enemies so an avatar never hides them. -->
         <g class="path">
-          {#each selected.path as leg, i (i)}
+          {#each path as leg, i (i)}
             {#if leg.kind === "wait"}
               <g class="wait-label" transform="translate({leg.position.x} {svgY(leg.position.y)})">
                 <g class="billboard">

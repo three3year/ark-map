@@ -12,8 +12,8 @@ export interface Individual extends IndividualId {
   /** 無害敵人: counts as killed, never a threat. */
   harmless: boolean;
   leakTime: number | null;
-  /** 路徑 to draw when the individual is selected. */
-  path: PathLeg[];
+  /** 路徑 left at second `t`, drawn when the individual is selected; empty when off the map. */
+  remainingPathAt(t: number): PathLeg[];
   stateAt(t: number): IndividualState;
 }
 
