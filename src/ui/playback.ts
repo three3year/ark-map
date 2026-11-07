@@ -7,7 +7,7 @@ export function roundTenth(t: number): number {
   return Math.round(t * 10) / 10;
 }
 
-export const playbackSpeeds = [0.5, 1, 2] as const;
+export const playbackSpeeds = [0.5, 1, 2, 4, 8] as const;
 export type PlaybackSpeed = (typeof playbackSpeeds)[number];
 
 /**
@@ -28,4 +28,15 @@ export function advancePlayback(
 ): { t: number; done: boolean } {
   const t = from + wallSeconds * speed;
   return t >= stop ? { t: stop, done: true } : { t, done: false };
+}
+
+/** What playback does on reaching a 波次's stop second. */
+export type AfterStop = { kind: "nextWave"; wave: number; t: 0 } | { kind: "stop" };
+
+/**
+ * On reaching the stop second of the 0-based `wave` out of `waveCount`: carry on from 0 s of the
+ * next 波次, or stop there on the last one.
+ */
+export function afterStop(wave: number, waveCount: number): AfterStop {
+  return wave + 1 < waveCount ? { kind: "nextWave", wave: wave + 1, t: 0 } : { kind: "stop" };
 }
