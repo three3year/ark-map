@@ -8,6 +8,7 @@ import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.t
 import { roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
+  expectDefaultSwitches,
   expectVariantShown,
   seek,
   selectWave,
@@ -130,11 +131,17 @@ test("switching between variants that share a level file resets the switches", a
 });
 
 test("an old link's wave and seconds are ignored", async ({ page }) => {
+  const variant = siteStage("ro2_n_2_6").variants[0]!;
+  const level = readSiteLevel(variant.levelFile);
+  const atStart = takeSnapshot(buildTimeline(level, { difficulty: variant.difficulty }), 0);
+
   await page.goto("#/level/ro2_n_2_6?v=normal&w=1&t=5");
 
   await expect(page.locator("svg.map")).toBeVisible();
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expectDefaultSwitches(page, level, variant.difficulty);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(atStart.counts.onField);
   await expect(page).toHaveURL(/#\/level\/ro2_n_2_6\?v=normal&w=1&t=5$/);
 });
 
