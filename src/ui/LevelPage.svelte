@@ -25,7 +25,7 @@
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView from "./MapView.svelte";
-  import { playbackStop } from "./playback.ts";
+  import { afterStop, playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
@@ -102,6 +102,14 @@
     };
   }
 
+  /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
+  function playbackReachedStop(): boolean {
+    const after = afterStop(waveIndex, level.waves.length);
+    if (after.kind === "stop") return false;
+    onSelectWave(after.wave);
+    return true;
+  }
+
   /** A spawn-table row: jump to its first individual's spawn and select it. */
   function jumpTo(row: SpawnRow) {
     selection = {
@@ -150,7 +158,7 @@
 {#if level.waves.length > 1}
   <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
 {/if}
-<TimelineBar {t} {end} {stop} {onSeek} />
+<TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
 <dl class="counts" aria-live="polite">
   <div>
     <dt>{strings.countPending}</dt>
