@@ -25,13 +25,23 @@ export function endpointKey({ kind, cell }: EndpointPlace): string {
 }
 
 /**
- * Every individual's route start is a 出生點; the route end is a 消失點 only for individuals that
- * leave (a patrol never does). Passing through a 通道 and checkpoints on the way count for
- * neither. Ordered spawns first, then by row, then by column.
+ * The endpoints of one individual: its route start is a 出生點; its route end is a 消失點 only if
+ * it leaves (a patrol never does). Passing through a 通道 and checkpoints on the way count for
+ * neither.
+ */
+function endpointsOf(individual: Individual): EndpointPlace[] {
+  const spawn: EndpointPlace = { kind: "spawn", cell: individual.route.start };
+  if (individual.leakTime === null) return [spawn];
+  return [spawn, { kind: "exit", cell: individual.route.end }];
+}
+
+/**
+ * Every endpoint of the timeline's individuals, by the rule of {@link endpointsOf}. Ordered spawns
+ * first, then by row, then by column.
  */
 export function routeEndpoints(timeline: Timeline): RouteEndpoint[] {
   const byKey = new Map<string, { endpoint: RouteEndpoint; actions: Set<string> }>();
-  const add = (kind: EndpointKind, cell: Cell, action: WaveActionId) => {
+  const add = ({ kind, cell }: EndpointPlace, action: WaveActionId) => {
     const key = endpointKey({ kind, cell });
     let entry = byKey.get(key);
     if (!entry) {
@@ -45,8 +55,7 @@ export function routeEndpoints(timeline: Timeline): RouteEndpoint[] {
     entry.endpoint.actions.push({ branchIndex, fragmentIndex, actionIndex });
   };
   for (const individual of timeline.individuals) {
-    add("spawn", individual.route.start, individual);
-    if (individual.leakTime !== null) add("exit", individual.route.end, individual);
+    for (const place of endpointsOf(individual)) add(place, individual);
   }
   const kindOrder: Record<EndpointKind, number> = { spawn: 0, exit: 1 };
   return [...byKey.values()]
@@ -59,12 +68,12 @@ export function routeEndpoints(timeline: Timeline): RouteEndpoint[] {
 
 /**
  * The 端點篩選 on the map: whether `individual` comes out of (spawn) or leaves at (exit)
- * `endpoint`, by the rule of {@link routeEndpoints}. The individuals it matches are exactly those
- * of the rows {@link endpointRows} lists.
+ * `endpoint`, by the rule of {@link endpointsOf}. The individuals it matches are exactly those of
+ * the rows {@link endpointRows} lists.
  */
-export function matchesEndpoint(individual: Individual, { kind, cell }: EndpointPlace): boolean {
-  if (kind === "spawn") return cellKey(individual.route.start) === cellKey(cell);
-  return individual.leakTime !== null && cellKey(individual.route.end) === cellKey(cell);
+export function matchesEndpoint(individual: Individual, endpoint: EndpointPlace): boolean {
+  const key = endpointKey(endpoint);
+  return endpointsOf(individual).some((place) => endpointKey(place) === key);
 }
 
 /**
