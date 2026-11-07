@@ -1,5 +1,6 @@
 // 介面文字(繁中)。All user-facing text lives here.
 import type { AreaKind, KnownModifierKey, NamedVariantId, VariantId } from "../level/index.ts";
+import type { EndpointPlace } from "../timeline/index.ts";
 
 export const strings = {
   siteTitle: "明日方舟時刻快照",
@@ -91,6 +92,10 @@ export const strings = {
   endpoint: { spawn: "出生點", exit: "消失點" },
   /** An endpoint dot's name: its kind and its 格 as (row, col), row 0 being the bottom row. */
   endpointAt: (kind: string, row: number, col: number) => `${kind}(${row}, ${col})`,
+  endpointFilterHint: "點一下篩選出兵表,再點一次取消",
+  /** The 端點篩選's caption above the spawn table; `endpoint` is an endpoint's name. */
+  endpointFilter: (endpoint: string) => `篩選:本波的${endpoint}`,
+  clearFilter: "清除",
   levelInfo: "關卡資訊",
   characterLimit: "可部署人數",
   maxLifePoint: "生命值",
@@ -204,6 +209,11 @@ export const strings = {
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   deselect: "取消選取",
 } as const;
+
+/** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */
+export function endpointName({ kind, cell }: EndpointPlace): string {
+  return strings.endpointAt(strings.endpoint[kind], cell.row, cell.col);
+}
 
 export function variantLabel(id: VariantId): string {
   const replace = /^replace(\d+)$/.exec(id);
