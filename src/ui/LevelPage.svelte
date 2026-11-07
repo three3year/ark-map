@@ -11,6 +11,7 @@
   import {
     buildTimeline,
     individualKey,
+    routeEndpoints,
     spawnPlan,
     spawnTable,
     switchConditional,
@@ -79,6 +80,7 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
+  const endpoints = $derived(routeEndpoints(timeline));
 
   /** The selected individual, by {@link individualKey}, in one level's wave. */
   interface Selection {
@@ -137,6 +139,7 @@
 <MapView
   map={level.map}
   routes={level.routes}
+  {endpoints}
   enemies={snapshot.onField}
   {selected}
   onSelect={select}

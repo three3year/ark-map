@@ -7,20 +7,22 @@
     type Tile,
     type Vec2,
   } from "../level/index.ts";
-  import type { Individual } from "../timeline/index.ts";
+  import { endpointKey, type Individual, type RouteEndpoint } from "../timeline/index.ts";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
     map: LevelMap;
     routes: Route[];
+    /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
+    endpoints: RouteEndpoint[];
     enemies: { individual: Individual; position: Vec2; invisible: boolean }[];
     /** The selected individual, whose 路徑 is drawn; it may be off the field right now. */
     selected: Individual | null;
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
   }
-  let { map, routes, enemies, selected, onSelect }: Props = $props();
+  let { map, routes, endpoints, enemies, selected, onSelect }: Props = $props();
 
   function toggleSelect(individual: Individual) {
     onSelect(individual.id === selected?.id ? null : individual);
@@ -98,6 +100,22 @@
         ? "end"
         : null;
 
+  /**
+   * Endpoint dots sit in their cell's top-right corner, clear of the cell centre; a 消失點 on a
+   * cell that is also a 出生點 sits just left of the red dot.
+   */
+  const endpointDots = $derived.by(() => {
+    const spawnCells = new Set(
+      endpoints.filter((e) => e.kind === "spawn").map((e) => `${e.cell.row},${e.cell.col}`),
+    );
+    return endpoints.map((endpoint) => {
+      const { kind, cell } = endpoint;
+      const besideSpawn = kind === "exit" && spawnCells.has(`${cell.row},${cell.col}`);
+      return { endpoint, x: cell.col + 0.32 - (besideSpawn ? 0.22 : 0), y: svgY(cell.row) - 0.32 };
+    });
+  });
+  const hasEndpoint = (kind: RouteEndpoint["kind"]) => endpoints.some((e) => e.kind === kind);
+
   /** A highland's front edge gets a shadow wherever the cell in front of it is lower. */
   const showsLedge = (row: number, col: number, tile: Tile) =>
     tileKind(tile) === "highland" && tileAt(map, { row: row - 1, col })?.heightType !== "HIGHLAND";
@@ -146,6 +164,23 @@
             </g>
           </g>
         {/if}
+      {/each}
+
+      {#each endpointDots as { endpoint, x, y } (endpointKey(endpoint))}
+        <g
+          class="endpoint {endpoint.kind}"
+          transform="translate({x} {y})"
+          data-endpoint={endpoint.kind}
+          data-cell="{endpoint.cell.row},{endpoint.cell.col}"
+          role="img"
+          aria-label={strings.endpointAt(
+            strings.endpoint[endpoint.kind],
+            endpoint.cell.row,
+            endpoint.cell.col,
+          )}
+        >
+          <g class="billboard"><circle r="0.1" /></g>
+        </g>
       {/each}
 
       {#if selected}
@@ -248,6 +283,11 @@
     <li><span class="swatch frame start"></span>{strings.start}</li>
     <li><span class="swatch frame end"></span>{strings.end}</li>
     <li><span class="swatch hole-swatch"></span>{strings.legendHole}</li>
+    {#each ["spawn", "exit"] as const as kind (kind)}
+      {#if hasEndpoint(kind)}
+        <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
+      {/if}
+    {/each}
     {#if selected}
       <li><span class="swatch line walk"></span>{strings.legendPath}</li>
       <li><span class="swatch line teleport"></span>{strings.legendTeleport}</li>
@@ -264,6 +304,8 @@
     --start: #e5484d;
     --end: #3e83f8;
     --hole: #121316;
+    --spawn-dot: #e5484d;
+    --exit-dot: #3e83f8;
     --path: #f5a524;
   }
   .toolbar {
@@ -352,6 +394,16 @@
   }
   .marker.end text {
     fill: var(--end);
+  }
+  .endpoint circle {
+    stroke: #fff;
+    stroke-width: 0.03;
+  }
+  .endpoint.spawn circle {
+    fill: var(--spawn-dot);
+  }
+  .endpoint.exit circle {
+    fill: var(--exit-dot);
   }
   .enemy-bg {
     fill: #fff;
@@ -485,6 +537,18 @@
   }
   .swatch.frame.end {
     border-color: var(--end);
+  }
+  .swatch.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid #fff;
+  }
+  .swatch.dot.spawn {
+    background: var(--spawn-dot);
+  }
+  .swatch.dot.exit {
+    background: var(--exit-dot);
   }
   .swatch.hole-swatch {
     background: var(--hole);
