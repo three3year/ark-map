@@ -33,7 +33,7 @@
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
-  import { tick } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
@@ -41,6 +41,11 @@
   import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
+    /**
+     * The site's title, drawn atop the left column: the spawn table's column beside it then starts
+     * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
+     */
+    siteTitle: Snippet;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -60,6 +65,7 @@
     onSwitches: (switches: SpawnSwitches) => void;
   }
   let {
+    siteTitle,
     area,
     stage,
     variant,
@@ -119,9 +125,8 @@
 
   let sideColumn: HTMLElement;
   /**
-   * Scroll the spawn table to put the selected individual's row in the middle, unless the row
-   * already shows whole. It shows in the column's part inside the window: at the top of the page
-   * the wide column runs past the window's bottom edge. A row the 端點篩選 hides stays hidden.
+   * Scroll the spawn table's column, and nothing else, to put the selected individual's row in its
+   * middle, unless the row already shows whole in it. A row the 端點篩選 hides stays hidden.
    */
   async function revealSelectedRow() {
     await tick();
@@ -130,16 +135,12 @@
       `tr[data-wave="${waveIndex}"][data-action="${actionKey(selected)}"]`,
     );
     if (!row) return;
-    const column = sideColumn.getBoundingClientRect();
-    const top = Math.max(column.top, 0);
-    const bottom = Math.min(column.bottom, window.innerHeight);
+    // The 捲動範圍: the column's box inside its border and above a sideways scrollbar.
+    const top = sideColumn.getBoundingClientRect().top + sideColumn.clientTop;
+    const bottom = top + sideColumn.clientHeight;
     const box = row.getBoundingClientRect();
     if (box.top >= top && box.bottom <= bottom) return;
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
-    // The table's last rows cannot scroll above the wide column's part below the window: scroll
-    // the page just enough to bring them up.
-    const below = row.getBoundingClientRect().bottom - window.innerHeight;
-    if (below > 0) window.scrollBy(0, below);
   }
 
   /** The 端點篩選 in one variant's wave. */
@@ -211,6 +212,7 @@
 
 <div class="level-page">
   <div class="main-column">
+    {@render siteTitle()}
     <nav>
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
@@ -345,7 +347,11 @@
     .main-column {
       padding-bottom: 32px;
     }
-    /* Stays on screen as the page scrolls; the spawn table scrolls inside it. */
+    /*
+     * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
+     * page's top edge, the site title being in the left column, so the column, as tall as the
+     * window, lies wholly inside the window at every page scroll.
+     */
     .side {
       position: sticky;
       top: 0;

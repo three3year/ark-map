@@ -80,11 +80,15 @@ test.describe("wide window", () => {
     await seek(page, t);
     const selectedRow = rowLocator(page, actionKey(row));
     await expect(selectedRow).not.toBeInViewport();
+    await enemy(page, individual.id).focus();
+    const pageScroll = await page.evaluate(() => scrollY);
 
     await enemy(page, individual.id).press("Enter");
 
     await expect(selectedRow).toHaveClass(/\bselected\b/);
     await expectShownWhole(page, selectedRow);
+    // The column alone scrolls: the last row comes up without moving the page.
+    expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
 
     // Scrolling the table by hand afterwards is not undone, as the time moves on.
     await spawnTableRegion(page).hover();

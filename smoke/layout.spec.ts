@@ -43,6 +43,23 @@ test("scrolling the page to the bottom keeps the spawn table on screen", async (
   await expect(tableHeading(page)).toBeInViewport({ ratio: 1 });
 });
 
+test("the spawn table's column is as tall as the window and inside it at any page scroll", async ({
+  page,
+}) => {
+  await page.goto("#/level/main_15-12?v=normal");
+  await expect(map(page)).toBeVisible();
+  const column = page.locator("#spawn-table-drawer");
+  const height = wideWindow.height;
+
+  for (const y of [0, 20, 100, Number.MAX_SAFE_INTEGER]) {
+    await page.evaluate((y) => scrollTo(0, y), y);
+    const box = (await column.boundingBox())!;
+    expect(box.y, `scrolled to ${y}`).toBeCloseTo(0, 0);
+    expect(box.height, `scrolled to ${y}`).toBeCloseTo(height, 0);
+  }
+  expect(await page.evaluate(() => scrollY), "the page scrolls").toBeGreaterThan(100);
+});
+
 test("the spawn table scrolls in its column, 端點篩選 caption and all, leaving the page", async ({
   page,
 }) => {
