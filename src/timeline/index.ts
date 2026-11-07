@@ -4,47 +4,22 @@ import {
   moveSpeedFactor,
   variantModifiers,
   type Difficulty,
-  type EnemyRef,
   type Level,
-  type Route,
   type Vec2,
 } from "../level/index.ts";
 import { createNextNodeLookup } from "../pathfinding/index.ts";
-import {
-  nextNodeModel,
-  theoreticalSpeed,
-  type IndividualState,
-  type MovementModel,
-  type PathLeg,
-  type Stay,
-} from "./movement.ts";
+import { nextNodeModel, theoreticalSpeed, type MovementModel, type Stay } from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
+import type { Individual, Timeline } from "./types.ts";
 
 export * from "./endpoints.ts";
 export * from "./identity.ts";
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
 export * from "./switches.ts";
-
-export interface Individual extends IndividualId {
-  /** {@link individualKey}: stable within a timeline. */
-  id: string;
-  enemy: EnemyRef;
-  route: Route;
-  spawnTime: number;
-  /** 無害敵人: counts as killed, never a threat. */
-  harmless: boolean;
-  leakTime: number | null;
-  /** 路徑 to draw when the individual is selected. */
-  path: PathLeg[];
-  stateAt(t: number): IndividualState;
-}
-
-export interface Timeline {
-  individuals: Individual[];
-}
+export type * from "./types.ts";
 
 export interface TimelineOptions {
   waveIndex?: number;

@@ -2,7 +2,7 @@
 // Pure; no DOM or network.
 import { cellKey, type Cell } from "../level/index.ts";
 import { actionKey, sameAction, type WaveActionId } from "./identity.ts";
-import type { Timeline } from "./index.ts";
+import type { Timeline } from "./types.ts";
 
 /** 出生點 ("spawn") or 消失點 ("exit"). */
 export type EndpointKind = "spawn" | "exit";
