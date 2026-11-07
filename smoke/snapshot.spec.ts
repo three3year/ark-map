@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { buildTimeline, spawnTable, takeSnapshot } from "../src/timeline/index.ts";
-import { playbackStop, roundTenth } from "../src/ui/playback.ts";
+import { ceilTenth, playbackStop, roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
   expectDefaultSwitches,
@@ -151,7 +151,7 @@ test("seeking, picking a 波次 and jumping from the spawn table leave the URL a
   await page.locator('tr[data-wave="0"] button.enemy').first().click();
 
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
-  const jumpedTo = roundTenth(firstRow.waveTime);
+  const jumpedTo = ceilTenth(firstRow.waveTime);
   await expect(timeDisplay(page)).toHaveText(`${jumpedTo.toFixed(1)} 秒`);
   expect(page.url()).toBe(url);
 });
