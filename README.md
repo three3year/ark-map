@@ -41,7 +41,7 @@ CI 每個上游來源各一份快取,key 是該來源分支當下的 commit(`pip
 | 關卡模型 | `src/level/` | 站內 JSON 的型別與格查詢;名稱表(`names.ts`):敵人名稱與地形表集中在 `data/names.json`,關卡檔只留和名稱表不同的名稱,瀏覽器載入時補回;難度修正(`modifiers.ts`):變體套用、移速倍率、已知修正鍵清單(管線遇到清單外的鍵會警告,畫面只顯示不套用) |
 | 尋路 | `src/pathfinding/` | 地圖 + 目標格 + 移動模式 → nextNode 表(SPFA + 平整化;「2×x 長方形」視線規則有開關 `rectangleRule`,預設開) |
 | 基準時間軸 | `src/timeline/` | 出生時刻與一波的出兵動作(`schedule.ts` 的 `waveSpawns`,時間軸與出兵表共用)、移動模型介面(`movement.ts`)、時刻快照;敵人個體身分與 key(`identity.ts`);一波時間軸的出生點與消失點,與每格對應的出兵動作;端點篩選留下的出兵表列(`endpoints.ts`);開關狀態(`switches.ts`):隱藏組預設、隨機出兵組的候選與預設(條件出兵內的組也算)、哪些出兵動作產生敵人個體;開啟的條件出兵當成一個從觸發秒數起跑的單波次關卡 |
-| 畫面 | `src/ui/` | Svelte 元件、hash 路由、繁中字串表(`strings.ts`);地形標記(`terrain.ts` 的手畫圖示表決定哪些 `tileKey` 畫哪個圖示、地形表沒有名稱的變體借哪一種的名稱,圖示本身在 `TerrainIcon.svelte`) |
+| 畫面 | `src/ui/` | Svelte 元件、hash 路由、繁中字串表(`strings.ts`);地形標記(`terrain.ts` 的手畫圖示表決定哪些 `tileKey` 畫哪個圖示、地形表沒有名稱的變體借哪一種的名稱;不在表裡、地形表標為有功能的地形畫名稱首字;圖示與首字本身在 `TerrainIcon.svelte`) |
 
 尋路與基準時間軸不依賴 Svelte、DOM 或網路。
 

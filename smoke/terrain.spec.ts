@@ -48,6 +48,45 @@ test("4-10 draws its 通道 and lists them in the legend, with the game's descri
   await expect(description).toBeVisible();
 });
 
+test("2-10 marks its 醫療符文 cells with 醫 and lists the mark by its full name, with the description on hover", async ({
+  page,
+}) => {
+  const runes = tileCount("main_02-10", "tile_healing");
+  expect(runes, "2-10 has 醫療符文").toBeGreaterThan(0);
+
+  await page.goto("#/level/main_02-10?v=normal");
+
+  const cells = page.locator('svg.map [data-tile-key="tile_healing"]');
+  await expect(cells).toHaveCount(runes);
+  await expect(cells.first()).toHaveText("醫");
+
+  const item = legendItem(page, "醫療符文");
+  await expect(item).toHaveCount(1);
+  await expect(item).toContainText("醫");
+  const description = page.getByRole("tooltip").filter({ hasText: "持續恢復生命" });
+  await expect(description).toBeHidden();
+  await item.hover();
+  await expect(description).toBeVisible();
+});
+
+test("3-3 draws its 地穴 and 草叢 as icons named by the 地形表", async ({ page }) => {
+  const holes = tileCount("main_03-03", "tile_hole");
+  const grass = tileCount("main_03-03", "tile_grass");
+  expect(holes, "3-3 has 地穴").toBeGreaterThan(0);
+  expect(grass, "3-3 has 草叢").toBeGreaterThan(0);
+
+  await page.goto("#/level/main_03-03?v=normal");
+
+  await expect(page.locator('svg.map [data-tile-key="tile_hole"]')).toHaveCount(holes);
+  await expect(page.locator('svg.map [data-tile-key="tile_grass"]')).toHaveCount(grass);
+  await expect(legendItem(page, "地穴")).toHaveCount(1);
+  await expect(legendItem(page, "草叢")).toHaveCount(1);
+  await expect(legend(page).getByText("坑", { exact: true })).toHaveCount(0);
+  // 平地 and 高台 have no function, so they stay base colour only.
+  await expect(page.locator('svg.map [data-tile-key="tile_road"]')).toHaveCount(0);
+  await expect(page.locator('svg.map [data-tile-key="tile_wall"]')).toHaveCount(0);
+});
+
 test("1-7 has no 通道, so the legend lists none", async ({ page }) => {
   expect(tileCount("main_01-07", "tile_telin")).toBe(0);
 
