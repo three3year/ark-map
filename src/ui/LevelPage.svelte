@@ -290,7 +290,8 @@
   </div>
   <!--
     Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the
-    page, its button sticking out on the right edge. Either way .side-column scrolls the table.
+    page, its button sticking out in the bottom-right corner. Either way .side-column scrolls the
+    table.
   -->
   <div class="side" class:open={drawerOpen}>
     <button
@@ -374,7 +375,8 @@
   }
   /*
    * Below the breakpoint: a drawer sliding out from the right over the page, so the map keeps its
-   * size. Its button sticks out of its left edge, on the window's right edge while it is closed.
+   * size. Its button sticks out of its left edge near the bottom: in the window's bottom-right
+   * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
   @media (width < 1440px) {
@@ -409,9 +411,8 @@
     }
     .drawer-button {
       position: absolute;
-      top: 50%;
+      bottom: 16px;
       right: 100%;
-      transform: translateY(-50%);
       writing-mode: vertical-rl;
       padding: 12px 6px;
       border: 1px solid var(--border);

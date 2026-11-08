@@ -1,5 +1,5 @@
 // Smoke test: on a phone, the level page keeps the spawn table in a drawer that slides out from the
-// right over the page, opened and closed by a button on the right edge.
+// right over the page, opened and closed by a button in the bottom-right corner.
 import { expect, test, type Page } from "@playwright/test";
 import {
   drawerButton,
@@ -21,13 +21,26 @@ test("the drawer starts closed; its button opens it over the page and closes it"
   const mapBox = await map(page).boundingBox();
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
-  await expect(drawerButton(page)).toBeInViewport();
   await expect(spawnTableRegion(page)).toBeHidden();
+  // In the window's bottom-right corner: on the right edge, give or take the drawer's 1px border.
+  const closed = (await drawerButton(page).boundingBox())!;
+  expect(Math.abs(closed.x + closed.width - phoneWindow.width)).toBeLessThanOrEqual(1);
+  expect(closed.y + closed.height).toBeGreaterThan(phoneWindow.height - 40);
+  expect(closed.y + closed.height).toBeLessThanOrEqual(phoneWindow.height);
 
   await drawerButton(page).click();
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
   await expect(spawnTableRegion(page)).toBeInViewport();
+  // Still at the bottom, now on the open drawer's left edge, not under it.
+  await expect
+    .poll(async () => {
+      const box = (await drawerButton(page).boundingBox())!;
+      return box.x >= 0 && box.y === closed.y;
+    })
+    .toBe(true);
+  const table = (await spawnTableRegion(page).boundingBox())!;
+  expect((await drawerButton(page).boundingBox())!.x + closed.width).toBeLessThanOrEqual(table.x);
   // Over the page: the map stays where it was, as large as it was, and nothing scrolls sideways.
   expect(await map(page).boundingBox()).toEqual(mapBox);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(phoneWindow.width);
