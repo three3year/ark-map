@@ -10,6 +10,7 @@
   } from "../level/index.ts";
   import LevelInfo from "./LevelInfo.svelte";
   import {
+    actionKey,
     buildTimeline,
     endpointKey,
     individualKey,
@@ -32,12 +33,19 @@
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
   import { formatHash } from "./route.ts";
+  import { tick, type Snippet } from "svelte";
+  import { MediaQuery } from "svelte/reactivity";
   import SpawnTable from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
+    /**
+     * The site's title, drawn atop the left column: the spawn table's column beside it then starts
+     * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
+     */
+    siteTitle: Snippet;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -57,6 +65,7 @@
     onSwitches: (switches: SpawnSwitches) => void;
   }
   let {
+    siteTitle,
     area,
     stage,
     variant,
@@ -103,12 +112,35 @@
   });
   const selectedState = $derived(selected?.stateAt(t).kind);
 
+  /** A selection on the map: the spawn table, if on screen, scrolls to its row. */
   function select(individual: Individual | null) {
+    const changed = individual !== null && individual.id !== selected?.id;
     selection = individual && {
       levelId: level.levelId,
       wave: waveIndex,
       individual: individual.id,
     };
+    if (changed && (!drawerMode.current || drawerOpen)) void revealSelectedRow();
+  }
+
+  let sideColumn: HTMLElement;
+  /**
+   * Scroll the spawn table's column, and nothing else, to put the selected individual's row in its
+   * middle, unless the row already shows whole in it. A row the 端點篩選 hides stays hidden.
+   */
+  async function revealSelectedRow() {
+    await tick();
+    if (!selected) return;
+    const row = sideColumn.querySelector(
+      `tr[data-wave="${waveIndex}"][data-action="${actionKey(selected)}"]`,
+    );
+    if (!row) return;
+    // The 捲動範圍: the column's box inside its border and above a sideways scrollbar.
+    const top = sideColumn.getBoundingClientRect().top + sideColumn.clientTop;
+    const bottom = top + sideColumn.clientHeight;
+    const box = row.getBoundingClientRect();
+    if (box.top >= top && box.bottom <= bottom) return;
+    sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
   /** The 端點篩選 in one variant's wave. */
@@ -133,13 +165,32 @@
     if (endpointFilter && !filtered) endpointFilter = null;
   });
 
-  /** A dot filters the spawn table to it; the dot of the filter on screen clears it. */
+  /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
+  const breakpoint = 1440;
+  /**
+   * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
+   * the level page.
+   */
+  const drawerMode = new MediaQuery(`width < ${breakpoint}px`);
+  let drawerOpen = $state(false);
+  /** Opening the drawer shows the selected individual's row. */
+  function setDrawerOpen(open: boolean) {
+    if (open && !drawerOpen) void revealSelectedRow();
+    drawerOpen = open;
+  }
+
+  /**
+   * A dot filters the spawn table to it, opening the drawer to show it; the dot of the filter on
+   * screen clears it.
+   */
   function toggleFilter({ kind, cell }: RouteEndpoint) {
     const endpoint = { kind, cell };
-    endpointFilter =
-      filtered && endpointKey(filtered) === endpointKey(endpoint)
-        ? null
-        : { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    if (filtered && endpointKey(filtered) === endpointKey(endpoint)) {
+      endpointFilter = null;
+      return;
+    }
+    endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    if (drawerMode.current) setDrawerOpen(true);
   }
 
   /** Playback reached this 波次's stop second: move on to the next 波次, or stop on the last. */
@@ -161,91 +212,231 @@
   }
 </script>
 
-<nav>
-  <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
-</nav>
-<h2>{stage.code} {stage.name}</h2>
-{#if stage.emergencyCondition}
-  <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
-{/if}
-{#if stage.variants.length > 1}
-  <div class="variants" role="group" aria-label={strings.variantPicker}>
-    {#each stage.variants as v (v.id)}
-      <button
-        type="button"
-        aria-pressed={v.id === variant.id}
-        data-variant={v.id}
-        onclick={() => onVariant(v.id)}
-      >
-        {variantLabel(v.id)}
-      </button>
-    {/each}
+<div class="level-page">
+  <div class="main-column">
+    {@render siteTitle()}
+    <nav>
+      <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
+    </nav>
+    <h2>{stage.code} {stage.name}</h2>
+    {#if stage.emergencyCondition}
+      <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
+    {/if}
+    {#if stage.variants.length > 1}
+      <div class="variants" role="group" aria-label={strings.variantPicker}>
+        {#each stage.variants as v (v.id)}
+          <button
+            type="button"
+            aria-pressed={v.id === variant.id}
+            data-variant={v.id}
+            onclick={() => onVariant(v.id)}
+          >
+            {variantLabel(v.id)}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <MapView
+      map={level.map}
+      {terrain}
+      {endpoints}
+      enemies={snapshot.onField}
+      {t}
+      {selected}
+      onSelect={select}
+      filter={filtered}
+      onFilter={toggleFilter}
+    />
+    {#if selected && selectedState}
+      <p class="selection" data-selected={selected.id}>
+        <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
+        <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+      </p>
+    {/if}
+    {#if level.waves.length > 1}
+      <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+    {/if}
+    <TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
+    <dl class="counts" aria-live="polite">
+      <div>
+        <dt>{strings.countPending}</dt>
+        <dd data-count="pending">{snapshot.counts.pending}</dd>
+      </div>
+      <div>
+        <dt>{strings.countOnField}</dt>
+        <dd data-count="onField">{snapshot.counts.onField}</dd>
+      </div>
+      <div>
+        <dt>{strings.countLeaked}</dt>
+        <dd data-count="leaked">{snapshot.counts.leaked}</dd>
+      </div>
+    </dl>
+    <SwitchPanel
+      {level}
+      {plan}
+      conditional={switches.conditional ?? {}}
+      wave={waveIndex}
+      {t}
+      onHidden={setHidden}
+      onPick={pick}
+      onConditional={setConditional}
+    />
+    <LevelInfo
+      options={level.options}
+      {modifiers}
+      variantName={variantLabel(variant.id)}
+      enemies={level.enemies}
+    />
   </div>
-{/if}
-<MapView
-  map={level.map}
-  {terrain}
-  {endpoints}
-  enemies={snapshot.onField}
-  {t}
-  {selected}
-  onSelect={select}
-  filter={filtered}
-  onFilter={toggleFilter}
-/>
-{#if selected && selectedState}
-  <p class="selection" data-selected={selected.id}>
-    <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
-    <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
-  </p>
-{/if}
-{#if level.waves.length > 1}
-  <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
-{/if}
-<TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
-<dl class="counts" aria-live="polite">
-  <div>
-    <dt>{strings.countPending}</dt>
-    <dd data-count="pending">{snapshot.counts.pending}</dd>
+  <!--
+    Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the
+    page, its button sticking out in the bottom-right corner. Either way .side-column scrolls the
+    table.
+  -->
+  <div class="side" class:open={drawerOpen}>
+    <button
+      type="button"
+      class="drawer-button"
+      aria-expanded={drawerOpen}
+      aria-controls="spawn-table-drawer"
+      onclick={() => setDrawerOpen(!drawerOpen)}
+    >
+      {strings.spawnTable}
+    </button>
+    <div class="side-column" id="spawn-table-drawer" bind:this={sideColumn}>
+      <SpawnTable
+        {rows}
+        wave={waveIndex}
+        multiWave={level.waves.length > 1}
+        {selected}
+        onJump={jumpTo}
+        onPick={pick}
+        branchKeys={level.branches.map((b) => b.key)}
+        filter={filtered}
+        onClearFilter={() => (endpointFilter = null)}
+      />
+    </div>
   </div>
-  <div>
-    <dt>{strings.countOnField}</dt>
-    <dd data-count="onField">{snapshot.counts.onField}</dd>
-  </div>
-  <div>
-    <dt>{strings.countLeaked}</dt>
-    <dd data-count="leaked">{snapshot.counts.leaked}</dd>
-  </div>
-</dl>
-<SwitchPanel
-  {level}
-  {plan}
-  conditional={switches.conditional ?? {}}
-  wave={waveIndex}
-  {t}
-  onHidden={setHidden}
-  onPick={pick}
-  onConditional={setConditional}
-/>
-<SpawnTable
-  {rows}
-  wave={waveIndex}
-  multiWave={level.waves.length > 1}
-  {selected}
-  onJump={jumpTo}
-  onPick={pick}
-  branchKeys={level.branches.map((b) => b.key)}
-  filter={filtered}
-  onClearFilter={() => (endpointFilter = null)}
-/>
-<LevelInfo
-  options={level.options}
-  {modifiers}
-  variantName={variantLabel(variant.id)}
-  enemies={level.enemies}
-/>
+</div>
 
 <style>
+  /*
+   * Wide screens: the map beside a column holding the spawn table.
+   * - The column is --side-column-width, 824px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
+   *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
+   * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
+   *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
+   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
+   *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   *   above and the two `@media` rules below.
+   * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
+   */
+  /* Below the breakpoint: one column, as wide as the other pages. */
+  .level-page {
+    --side-column-width: 824px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  @media (min-width: 1440px) {
+    .level-page {
+      max-width: none;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--side-column-width);
+      gap: 24px;
+      align-items: start;
+      /*
+       * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
+       * so with the padding below the row it slid 32px up off screen at the bottom of the page.
+       */
+      margin-bottom: -32px;
+    }
+    .main-column {
+      padding-bottom: 32px;
+    }
+    /*
+     * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
+     * page's top edge, the site title being in the left column, so the column, as tall as the
+     * window, lies wholly inside the window at every page scroll.
+     */
+    .side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .side-column {
+      height: 100%;
+      overflow-y: auto;
+    }
+    .drawer-button {
+      display: none;
+    }
+  }
+  /*
+   * Below the breakpoint: a drawer sliding out from the right over the page, so the map keeps its
+   * size. Its button sticks out of its left edge near the bottom: in the window's bottom-right
+   * corner while it is closed, where it covers less of the map than halfway up the right edge.
+   * The 48px left uncovered keeps the button on screen while the drawer is open.
+   */
+  @media (width < 1440px) {
+    .side {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      width: min(var(--side-column-width), calc(100% - 48px));
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+    }
+    .side.open {
+      transform: none;
+      box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
+    }
+    /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
+    .side-column {
+      box-sizing: border-box;
+      height: 100%;
+      padding: 0 12px 12px;
+      overflow-y: auto;
+      visibility: hidden;
+      transition: visibility 0s 0.2s;
+    }
+    .side.open .side-column {
+      visibility: visible;
+      transition-delay: 0s;
+    }
+    .drawer-button {
+      position: absolute;
+      bottom: 16px;
+      right: 100%;
+      writing-mode: vertical-rl;
+      padding: 12px 6px;
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      background: var(--panel);
+      color: var(--fg);
+      font: inherit;
+      cursor: pointer;
+      box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
+    }
+    .drawer-button[aria-expanded="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+  }
+  /* Only the drawer has transitions to drop. */
+  @media (prefers-reduced-motion: reduce) {
+    .side,
+    .side-column {
+      transition: none;
+    }
+  }
   nav a {
     color: var(--accent);
   }

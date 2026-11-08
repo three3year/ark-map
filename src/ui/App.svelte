@@ -116,35 +116,28 @@
       (e: unknown) => (error = String(e)),
     );
   });
+
+  /** What the level page shows, once the variant's level file has loaded. */
+  const levelPage = $derived(
+    route.page === "level" && !error && found && variant && loaded?.file === variant.levelFile
+      ? { route, ...found, variant, level: loaded.level, terrain: loaded.terrain }
+      : null,
+  );
 </script>
 
-<main>
+{#snippet siteTitle()}
   <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
-  {#if error}
-    <p role="alert">{strings.loadFailed}:{error}</p>
-  {:else if !index}
-    <p>{strings.loading}</p>
-  {:else if index.areas.length === 0}
-    <p>{strings.noStages}</p>
-  {:else if route.page === "home"}
-    <AreaList {index} />
-  {:else if route.page === "area"}
-    {#if area}
-      <StageList {area} />
-    {:else}
-      <p>{strings.areaNotFound(route.areaId)}</p>
-    {/if}
-  {:else if !found}
-    <p>{strings.stageNotFound(route.stageId)}</p>
-  {:else if !variant}
-    <p>{strings.variantNotFound(route.variant ?? "")}</p>
-  {:else if loaded && loaded.file === variant.levelFile}
+{/snippet}
+
+<main class:level={route.page === "level"}>
+  {#if levelPage}
     <LevelPage
-      area={found.area}
-      stage={found.stage}
-      {variant}
-      level={loaded.level}
-      terrain={loaded.terrain}
+      {siteTitle}
+      area={levelPage.area}
+      stage={levelPage.stage}
+      variant={levelPage.variant}
+      level={levelPage.level}
+      terrain={levelPage.terrain}
       wave={position.wave}
       t={position.t}
       {switches}
@@ -152,10 +145,31 @@
       onSelectWave={(wave) => (position = { wave, t: 0 })}
       onJump={(wave, t) => (position = { wave, t: ceilTenth(t) })}
       onSwitches={(next) => (switches = next)}
-      onVariant={(v) => navigate({ ...route, variant: v })}
+      onVariant={(v) => navigate({ ...levelPage.route, variant: v })}
     />
   {:else}
-    <p>{strings.loading}</p>
+    {@render siteTitle()}
+    {#if error}
+      <p role="alert">{strings.loadFailed}:{error}</p>
+    {:else if !index}
+      <p>{strings.loading}</p>
+    {:else if index.areas.length === 0}
+      <p>{strings.noStages}</p>
+    {:else if route.page === "home"}
+      <AreaList {index} />
+    {:else if route.page === "area"}
+      {#if area}
+        <StageList {area} />
+      {:else}
+        <p>{strings.areaNotFound(route.areaId)}</p>
+      {/if}
+    {:else if !found}
+      <p>{strings.stageNotFound(route.stageId)}</p>
+    {:else if !variant}
+      <p>{strings.variantNotFound(route.variant ?? "")}</p>
+    {:else}
+      <p>{strings.loading}</p>
+    {/if}
   {/if}
 </main>
 
@@ -163,12 +177,24 @@
   main {
     max-width: 960px;
     margin: 0 auto;
-    padding: 12px 16px 32px;
+    padding: 0 16px 32px;
   }
+  /*
+   * The level page takes the window's whole width: on a wide screen the map gets all of it the
+   * spawn table's column leaves. Below its breakpoint it keeps to 960px itself.
+   */
+  main.level {
+    max-width: none;
+  }
+  /*
+   * The page's top padding is the title's own: on the level page, the spawn table's column beside
+   * the title then starts at the page's top edge.
+   */
   h1 {
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0 0 8px;
+    padding-top: 12px;
   }
   h1 a {
     color: var(--muted);

@@ -1,39 +1,35 @@
 // Smoke test against the built site (dist/), served under a sub-path like GitHub Pages.
 // The expected count comes from 基準時間軸 run on the same data the site ships.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
-import { buildTimeline, spawnTable, takeSnapshot, timelineEnd } from "../src/timeline/index.ts";
+import {
+  buildTimeline,
+  matchesEndpoint,
+  routeEndpoints,
+  spawnTable,
+  takeSnapshot,
+  timelineEnd,
+} from "../src/timeline/index.ts";
 import { ceilTenth, playbackStop, roundTenth } from "../src/ui/playback.ts";
 import {
   conditionalSwitch,
+  endpointDot,
+  enemyOnMap,
   expectDefaultSwitches,
   expectVariantShown,
+  readSiteLevel,
   seek,
   selectWave,
+  shownOpacity,
+  siteLevel,
+  siteStage,
   timeDisplay,
+  wideWindow,
 } from "./levelPage.ts";
-
-const dist = path.resolve(import.meta.dirname, "..", "dist");
-const readSiteJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
-const readSiteLevel = (file: string) =>
-  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
-
-function siteStage(id: string) {
-  const stage = readSiteJson<StageIndex>("data/index.json")
-    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
-    .find((s) => s.id === id);
-  expect(stage, `the built site publishes ${id}`).toBeDefined();
-  return stage!;
-}
 
 test("1-7 at 35 s shows as many enemy individuals as the timeline has on field", async ({
   page,
 }) => {
-  const stage = siteStage("main_01-07");
-  const level = readSiteLevel(stage.variants[0]!.levelFile);
+  const level = siteLevel("main_01-07");
   const expected = takeSnapshot(buildTimeline(level), 35).counts.onField;
   expect(expected, "1-7 has enemies on field at 35 s").toBeGreaterThan(0);
 
@@ -72,7 +68,7 @@ test("RM-2: a patrol selected long after its first lap shows the 路徑 left of 
 test("4-10: an enemy standing still has a shrinking bar over it, gone once it moves on", async ({
   page,
 }) => {
-  const timeline = buildTimeline(readSiteLevel(siteStage("main_04-10").variants[0]!.levelFile));
+  const timeline = buildTimeline(siteLevel("main_04-10"));
   // The first whole second at which some individual is in a visible stay, a second into it.
   const t = Array.from({ length: 300 }, (_, i) => i).find((s) =>
     takeSnapshot(timeline, s).onField.some((e) => e.stay && e.stay.start <= s - 1),
@@ -81,7 +77,7 @@ test("4-10: an enemy standing still has a shrinking bar over it, gone once it mo
   const { individual, stay } = takeSnapshot(timeline, t!).onField.find(
     (e) => e.stay && e.stay.start <= t! - 1,
   )!;
-  const bar = page.locator(`svg.map g.enemy[data-individual="${individual.id}"] .stay-bar`);
+  const bar = enemyOnMap(page, individual.id).locator(".stay-bar");
 
   await page.goto("#/level/main_04-10?v=normal");
   await seek(page, t!);
@@ -95,9 +91,77 @@ test("4-10: an enemy standing still has a shrinking bar over it, gone once it mo
   await expect(bar).toHaveCount(0);
 });
 
+test("4-10: every enemy standing still shows the seconds left above its bar, gone once it moves on", async ({
+  page,
+}) => {
+  const timeline = buildTimeline(siteLevel("main_04-10"));
+  // The first whole second at which some individual is in a visible stay, a second into it.
+  const t = Array.from({ length: 300 }, (_, i) => i).find((s) =>
+    takeSnapshot(timeline, s).onField.some((e) => e.stay && e.stay.start <= s - 1),
+  );
+  expect(t, "4-10 has an enemy standing still").toBeDefined();
+  const staying = takeSnapshot(timeline, t!).onField.filter((e) => e.stay);
+  const { individual, stay } = staying.find((e) => e.stay!.start <= t! - 1)!;
+  const seconds = enemyOnMap(page, individual.id).locator(".stay-seconds");
+  const bar = enemyOnMap(page, individual.id).locator(".stay-track");
+
+  await page.goto("#/level/main_04-10?v=normal");
+  await seek(page, t!);
+
+  await expect(page.locator("svg.map .stay-seconds")).toHaveCount(staying.length);
+  for (const e of staying) {
+    await expect(enemyOnMap(page, e.individual.id).locator(".stay-seconds")).toHaveText(
+      (e.stay!.end - t!).toFixed(1),
+    );
+  }
+  // Above the bar and flush with its right end, in the tilted view and the flat one alike.
+  // The browser's own box of the text: Playwright's box of SVG text runs past its glyphs.
+  const box = (l: typeof bar) => l.evaluate((el) => el.getBoundingClientRect().toJSON() as DOMRect);
+  for (const view of ["tilted", "flat"]) {
+    const secondsBox = await box(seconds);
+    const barBox = await box(bar);
+    expect(secondsBox.bottom, `${view}: above the bar`).toBeLessThanOrEqual(barBox.top + 0.5);
+    expect(Math.abs(secondsBox.right - barBox.right), `${view}: right ends line up`).toBeLessThan(
+      2,
+    );
+    if (view === "tilted") await page.locator("button.view-toggle").click();
+  }
+
+  await seek(page, Math.ceil(stay!.end));
+
+  await expect(seconds).toHaveCount(0);
+});
+
+test("4-10: 霜星 is drawn at 0.7 opacity while 隱形", async ({ page }) => {
+  const timeline = buildTimeline(siteLevel("main_04-10"));
+  // The first whole second at which 霜星 is 隱形.
+  const t = Array.from({ length: 400 }, (_, i) => i).find((s) =>
+    takeSnapshot(timeline, s).onField.some(
+      (e) => e.invisible && e.individual.enemy.name === "霜星",
+    ),
+  );
+  expect(t, "4-10's 霜星 goes 隱形").toBeDefined();
+  const { individual } = takeSnapshot(timeline, t!).onField.find(
+    (e) => e.invisible && e.individual.enemy.name === "霜星",
+  )!;
+  const enemy = enemyOnMap(page, individual.id);
+
+  await page.goto("#/level/main_04-10?v=normal");
+  await seek(page, t!);
+
+  await expect(enemy).toHaveClass(/\binvisible\b/);
+  expect(await shownOpacity(enemy.locator(".enemy-bg"))).toBeCloseTo(0.7, 2);
+
+  // Filtered out as well, the two fades multiply.
+  const elsewhere = routeEndpoints(timeline).find((e) => !matchesEndpoint(individual, e))!;
+  await endpointDot(page, elsewhere).click();
+
+  await expect(enemy).toHaveAttribute("data-filtered-out");
+  expect(await shownOpacity(enemy.locator(".enemy-bg"))).toBeCloseTo(0.28, 2);
+});
+
 test("4-4 challenge runs its 難度修正 move speed and lists its modifiers", async ({ page }) => {
-  const stage = siteStage("main_04-04");
-  const level = readSiteLevel(stage.variants[0]!.levelFile);
+  const level = siteLevel("main_04-04");
   const normal = buildTimeline(level);
   const challenge = buildTimeline(level, { difficulty: "FOUR_STAR" });
   // The first whole second at which the two variants have different counts on field.
@@ -162,24 +226,28 @@ test("8x playback runs on from 第 1 波 into 第 2 波 and stops at the end of 
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
 });
 
-test("seeking, picking a 波次 and jumping from the spawn table leave the URL alone", async ({
-  page,
-}) => {
-  const level = readSiteLevel(siteStage("ro2_n_2_6").variants[0]!.levelFile);
-  const firstRow = spawnTable(level).find((r) => r.waveIndex === 0)!;
-  await page.goto("#/level/ro2_n_2_6?v=normal");
-  await expect(page.locator("svg.map")).toBeVisible();
-  const url = page.url();
+test.describe("wide window", () => {
+  test.use({ viewport: wideWindow });
 
-  await seek(page, 5);
-  await selectWave(page, 1);
-  await expect(timeDisplay(page)).toHaveText("0.0 秒");
-  await page.locator('tr[data-wave="0"] button.enemy').first().click();
+  test("seeking, picking a 波次 and jumping from the spawn table leave the URL alone", async ({
+    page,
+  }) => {
+    const level = siteLevel("ro2_n_2_6");
+    const firstRow = spawnTable(level).find((r) => r.waveIndex === 0)!;
+    await page.goto("#/level/ro2_n_2_6?v=normal");
+    await expect(page.locator("svg.map")).toBeVisible();
+    const url = page.url();
 
-  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
-  const jumpedTo = ceilTenth(firstRow.waveTime);
-  await expect(timeDisplay(page)).toHaveText(`${jumpedTo.toFixed(1)} 秒`);
-  expect(page.url()).toBe(url);
+    await seek(page, 5);
+    await selectWave(page, 1);
+    await expect(timeDisplay(page)).toHaveText("0.0 秒");
+    await page.locator('tr[data-wave="0"] button.enemy').first().click();
+
+    await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+    const jumpedTo = ceilTenth(firstRow.waveTime);
+    await expect(timeDisplay(page)).toHaveText(`${jumpedTo.toFixed(1)} 秒`);
+    expect(page.url()).toBe(url);
+  });
 });
 
 test("switching to a variant with its own level file keeps the time and resets the switches", async ({

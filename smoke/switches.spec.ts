@@ -1,19 +1,11 @@
 // Smoke test: 隱藏組, 隨機出兵組 and 條件出兵 switches drive the snapshot; the URL never carries them.
 // Expected counts come from 基準時間軸 run on the same data the site ships.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import {
-  cellKey,
-  withNames,
-  type Level,
-  type LevelFile,
-  type NameTable,
-  type StageIndex,
-} from "../src/level/index.ts";
+import { cellKey, type Level } from "../src/level/index.ts";
 import {
   buildTimeline,
   endpointRows,
+  matchesEndpoint,
   routeEndpoints,
   spawnTable,
   takeSnapshot,
@@ -22,26 +14,21 @@ import {
 } from "../src/timeline/index.ts";
 import {
   conditionalSwitch,
+  endpointDot,
+  enemyOnMap,
+  filterCaption,
   openLink,
   seek,
   selectWave,
   setConditionalSecond,
+  shownOpacity,
+  siteLevel,
+  spawnTableRegion,
   timeDisplay,
+  wideWindow,
 } from "./levelPage.ts";
 
-const dist = path.resolve(import.meta.dirname, "..", "dist");
-const readSiteJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
-const readSiteLevel = (file: string) =>
-  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
-
-function siteLevel(stageId: string): Level {
-  const stage = readSiteJson<StageIndex>("data/index.json")
-    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
-    .find((s) => s.id === stageId);
-  expect(stage, `the built site publishes ${stageId}`).toBeDefined();
-  return readSiteLevel(stage!.variants[0]!.levelFile);
-}
+test.use({ viewport: wideWindow });
 
 const onField = (level: Level, t: number, options: TimelineOptions) =>
   takeSnapshot(buildTimeline(level, options), t).counts.onField;
@@ -89,7 +76,7 @@ test("15-13: 出生點 and 消失點 dots follow hidden group1, in both views", 
   const dotCount = (options: TimelineOptions) =>
     routeEndpoints(buildTimeline(level, options)).length;
   const dots = page.locator("svg.map g.endpoint");
-  const group1Spawn = page.locator('svg.map [data-endpoint="spawn"][data-cell="3,8"]');
+  const group1Spawn = endpointDot(page, { kind: "spawn", cell: { row: 3, col: 8 } });
 
   await page.goto("#/level/main_15-12?v=normal");
   await expect(dots).toHaveCount(dotCount({}));
@@ -147,7 +134,7 @@ test("11-7: a 條件出兵 switched on spawns at its second and shows its path",
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(level, t, at(t)));
   await expect(page.locator('tr[data-conditional="0"]')).toHaveCount(1);
-  await page.locator('g.enemy[data-individual="b0-0-0-0"]').click();
+  await enemyOnMap(page, "b0-0-0-0").click();
   await expect(page.locator('g.path[data-path="b0-0-0-0"]')).toBeVisible();
   expect(page.url()).toBe(url);
 
@@ -230,9 +217,7 @@ function filteredCount(
   return endpointRows(spawnTable(level, options), waveIndex, endpoint!).length;
 }
 
-const tableRows = (page: Page) =>
-  page.getByRole("region", { name: "出兵表" }).locator("tr[data-action]");
-const filterCaption = (page: Page) => page.locator("[data-endpoint-filter]");
+const tableRows = (page: Page) => spawnTableRegion(page).locator("tr[data-action]");
 
 test("15-13: a 出生點 or 消失點 filters the spawn table; again, 清除 or a switch clears it", async ({
   page,
@@ -291,6 +276,56 @@ test("15-13: a 出生點 or 消失點 filters the spawn table; again, 清除 or 
   // Switching the group back on does not bring the filter back.
   await group1.check();
   await expect(filterCaption(page)).toHaveCount(0);
+});
+
+test("15-13: a 端點篩選 fades the enemies outside it until selected or cleared", async ({
+  page,
+}) => {
+  const level = siteLevel("main_15-12");
+  const spawn = { kind: "spawn" as const, cell: { row: 3, col: 0 } };
+  const timeline = buildTimeline(level);
+  // The first whole second with a visible enemy both inside and outside the filter.
+  const t = Array.from({ length: 400 }, (_, i) => i).find((s) => {
+    const shown = takeSnapshot(timeline, s).onField.filter((e) => !e.invisible);
+    return (
+      shown.some((e) => matchesEndpoint(e.individual, spawn)) &&
+      shown.some((e) => !matchesEndpoint(e.individual, spawn))
+    );
+  });
+  expect(t, "15-13 has enemies inside and outside the filter at once").toBeDefined();
+  const onFieldNow = takeSnapshot(timeline, t!).onField.filter((e) => !e.invisible);
+  const inside = onFieldNow.filter((e) => matchesEndpoint(e.individual, spawn));
+  const outside = onFieldNow.filter((e) => !matchesEndpoint(e.individual, spawn));
+  const fadedEnemies = page.locator("svg.map g.enemy[data-filtered-out]");
+  const opacityOf = (id: string) => shownOpacity(enemyOnMap(page, id).locator(".enemy-bg"));
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await seek(page, t!);
+  await expect(fadedEnemies).toHaveCount(0);
+
+  await page.getByRole("button", { name: "出生點(3, 0)" }).click();
+
+  for (const { individual } of outside) {
+    await expect(enemyOnMap(page, individual.id)).toHaveAttribute("data-filtered-out");
+    expect(await opacityOf(individual.id)).toBeCloseTo(0.4, 2);
+  }
+  for (const { individual } of inside) {
+    await expect(enemyOnMap(page, individual.id)).not.toHaveAttribute("data-filtered-out");
+    expect(await opacityOf(individual.id)).toBeCloseTo(1, 2);
+  }
+
+  // A faded enemy can still be selected, and shows in full while it is.
+  const picked = outside[0]!.individual.id;
+  await enemyOnMap(page, picked).dispatchEvent("click");
+  await expect(page.locator(`g.path[data-path="${picked}"]`)).toBeVisible();
+  await expect(enemyOnMap(page, picked)).not.toHaveAttribute("data-filtered-out");
+  expect(await opacityOf(picked)).toBeCloseTo(1, 2);
+  await expect(filterCaption(page)).toContainText("出生點(3, 0)");
+
+  await page.getByRole("button", { name: "清除", exact: true }).click();
+
+  await expect(fadedEnemies).toHaveCount(0);
+  for (const { individual } of outside) expect(await opacityOf(individual.id)).toBeCloseTo(1, 2);
 });
 
 test("ro2_n_2_6: switching 波次 clears the 端點篩選", async ({ page }) => {

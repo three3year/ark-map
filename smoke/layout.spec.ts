@@ -1,0 +1,88 @@
+// Smoke test: on a screen clearly wider than the breakpoint, the level page puts the spawn table
+// in a right column that stays on screen and scrolls on its own.
+import { expect, test, type Page } from "@playwright/test";
+import {
+  drawerButton,
+  filterCaption,
+  shortWideWindow,
+  spawnTableRegion,
+  wideWindow,
+} from "./levelPage.ts";
+
+test.use({ viewport: wideWindow });
+
+const map = (page: Page) => page.locator("svg.map");
+const tableHeading = (page: Page) =>
+  spawnTableRegion(page).getByRole("heading", { name: "出兵表" });
+/** The width the page's content gets, inside its side padding. */
+const pageWidth = (page: Page) =>
+  page.locator("main").evaluate((m) => parseFloat(getComputedStyle(m).width));
+
+test("the spawn table sits right of the map; only the level page is wider than 960px, as wide as the window", async ({
+  page,
+}) => {
+  await page.goto("#/level/main_01-07?v=normal");
+  const mapBox = (await map(page).boundingBox())!;
+  const tableBox = (await spawnTableRegion(page).boundingBox())!;
+
+  expect(tableBox.x).toBeGreaterThanOrEqual(mapBox.x + mapBox.width);
+  expect(tableBox.y).toBeLessThan(mapBox.y + mapBox.height);
+  // No drawer: the column cannot be closed.
+  await expect(drawerButton(page)).toBeHidden();
+  // No cap: the window's width less the page's 16px side padding.
+  expect(await pageWidth(page)).toBe(
+    (await page.evaluate(() => document.documentElement.clientWidth)) - 32,
+  );
+
+  await page.goto("#/");
+  await expect(page.locator("main a[href^='#/area/']").first()).toBeVisible();
+  expect(await pageWidth(page)).toBeLessThanOrEqual(960);
+});
+
+test.describe("short window", () => {
+  test.use({ viewport: shortWideWindow });
+
+  test("scrolling the page to the bottom keeps the spawn table on screen", async ({ page }) => {
+    await page.goto("#/level/main_01-07?v=normal");
+    await expect(map(page)).toBeVisible();
+
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(200);
+    await expect(tableHeading(page)).toBeInViewport({ ratio: 1 });
+  });
+});
+
+test("the spawn table's column is as tall as the window and inside it at any page scroll", async ({
+  page,
+}) => {
+  await page.goto("#/level/main_15-12?v=normal");
+  await expect(map(page)).toBeVisible();
+  const column = page.locator("#spawn-table-drawer");
+  const height = wideWindow.height;
+
+  for (const y of [0, 20, 100, Number.MAX_SAFE_INTEGER]) {
+    await page.evaluate((y) => scrollTo(0, y), y);
+    const box = (await column.boundingBox())!;
+    expect(box.y, `scrolled to ${y}`).toBeCloseTo(0, 0);
+    expect(box.height, `scrolled to ${y}`).toBeCloseTo(height, 0);
+  }
+  expect(await page.evaluate(() => scrollY), "the page scrolls").toBeGreaterThan(100);
+});
+
+test("the spawn table scrolls in its column, 端點篩選 caption and all, leaving the page", async ({
+  page,
+}) => {
+  // 29 of 15-12's 30 rows leave by 消失點(5, 5): more than a 900px column holds.
+  await page.goto("#/level/main_15-12?v=normal");
+  await page.getByRole("button", { name: "消失點(5, 5)" }).click();
+  const caption = filterCaption(page);
+  await spawnTableRegion(page).locator("tbody tr").first().hover();
+  const before = (await caption.boundingBox())!.y;
+  const pageScroll = await page.evaluate(() => scrollY);
+
+  await page.mouse.wheel(0, 300);
+
+  await expect.poll(async () => (await caption.boundingBox())!.y).toBeLessThan(before - 200);
+  expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
+});
