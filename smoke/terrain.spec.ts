@@ -96,3 +96,23 @@ test("1-7 has no 通道, so the legend lists none", async ({ page }) => {
   await expect(legend(page).getByText(/^通道/)).toHaveCount(0);
   await expect(page.locator('svg.map [data-tile-key="tile_telin"]')).toHaveCount(0);
 });
+
+test("ISW-NO: every 高台 has corner marks, 禁入 in front or not", async ({ page }) => {
+  await page.goto("#/level/ro4_n_2_4?v=normal");
+  const highlands = page.locator("svg.map rect.tile.highland");
+  await expect(highlands).not.toHaveCount(0);
+  await expect(page.locator("svg.map path.highland-corners")).toHaveCount(await highlands.count());
+});
+
+test("ISW-NO: 不可放置 cells get a ring of hazard stripes, except where another mark is drawn", async ({
+  page,
+}) => {
+  await page.goto("#/level/ro4_n_2_4?v=normal");
+  // Its 不可放置 cells are plain tile_floor plus 侵入點, 保護目標, 通道 and 地穴, which all carry marks.
+  await expect(page.locator("svg.map rect.floor-ring")).toHaveCount(
+    tileCount("ro4_n_2_4", "tile_floor"),
+  );
+  await expect(page.locator("svg.map rect.tile.floor")).not.toHaveCount(
+    tileCount("ro4_n_2_4", "tile_floor"),
+  );
+});

@@ -3,7 +3,7 @@
 <script lang="ts">
   import type { TerrainMark } from "./terrain.ts";
 
-  /** Drawn around (0, 0) within a 1 × 1 cell, clear of the corner the endpoint dots use. */
+  /** Drawn around (0, 0) within a 1 × 1 cell; the 侵入點/保護目標 frames fill the cell, the rest stay clear of the corner the endpoint dots use. */
   let { mark }: { mark: TerrainMark } = $props();
 </script>
 
@@ -14,17 +14,17 @@
   </g>
 {:else if mark.icon === "incursion"}
   <g class="incursion">
-    <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" />
+    <rect x="-0.47" y="-0.47" width="0.94" height="0.94" rx="0.08" />
     <path d="M -0.13 -0.08 L 0 0.08 L 0.13 -0.08" />
   </g>
 {:else if mark.icon === "airIncursion"}
   <g class="incursion">
-    <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" stroke-dasharray="0.1 0.06" />
+    <rect x="-0.47" y="-0.47" width="0.94" height="0.94" rx="0.08" stroke-dasharray="0.1 0.06" />
     <path d="M -0.16 0.06 L 0 -0.08 L 0.16 0.06 M -0.16 0.16 L 0 0.02 L 0.16 0.16" />
   </g>
 {:else if mark.icon === "protectTarget"}
   <g class="protect-target">
-    <rect x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.08" />
+    <rect x="-0.47" y="-0.47" width="0.94" height="0.94" rx="0.08" />
     <circle r="0.13" />
     <circle class="core" r="0.045" />
   </g>
@@ -45,14 +45,11 @@
     <path class="wall" d="M -0.3 -0.26 Q 0 -0.36 0.3 -0.26" />
   </g>
 {:else if mark.icon === "fence"}
-  <g class="fence">
-    <path d="M -0.2 -0.28 V 0.28 M 0.2 -0.28 V 0.28 M -0.32 -0.1 H 0.32 M -0.32 0.12 H 0.32" />
-  </g>
+  <!-- A brown ring flush with the cell edge. -->
+  <rect class="fence" x="-0.47" y="-0.47" width="0.94" height="0.94" />
 {:else if mark.icon === "fenceBound"}
-  <g class="wall-bricks">
-    <rect x="-0.32" y="-0.24" width="0.64" height="0.48" rx="0.04" />
-    <path d="M -0.32 0 H 0.32 M -0.08 -0.24 V 0 M 0.1 0 V 0.24 M -0.22 0 V 0.24" />
-  </g>
+  <!-- The 圍欄 ring, thicker and darker. -->
+  <rect class="fence bound" x="-0.44" y="-0.44" width="0.88" height="0.88" />
 {:else if mark.icon === "deepWater"}
   <g class="water">
     <rect x="-0.34" y="-0.3" width="0.68" height="0.6" rx="0.1" />
@@ -61,9 +58,10 @@
     />
   </g>
 {:else if mark.icon === "grass"}
+  <!-- Blades rise from the cell's bottom edge. -->
   <g class="grass">
     <path
-      d="M -0.2 0.24 Q -0.24 0 -0.3 -0.12 M -0.08 0.24 Q -0.1 -0.02 -0.04 -0.26 M 0.06 0.24 Q 0.08 0 0.16 -0.2 M 0.18 0.24 Q 0.24 0.06 0.3 0"
+      d="M -0.2 0.46 Q -0.24 0.22 -0.3 0.1 M -0.08 0.46 Q -0.1 0.2 -0.04 -0.04 M 0.06 0.46 Q 0.08 0.22 0.16 0.02 M 0.18 0.46 Q 0.24 0.28 0.3 0.22"
     />
   </g>
 {:else if mark.icon === "infection"}
@@ -132,15 +130,13 @@
     stroke-width: 0.08;
   }
   .fence {
+    fill: none;
     stroke: #8b5a2b;
-    stroke-width: 0.07;
+    stroke-width: 0.06;
   }
-  .wall-bricks {
-    stroke: #6e3f22;
-    stroke-width: 0.04;
-  }
-  .wall-bricks rect {
-    fill: #b5734a;
+  .fence.bound {
+    stroke: #5a3518;
+    stroke-width: 0.12;
   }
   .water {
     stroke: #bfe1ff;
