@@ -180,11 +180,11 @@
     padding: 0 16px 32px;
   }
   /*
-   * The level page puts the spawn table beside the map on a wide screen. Its breakpoint is also
-   * 1440px: LevelPage.svelte's style comment lists the places to keep in step.
+   * The level page takes the window's whole width: on a wide screen the map gets all of it the
+   * spawn table's column leaves. Below its breakpoint it keeps to 960px itself.
    */
   main.level {
-    max-width: 1440px;
+    max-width: none;
   }
   /*
    * The page's top padding is the title's own: on the level page, the spawn table's column beside

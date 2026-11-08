@@ -18,7 +18,7 @@ const tableHeading = (page: Page) =>
 const pageWidth = (page: Page) =>
   page.locator("main").evaluate((m) => parseFloat(getComputedStyle(m).width));
 
-test("the spawn table sits right of the map; only the level page is wider than 960px", async ({
+test("the spawn table sits right of the map; only the level page is wider than 960px, as wide as the window", async ({
   page,
 }) => {
   await page.goto("#/level/main_01-07?v=normal");
@@ -29,8 +29,10 @@ test("the spawn table sits right of the map; only the level page is wider than 9
   expect(tableBox.y).toBeLessThan(mapBox.y + mapBox.height);
   // No drawer: the column cannot be closed.
   await expect(drawerButton(page)).toBeHidden();
-  expect(await pageWidth(page)).toBeGreaterThan(1400);
-  expect(await pageWidth(page)).toBeLessThanOrEqual(1440);
+  // No cap: the window's width less the page's 16px side padding.
+  expect(await pageWidth(page)).toBe(
+    (await page.evaluate(() => document.documentElement.clientWidth)) - 32,
+  );
 
   await page.goto("#/");
   await expect(page.locator("main a[href^='#/area/']").first()).toBeVisible();

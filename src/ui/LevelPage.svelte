@@ -329,9 +329,8 @@
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
    * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
    *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
-   *   above and the two `@media` rules below. App.svelte's `main.level` max-width, the level
-   *   page's cap, is also 1440px (smoke/layout.spec.ts checks it); it must stay at least
-   *   540 + 24 + 824 + 32 = 1420px.
+   *   above and the two `@media` rules below.
+   * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
