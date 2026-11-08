@@ -1,14 +1,17 @@
 // Smoke test: on a phone, the level page keeps the spawn table in a drawer that slides out from the
 // right over the page, opened and closed by a button on the right edge.
 import { expect, test, type Page } from "@playwright/test";
-import { phoneWindow, timeDisplay } from "./levelPage.ts";
+import {
+  drawerButton,
+  filterCaption,
+  phoneWindow,
+  spawnTableRegion,
+  timeDisplay,
+} from "./levelPage.ts";
 
 test.use({ viewport: phoneWindow });
 
 const map = (page: Page) => page.locator("svg.map");
-const spawnTable = (page: Page) => page.getByRole("region", { name: "出兵表" });
-const drawerButton = (page: Page) => page.getByRole("button", { name: "出兵表" });
-const filterCaption = (page: Page) => page.locator("[data-endpoint-filter]");
 
 test("the drawer starts closed; its button opens it over the page and closes it", async ({
   page,
@@ -19,12 +22,12 @@ test("the drawer starts closed; its button opens it over the page and closes it"
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
   await expect(drawerButton(page)).toBeInViewport();
-  await expect(spawnTable(page)).toBeHidden();
+  await expect(spawnTableRegion(page)).toBeHidden();
 
   await drawerButton(page).click();
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
-  await expect(spawnTable(page)).toBeInViewport();
+  await expect(spawnTableRegion(page)).toBeInViewport();
   // Over the page: the map stays where it was, as large as it was, and nothing scrolls sideways.
   expect(await map(page).boundingBox()).toEqual(mapBox);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(phoneWindow.width);
@@ -32,13 +35,13 @@ test("the drawer starts closed; its button opens it over the page and closes it"
   await drawerButton(page).click();
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
-  await expect(spawnTable(page)).toBeHidden();
+  await expect(spawnTableRegion(page)).toBeHidden();
 });
 
 test("jumping from a row of the drawer's spawn table leaves the drawer open", async ({ page }) => {
   await page.goto("#/level/main_01-07?v=normal");
   await drawerButton(page).click();
-  const row = spawnTable(page).locator("tr[data-action]").nth(3);
+  const row = spawnTableRegion(page).locator("tr[data-action]").nth(3);
 
   await row.locator("td").nth(2).click();
 
@@ -48,7 +51,7 @@ test("jumping from a row of the drawer's spawn table leaves the drawer open", as
   );
   expect(await timeDisplay(page).textContent()).not.toBe("0.0 秒");
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
-  await expect(spawnTable(page)).toBeInViewport();
+  await expect(spawnTableRegion(page)).toBeInViewport();
 });
 
 test("a dot that sets a 端點篩選 opens the closed drawer; the same dot again leaves it closed", async ({
@@ -60,7 +63,7 @@ test("a dot that sets a 端點篩選 opens the closed drawer; the same dot again
   await spawn.click();
 
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
-  await expect(spawnTable(page)).toBeInViewport();
+  await expect(spawnTableRegion(page)).toBeInViewport();
   await expect(filterCaption(page)).toBeVisible();
   await expect(filterCaption(page)).toContainText("出生點(3, 0)");
 
@@ -69,5 +72,5 @@ test("a dot that sets a 端點篩選 opens the closed drawer; the same dot again
 
   await expect(filterCaption(page)).toHaveCount(0);
   await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
-  await expect(spawnTable(page)).toBeHidden();
+  await expect(spawnTableRegion(page)).toBeHidden();
 });

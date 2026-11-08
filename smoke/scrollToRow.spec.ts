@@ -1,16 +1,7 @@
 // Smoke test: selecting an enemy individual on the map scrolls the spawn table to the row of the
 // action that spawned it; a selection made from the table itself never scrolls it.
 // 15-12 has 30 rows: more than a 900px column or a phone's drawer shows at once.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import {
-  cellKey,
-  withNames,
-  type LevelFile,
-  type NameTable,
-  type StageIndex,
-} from "../src/level/index.ts";
 import {
   actionKey,
   buildTimeline,
@@ -20,20 +11,17 @@ import {
   spawnTable,
   takeSnapshot,
 } from "../src/timeline/index.ts";
-import { phoneWindow, seek, wideWindow } from "./levelPage.ts";
-
-const dist = path.resolve(import.meta.dirname, "..", "dist");
-const readSiteJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
-
-function siteLevel(stageId: string) {
-  const stage = readSiteJson<StageIndex>("data/index.json")
-    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
-    .find((s) => s.id === stageId);
-  expect(stage, `the built site publishes ${stageId}`).toBeDefined();
-  const file = readSiteJson<LevelFile>(stage!.variants[0]!.levelFile);
-  return withNames(file, readSiteJson<NameTable>("data/names.json"));
-}
+import {
+  drawerButton,
+  endpointDot,
+  enemyOnMap,
+  filterCaption,
+  phoneWindow,
+  seek,
+  siteLevel,
+  spawnTableRegion,
+  wideWindow,
+} from "./levelPage.ts";
 
 /** 15-12's last row with an enemy, its first individual and a whole second it is on the field. */
 function lastRowOnField() {
@@ -52,11 +40,8 @@ function lastRowOnField() {
   return { timeline, row, individual, t: t! };
 }
 
-const spawnTableRegion = (page: Page) => page.getByRole("region", { name: "出兵表" });
 const rowLocator = (page: Page, action: string) =>
   spawnTableRegion(page).locator(`tr[data-wave="0"][data-action="${action}"]`);
-const enemy = (page: Page, id: string) => page.locator(`svg.map g.enemy[data-individual="${id}"]`);
-const drawerButton = (page: Page) => page.getByRole("button", { name: "出兵表" });
 const rowTop = async (page: Page, action: string) =>
   (await rowLocator(page, action).boundingBox())!.y;
 /**
@@ -80,10 +65,10 @@ test.describe("wide window", () => {
     await seek(page, t);
     const selectedRow = rowLocator(page, actionKey(row));
     await expect(selectedRow).not.toBeInViewport();
-    await enemy(page, individual.id).focus();
+    await enemyOnMap(page, individual.id).focus();
     const pageScroll = await page.evaluate(() => scrollY);
 
-    await enemy(page, individual.id).press("Enter");
+    await enemyOnMap(page, individual.id).press("Enter");
 
     await expect(selectedRow).toHaveClass(/\bselected\b/);
     await expectShownWhole(page, selectedRow);
@@ -125,17 +110,13 @@ test.describe("wide window", () => {
     const elsewhere = routeEndpoints(timeline).find((e) => !matchesEndpoint(individual, e))!;
     await page.goto("#/level/main_15-12?v=normal");
     await seek(page, t);
-    await page
-      .locator(
-        `svg.map [data-endpoint="${elsewhere.kind}"][data-cell="${cellKey(elsewhere.cell)}"]`,
-      )
-      .click();
-    const caption = spawnTableRegion(page).locator("[data-endpoint-filter]");
+    await endpointDot(page, elsewhere).click();
+    const caption = filterCaption(page);
     const filter = await caption.getAttribute("data-endpoint-filter");
     const firstRow = spawnTableRegion(page).locator("tr[data-action]").first();
     const firstTop = (await firstRow.boundingBox())!.y;
 
-    await enemy(page, individual.id).press("Enter");
+    await enemyOnMap(page, individual.id).press("Enter");
 
     await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual.id);
     await expect(caption).toHaveAttribute("data-endpoint-filter", filter!);
@@ -154,7 +135,7 @@ test.describe("phone window", () => {
     await page.goto("#/level/main_15-12?v=normal");
     await seek(page, t);
 
-    await enemy(page, individual.id).press("Enter");
+    await enemyOnMap(page, individual.id).press("Enter");
 
     await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual.id);
     await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");

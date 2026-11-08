@@ -1,7 +1,41 @@
 // Level page controls as a player uses them: 播放位置 lives on the page, not in the URL.
+// Expected values come from the same data the built site (dist/) ships.
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
-import type { Difficulty, Level } from "../src/level/index.ts";
-import { spawnPlan } from "../src/timeline/index.ts";
+import {
+  cellKey,
+  withNames,
+  type Difficulty,
+  type Level,
+  type LevelFile,
+  type NameTable,
+  type StageEntry,
+  type StageIndex,
+} from "../src/level/index.ts";
+import { spawnPlan, type EndpointPlace } from "../src/timeline/index.ts";
+
+const dist = path.resolve(import.meta.dirname, "..", "dist");
+
+/** A JSON file of the built site. */
+export const readSiteJson = <T>(file: string): T =>
+  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
+
+/** Stage `id` in the built site's index. */
+export function siteStage(id: string): StageEntry {
+  const stage = readSiteJson<StageIndex>("data/index.json")
+    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
+    .find((s) => s.id === id);
+  expect(stage, `the built site publishes ${id}`).toBeDefined();
+  return stage!;
+}
+
+/** A level file of the built site, its names filled back in as the browser does. */
+export const readSiteLevel = (file: string): Level =>
+  withNames(readSiteJson<LevelFile>(file), readSiteJson<NameTable>("data/names.json"));
+
+/** The level of stage `id`'s first variant. */
+export const siteLevel = (id: string): Level => readSiteLevel(siteStage(id).variants[0]!.levelFile);
 
 /**
  * A window clearly wider than the level page's breakpoint, where the spawn table sits in a column
@@ -10,8 +44,31 @@ import { spawnPlan } from "../src/timeline/index.ts";
  */
 export const wideWindow = { width: 1600, height: 900 };
 
+/**
+ * As wide as `wideWindow` but short: the page scrolls well past the spawn table's heading, and the
+ * spawn table's column shows few rows at once.
+ */
+export const shortWideWindow = { width: wideWindow.width, height: 500 };
+
 /** A phone's window, well below the breakpoint: the spawn table is in a drawer. */
 export const phoneWindow = { width: 390, height: 844 };
+
+/** The spawn table, in its column or its drawer. */
+export const spawnTableRegion = (page: Page) => page.getByRole("region", { name: "出兵表" });
+
+/** The button that opens and closes the spawn table's drawer, below the breakpoint. */
+export const drawerButton = (page: Page) => page.getByRole("button", { name: "出兵表" });
+
+/** The spawn table's caption naming the 端點篩選, there only while one is on. */
+export const filterCaption = (page: Page) => page.locator("[data-endpoint-filter]");
+
+/** Enemy individual `id` on the map. */
+export const enemyOnMap = (page: Page, id: string) =>
+  page.locator(`svg.map g.enemy[data-individual="${id}"]`);
+
+/** The map's 出生點 or 消失點 dot on `cell`. */
+export const endpointDot = (page: Page, { kind, cell }: EndpointPlace) =>
+  page.locator(`svg.map [data-endpoint="${kind}"][data-cell="${cellKey(cell)}"]`);
 
 /** Open `hash` in a fresh page load, as pasting a link into a new tab does. */
 export async function openLink(page: Page, hash: string) {

@@ -1,20 +1,10 @@
 // 地形 on the map: structure icons from the 地形表, and a legend of only what the map has.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import type { LevelFile, StageIndex } from "../src/level/index.ts";
-
-const dist = path.resolve(import.meta.dirname, "..", "dist");
-const readSiteJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
+import { siteLevel } from "./levelPage.ts";
 
 /** How many cells of the stage's normal variant have `tileKey`. */
 function tileCount(stageId: string, tileKey: string): number {
-  const stage = readSiteJson<StageIndex>("data/index.json")
-    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
-    .find((s) => s.id === stageId)!;
-  const level = readSiteJson<LevelFile>(stage.variants[0]!.levelFile);
-  return level.map.tiles.filter((t) => t.tileKey === tileKey).length;
+  return siteLevel(stageId).map.tiles.filter((t) => t.tileKey === tileKey).length;
 }
 
 const legend = (page: Page) => page.getByRole("list", { name: "圖例" });

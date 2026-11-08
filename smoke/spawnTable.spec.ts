@@ -1,27 +1,13 @@
 // Smoke test: a click anywhere on a spawn-table row selects it; 切換 only switches the candidate.
 // Expected seconds come from the level's spawn table on the same data the site ships.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { withNames, type LevelFile, type NameTable, type StageIndex } from "../src/level/index.ts";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
 import { roundTenth } from "../src/ui/playback.ts";
-import { timeDisplay, wideWindow } from "./levelPage.ts";
+import { siteLevel, timeDisplay, wideWindow } from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
 
-const dist = path.resolve(import.meta.dirname, "..", "dist");
-const readSiteJson = <T>(file: string): T =>
-  JSON.parse(readFileSync(path.join(dist, file), "utf8")) as T;
-
-function siteRows(stageId: string): SpawnRow[] {
-  const stage = readSiteJson<StageIndex>("data/index.json")
-    .areas.flatMap((a) => a.sections.flatMap((s) => s.stages))
-    .find((s) => s.id === stageId);
-  expect(stage, `the built site publishes ${stageId}`).toBeDefined();
-  const file = readSiteJson<LevelFile>(stage!.variants[0]!.levelFile);
-  return spawnTable(withNames(file, readSiteJson<NameTable>("data/names.json")));
-}
+const siteRows = (stageId: string): SpawnRow[] => spawnTable(siteLevel(stageId));
 
 const rowOf = (page: Page, row: SpawnRow) =>
   page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
