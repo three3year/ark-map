@@ -9,7 +9,13 @@ import type {
   Tile,
   Vec2,
 } from "../level/index.ts";
-import { buildTimeline, takeSnapshot, type IndividualState, type Stay } from "./index.ts";
+import {
+  buildTimeline,
+  takeSnapshot,
+  type Individual,
+  type IndividualState,
+  type Stay,
+} from "./index.ts";
 
 const road: Tile = {
   tileKey: "tile_road",
@@ -154,6 +160,24 @@ describe("movement model: ground follows the nextNode chain", () => {
     expect(enemy.leakTime).toBeNull();
     expect(enemy.stateAt(100)).toMatchObject({ kind: "onField", position: { x: 0, y: 0 } });
   });
+
+  it("剩下的路徑 starts where the individual is and drops the corners it has passed", () => {
+    const enemy = only(level(uTurn, { motionMode: "WALK", ...across, allowDiagonalMove: false }));
+    // (0, 0) -> (0, 1) -> (2, 1) -> (2, 0); at 1.5 s it is a quarter of the way across.
+    expect(enemy.remainingPathAt(1.5)).toEqual([
+      {
+        kind: "move",
+        start: 1.5,
+        end: 4,
+        points: [
+          { x: 0.5, y: 1 },
+          { x: 2, y: 1 },
+          { x: 2, y: 0 },
+        ],
+        invisible: false,
+      },
+    ]);
+  });
 });
 
 /** A checkpoint at `cell`; `time` is the wait for the WAIT types. */
@@ -181,6 +205,12 @@ const at = (x: number, y: number, stay: Stay | null = null) => ({
   invisible: false,
   stay,
 });
+
+/** Each leg of `individual`'s 路徑 left at `t` as kind, start, end, then a walk's corner points. */
+const legsAt = (individual: Individual, t: number) =>
+  individual
+    .remainingPathAt(t)
+    .map((leg) => [leg.kind, leg.start, leg.end, ...(leg.kind === "move" ? leg.points : [])]);
 
 describe("movement model: checkpoints", () => {
   const corridor = ["....."];
@@ -292,12 +322,108 @@ describe("movement model: checkpoints", () => {
     });
 
     it("draws the path as walk, wait, teleport, walk", () => {
-      expect(enemy.path).toEqual([
+      expect(enemy.remainingPathAt(0)).toEqual([
         { kind: "move", start: 0, end: 1, points: [p(0, 0), p(1, 0)], invisible: false },
         { kind: "wait", start: 1, end: 3, position: p(1, 0), invisible: true },
         { kind: "teleport", start: 3, end: 3, from: p(1, 0), to: p(3, 0), invisible: false },
         { kind: "move", start: 3, end: 4, points: [p(3, 0), p(4, 0)], invisible: false },
       ]);
+    });
+  });
+
+  describe("剩下的路徑", () => {
+    // Spawns at 1 s: (1, 0) at 2 s, hides and waits until 4 s, appears at (3, 0), leaks at 5 s.
+    const enemy = only(
+      level(
+        corridor,
+        {
+          ...straight,
+          checkpoints: [
+            cp("MOVE", { row: 0, col: 1 }),
+            cp("DISAPPEAR"),
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 2),
+            cp("APPEAR_AT_POS", { row: 0, col: 3 }),
+          ],
+        },
+        { spawnDelay: 1 },
+      ),
+    );
+    const whole = [
+      { kind: "move", start: 1, end: 2, points: [p(0, 0), p(1, 0)], invisible: false },
+      { kind: "wait", start: 2, end: 4, position: p(1, 0), invisible: true },
+      { kind: "teleport", start: 4, end: 4, from: p(1, 0), to: p(3, 0), invisible: false },
+      { kind: "move", start: 4, end: 5, points: [p(3, 0), p(4, 0)], invisible: false },
+    ];
+
+    it("is empty before the individual spawns", () => {
+      expect(enemy.remainingPathAt(0)).toEqual([]);
+      expect(enemy.remainingPathAt(0.9)).toEqual([]);
+    });
+
+    it("is the whole path at the 出生時刻", () => {
+      expect(enemy.remainingPathAt(1)).toEqual(whole);
+    });
+
+    const [, wait, teleport, lastWalk] = whole;
+
+    it("cuts the walk it is on at where it is", () => {
+      expect(enemy.remainingPathAt(1.5)).toEqual([
+        { kind: "move", start: 1.5, end: 2, points: [p(0.5, 0), p(1, 0)], invisible: false },
+        wait,
+        teleport,
+        lastWalk,
+      ]);
+    });
+
+    it("keeps the whole wait it is in, hidden or not, and drops it once over", () => {
+      expect(enemy.remainingPathAt(2)).toEqual([wait, teleport, lastWalk]);
+      expect(enemy.remainingPathAt(3.9)).toEqual([wait, teleport, lastWalk]);
+      expect(enemy.remainingPathAt(4)).not.toContainEqual(wait);
+    });
+
+    it("drops the teleport from the second it happens", () => {
+      expect(enemy.remainingPathAt(4)).toEqual([lastWalk]);
+    });
+
+    it("is empty from the second it reaches the end point", () => {
+      expect(enemy.remainingPathAt(5)).toEqual([]);
+      expect(enemy.remainingPathAt(6)).toEqual([]);
+    });
+
+    it("is empty once it stands at the end of its walk with no way to the end point", () => {
+      // Walks to (1, 0) by 1 s; the wall cuts it off from the end point, so it stays there.
+      const stuck = only(
+        level(["..#."], {
+          ...ground,
+          start: { row: 0, col: 0 },
+          end: { row: 0, col: 3 },
+          checkpoints: [cp("MOVE", { row: 0, col: 1 })],
+        }),
+      );
+      expect(stuck.leakTime).toBeNull();
+      expect(stuck.remainingPathAt(0.5)).toEqual([
+        { kind: "move", start: 0.5, end: 1, points: [p(0.5, 0), p(1, 0)], invisible: false },
+      ]);
+      expect(stuck.remainingPathAt(1)).toEqual([]);
+      expect(stuck.remainingPathAt(100)).toEqual([]);
+    });
+
+    it("is each individual's own when one action spawns several", () => {
+      // Two from one action, 1 s apart: at 1.5 s the first is 1.5 cells in, the second 0.5.
+      const l = level(corridor, straight);
+      const action = l.waves[0]!.fragments[0]!.actions[0]!;
+      Object.assign(action, { count: 2, interval: 1 });
+      const [first, second] = buildTimeline(l).individuals;
+      expect(first!.remainingPathAt(1.5)[0]).toMatchObject({
+        start: 1.5,
+        end: 4,
+        points: [p(1.5, 0), p(4, 0)],
+      });
+      expect(second!.remainingPathAt(1.5)[0]).toMatchObject({
+        start: 1.5,
+        end: 5,
+        points: [p(0.5, 0), p(4, 0)],
+      });
     });
   });
 
@@ -321,12 +447,72 @@ describe("movement model: checkpoints", () => {
       expect(enemy.stateAt(1000)).toEqual(at(1, 0));
     });
 
-    it("draws the first lap and the walk back to the first checkpoint", () => {
-      expect(enemy.path.map((leg) => [leg.kind, leg.start, leg.end])).toEqual([
-        ["move", 0, 2],
-        ["move", 2, 5],
-        ["move", 5, 8],
+    it("draws the first lap up to the last checkpoint at the 出生時刻", () => {
+      expect(legsAt(enemy, 0)).toEqual([
+        ["move", 0, 2, p(1, 0), p(3, 0)],
+        ["move", 2, 5, p(3, 0), p(0, 0)],
       ]);
+    });
+
+    it("cuts the first lap where it is, still up to the last checkpoint", () => {
+      expect(legsAt(enemy, 1.5)).toEqual([
+        ["move", 1.5, 2, p(2.5, 0), p(3, 0)],
+        ["move", 2, 5, p(3, 0), p(0, 0)],
+      ]);
+      expect(legsAt(enemy, 3)).toEqual([["move", 3, 5, p(2, 0), p(0, 0)]]);
+    });
+
+    it("draws the whole next lap, from the last checkpoint back round, once a lap is done", () => {
+      expect(legsAt(enemy, 5)).toEqual([
+        ["move", 5, 8, p(0, 0), p(3, 0)],
+        ["move", 8, 11, p(3, 0), p(0, 0)],
+      ]);
+    });
+
+    it("cuts a later lap where it is, up to that lap's end", () => {
+      expect(legsAt(enemy, 9)).toEqual([["move", 9, 11, p(2, 0), p(0, 0)]]);
+    });
+
+    it("keeps to the lap it is on far later", () => {
+      // Lap 166 runs from 995 s to 1001 s.
+      expect(legsAt(enemy, 995)).toEqual([
+        ["move", 995, 998, p(0, 0), p(3, 0)],
+        ["move", 998, 1001, p(3, 0), p(0, 0)],
+      ]);
+      expect(legsAt(enemy, 1000)).toEqual([["move", 1000, 1001, p(1, 0), p(0, 0)]]);
+    });
+
+    it("opens each lap with the wait when the first checkpoint is one", () => {
+      // Like RM-2's patrols. Spawns at (1, 0): waits until 1 s, (3, 0) at 3 s, waits until
+      // 4 s, (0, 0) at 7 s; then laps of 8 s that start with the wait at (0, 0).
+      const waitFirst = only(
+        level(["...."], {
+          ...ground,
+          start: { row: 0, col: 1 },
+          end: { row: 0, col: 3 },
+          checkpoints: [
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 1),
+            cp("PATROL_MOVE", { row: 0, col: 3 }),
+            cp("WAIT_FOR_SECONDS", { row: 0, col: 0 }, 1),
+            cp("PATROL_MOVE", { row: 0, col: 0 }),
+          ],
+        }),
+      );
+      expect(legsAt(waitFirst, 0)).toEqual([
+        ["wait", 0, 1],
+        ["move", 1, 3, p(1, 0), p(3, 0)],
+        ["wait", 3, 4],
+        ["move", 4, 7, p(3, 0), p(0, 0)],
+      ]);
+      const secondLap = [
+        ["wait", 7, 8],
+        ["move", 8, 11, p(0, 0), p(3, 0)],
+        ["wait", 11, 12],
+        ["move", 12, 15, p(3, 0), p(0, 0)],
+      ];
+      expect(legsAt(waitFirst, 7)).toEqual(secondLap);
+      expect(legsAt(waitFirst, 7.5)).toEqual(secondLap);
+      expect(legsAt(waitFirst, 13)).toEqual([["move", 13, 15, p(2, 0), p(0, 0)]]);
     });
   });
 

@@ -50,8 +50,13 @@ export interface Trajectory {
   stateAt(t: number): IndividualState;
   /** Second the individual reaches the end point; null if it never does (patrols). */
   leakTime: number | null;
-  /** 路徑 from spawn to the end point; a patrol's first lap and its walk back to the start. */
-  path: PathLeg[];
+  /**
+   * 路徑 left at second `t` of the wave: the legs ending after `t`, the walk it is on starting
+   * where it is now; empty while 未出現, once 已進點, or once it rests at the end of its walk.
+   * For a patrol it ends with the lap it is on: a lap is its checkpoints done first to last, the
+   * first lap counted from the spawn, each later one from when the one before it ends.
+   */
+  remainingPathAt(t: number): PathLeg[];
 }
 
 export type MovementModel = (input: MovementInput) => Trajectory;
@@ -101,16 +106,22 @@ export const nextNodeModel: MovementModel = (input) => {
 
   if (!patrols(route)) extendPast(Infinity);
   const leakTime = rest === null ? (steps.at(-1)?.leg.end ?? spawnTime) : null;
-  const pathDone = () =>
-    rest !== undefined || steps.some((s) => s.lap > 1 || (s.lap === 1 && s.checkpoint > 0));
-  while (!pathDone()) extendPast(steps.at(-1)?.leg.end ?? spawnTime);
-  const path = steps
-    .filter((s) => s.lap === 0 || (s.lap === 1 && s.checkpoint === 0))
-    .map((s) => s.leg);
 
   return {
     leakTime,
-    path,
+    remainingPathAt(t) {
+      if (t < spawnTime) return [];
+      extendPast(t);
+      const from = steps.findIndex((s) => s.leg.end > t);
+      if (from < 0) return [];
+      const { lap } = steps[from]!;
+      // Laps differ in length (waits until a wave second), so generate until this one is over.
+      while (rest === undefined && steps.at(-1)!.lap === lap) extendPast(steps.at(-1)!.leg.end);
+      return steps
+        .slice(from)
+        .filter((s) => s.lap === lap)
+        .map((s) => legFrom(s.leg, t, speed));
+    },
     stateAt(t) {
       if (t < spawnTime) return { kind: "pending" };
       if (leakTime !== null && t >= leakTime) return { kind: "leaked" };
@@ -256,22 +267,32 @@ function positionOn(leg: PathLeg, t: number, speed: number): Vec2 {
       return leg.position;
     case "teleport":
       return leg.to;
-    case "move": {
-      let left = (t - leg.start) * speed;
-      const { points } = leg;
-      for (let i = 1; i < points.length; i++) {
-        const a = points[i - 1]!;
-        const b = points[i]!;
-        const length = distance(a, b);
-        if (left < length) {
-          const f = left / length;
-          return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
-        }
-        left -= length;
-      }
-      return points.at(-1)!;
-    }
+    case "move":
+      return pointsAhead(leg, t, speed)[0]!;
   }
+}
+
+/** The part of `leg` left from second `t`: a walk cut where the individual is; else as is. */
+function legFrom(leg: PathLeg, t: number, speed: number): PathLeg {
+  if (leg.kind !== "move" || t <= leg.start) return leg;
+  return { ...leg, start: t, points: pointsAhead(leg, t, speed) };
+}
+
+/** The walk's polyline from where the individual is at `t` to its end. */
+function pointsAhead(leg: PathLeg & { kind: "move" }, t: number, speed: number): Vec2[] {
+  let left = (t - leg.start) * speed;
+  const { points } = leg;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const length = distance(a, b);
+    if (left < length) {
+      const f = left / length;
+      return [{ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }, ...points.slice(i)];
+    }
+    left -= length;
+  }
+  return [points.at(-1)!];
 }
 
 function offset(p: Vec2, by: Vec2): Vec2 {

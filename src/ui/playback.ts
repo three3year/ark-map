@@ -7,6 +7,18 @@ export function roundTenth(t: number): number {
   return Math.round(t * 10) / 10;
 }
 
+/**
+ * The first tenth of a second not before `t`: a second on the tenth stays put, and one that float
+ * error leaves just past it (60.400000000000006) moves on to the next (60.5), since the timeline
+ * compares seconds exactly. 0 stays 0 rather than -0. The spawn table's jump uses it so the jump
+ * lands on or after the 出生時刻.
+ */
+export function ceilTenth(t: number): number {
+  let tenths = Math.round(t * 10);
+  if (tenths / 10 < t) tenths++;
+  return tenths / 10 + 0;
+}
+
 export const playbackSpeeds = [0.5, 1, 2, 4, 8] as const;
 export type PlaybackSpeed = (typeof playbackSpeeds)[number];
 
@@ -16,7 +28,7 @@ export type PlaybackSpeed = (typeof playbackSpeeds)[number];
  * their spawn, so a patrol-only wave stops once everyone is on the field.
  */
 export function playbackStop(timeline: Timeline): number {
-  return Math.ceil(timelineEnd(timeline) * 10 - 1e-9) / 10;
+  return ceilTenth(timelineEnd(timeline));
 }
 
 /** The wave second `wallSeconds` of real time after `from`, clamped to `stop`. */

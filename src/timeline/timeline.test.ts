@@ -85,7 +85,10 @@ describe("難度修正: challenge (突襲) move speed", () => {
   it("4-4: every challenge enemy spends half the time walking (waits stay as they are)", () => {
     const walkTimes = (t: typeof normal) =>
       t.individuals.map((i) =>
-        i.path.filter((leg) => leg.kind === "move").reduce((s, leg) => s + leg.end - leg.start, 0),
+        i
+          .remainingPathAt(i.spawnTime)
+          .filter((leg) => leg.kind === "move")
+          .reduce((s, leg) => s + leg.end - leg.start, 0),
       );
     expect(normal.individuals.length).toBeGreaterThan(0);
     walkTimes(challenge).forEach((time, i) =>
