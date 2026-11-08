@@ -2,7 +2,6 @@
   import {
     cellKey,
     isWalkable,
-    tileAt,
     type LevelMap,
     type TerrainTable,
     type Tile,
@@ -137,9 +136,10 @@
   });
   const hasEndpoint = (kind: RouteEndpoint["kind"]) => endpoints.some((e) => e.kind === kind);
 
-  /** A highland's front edge gets a shadow wherever the cell in front of it is lower. */
-  const showsLedge = (row: number, col: number, tile: Tile) =>
-    tileKind(tile) === "highland" && tileAt(map, { row: row - 1, col })?.heightType !== "HIGHLAND";
+  /** Every 高台 gets a right triangle in each of its four corners, flush with the cell edge. */
+  const highlandCorners =
+    "M -0.5 -0.5 H -0.3 L -0.5 -0.3 Z M 0.5 -0.5 V -0.3 L 0.3 -0.5 Z " +
+    "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
 <div class="map-view">
@@ -156,6 +156,19 @@
       role="img"
       aria-label={strings.mapLabel}
     >
+      <defs>
+        <!-- 不可放置: a ring of yellow and black hazard stripes. -->
+        <pattern
+          id="floor-stripes"
+          patternUnits="userSpaceOnUse"
+          width="0.14"
+          height="0.14"
+          patternTransform="rotate(45)"
+        >
+          <rect width="0.14" height="0.14" fill="var(--floor-yellow)" />
+          <rect width="0.07" height="0.14" fill="var(--floor-black)" />
+        </pattern>
+      </defs>
       {#each cells as { tile, row, col } (`${row},${col}`)}
         <rect
           class="tile {tileKind(tile)}"
@@ -164,8 +177,16 @@
           width="1"
           height="1"
         />
-        {#if showsLedge(row, col, tile)}
-          <rect class="ledge" x={col - 0.5} y={svgY(row) + 0.36} width="1" height="0.14" />
+        {#if tileKind(tile) === "floor" && !terrainMark(tile.tileKey, terrain)}
+          <!-- The stripes give way to any other mark on the cell. -->
+          <rect class="floor-ring" x={col - 0.41} y={svgY(row) - 0.41} width="0.82" height="0.82" />
+        {/if}
+        {#if tileKind(tile) === "highland"}
+          <path
+            class="highland-corners"
+            transform="translate({col} {svgY(row)})"
+            d={highlandCorners}
+          />
         {/if}
       {/each}
 
@@ -364,7 +385,10 @@
   .map-view {
     --tile-lowland: #d9d4c7;
     --tile-floor: #b9b3a5;
+    --floor-yellow: #e2b93b;
+    --floor-black: #2b2b2e;
     --tile-highland: #a9b4c2;
+    --highland-corner: #4f5d70;
     --tile-forbidden: #4a4c53;
     --enemy-ring: var(--spawn-red);
     --path: #f5a524;
@@ -416,14 +440,19 @@
   .tile.floor {
     fill: var(--tile-floor);
   }
+  .floor-ring {
+    fill: none;
+    stroke: url(#floor-stripes);
+    stroke-width: 0.06;
+  }
   .tile.highland {
     fill: var(--tile-highland);
   }
   .tile.forbidden {
     fill: var(--tile-forbidden);
   }
-  .ledge {
-    fill: #00000059;
+  .highland-corners {
+    fill: var(--highland-corner);
   }
   .terrain {
     pointer-events: none;
@@ -583,11 +612,23 @@
     background: var(--tile-lowland);
   }
   .swatch.floor {
-    background: var(--tile-floor);
+    /* Floor colour, then a thin ring of stripes set in from the edge, as on the map. */
+    box-sizing: border-box;
+    padding: 1.5px;
+    border: 1.5px solid var(--tile-floor);
+    background:
+      linear-gradient(var(--tile-floor), var(--tile-floor)) content-box,
+      repeating-linear-gradient(45deg, var(--floor-black) 0 2px, var(--floor-yellow) 2px 4px)
+        padding-box;
   }
   .swatch.highland {
-    background: var(--tile-highland);
-    box-shadow: inset 0 -4px 0 #00000059;
+    --c: var(--highland-corner);
+    background:
+      linear-gradient(135deg, var(--c) 50%, transparent 50%) top left / 5px 5px no-repeat,
+      linear-gradient(225deg, var(--c) 50%, transparent 50%) top right / 5px 5px no-repeat,
+      linear-gradient(315deg, var(--c) 50%, transparent 50%) bottom right / 5px 5px no-repeat,
+      linear-gradient(45deg, var(--c) 50%, transparent 50%) bottom left / 5px 5px no-repeat,
+      var(--tile-highland);
   }
   .swatch.forbidden {
     background: var(--tile-forbidden);
