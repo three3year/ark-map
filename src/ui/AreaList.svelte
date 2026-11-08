@@ -8,7 +8,7 @@
   }
   let { index }: Props = $props();
 
-  const kinds = Object.keys(strings.areaKinds) as AreaKind[];
+  const kinds: AreaKind[] = ["ROGUELIKE", "MAINLINE", "ACTIVITY", "CAMPAIGN"];
   const groups = $derived(
     kinds
       .map((kind): [AreaKind, Area[]] => [kind, index.areas.filter((a) => a.kind === kind)])

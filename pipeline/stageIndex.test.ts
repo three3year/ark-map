@@ -97,9 +97,20 @@ describe("stage index", () => {
       ["MAINLINE", "main_6", "第六章", "局部壞死"],
       ["MAINLINE", "main_10", "第十章", "破碎日冕"],
       ["MAINLINE", "act4mainss_zone1", "第十七章", "相變臨界"],
-      // Neither activity is in the TW tables yet: CN names.
-      ["ACTIVITY", "act52side", null, "昨日海"],
-      ["ACTIVITY", "act24sre", null, "落叶逐火·复刻"],
+      // An activity's 區域代號 is the letters its stage codes start with (YW-1 -> YW).
+      // Not in the TW tables yet: CN name.
+      ["ACTIVITY", "act52side", "YW", "昨日海"],
+      // Not a 復刻, though its stages are act17d7_*: its own name and date.
+      ["ACTIVITY", "act7fun", "LTTB", "Rhodes Island Epic 黑色博士坠落"],
+      // A 復刻 is listed as its original act24side (TW name), at the original's date.
+      ["ACTIVITY", "act24sre", "CF", "落葉逐火"],
+      ["ACTIVITY", "act10mini", "TB", "陰雲火花"],
+      // A 復刻 whose name lacks 復刻: still at its original act12side's date.
+      ["ACTIVITY", "act12sre", "DH", "多索雷斯假日"],
+      // Stage codes start TB-, LK- and FIN-: no single code.
+      ["ACTIVITY", "act1lock", null, "荷謨伊智境"],
+      // A 復刻 of a001, which the activity table lacks: its own name and date.
+      ["ACTIVITY", "act13d2", "GT", "騎兵與獵人·復刻"],
       ["CAMPAIGN", "camp_zone_1", null, "炎國龍門"],
       ["CAMPAIGN", "camp_zone_3", null, "烏薩斯"],
       ["ROGUELIKE", "rogue_1", null, "傀影與猩紅孤鑽"],

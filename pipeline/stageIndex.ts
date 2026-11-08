@@ -11,6 +11,7 @@ import type {
 } from "../src/level/index.ts";
 import { maskNames } from "./convertLevel.ts";
 import type {
+  RawActivity,
   RawActivityTable,
   RawCampaignTable,
   RawLevel,
@@ -59,6 +60,28 @@ export function levelPath(levelId: string): string {
 
 export function siteLevelFile(path: string): string {
   return `data/levels/${path}.json`;
+}
+
+/**
+ * The activity a stage was made for: its id up to the first "_" (act21side_01 -> act21side).
+ * A 復刻's stages keep their original's ids, so this names the original activity.
+ */
+export function stageActivityId(stageId: string): string {
+  return stageId.split("_")[0]!;
+}
+
+/**
+ * The original of activity `actId` when it is a 復刻: the activity its stage `stageId` was
+ * made for, if the activity table has it. Undefined for other activities and for reruns whose
+ * original the table lacks.
+ */
+export function rerunOriginal(
+  activity: RawActivityTable,
+  actId: string,
+  stageId: string,
+): RawActivity | undefined {
+  if (!activity.basicInfo[actId]?.isReplicate) return undefined;
+  return activity.basicInfo[stageActivityId(stageId)];
 }
 
 /** Where a stage-table stage is listed: the area, and the section (zone) inside it. */
@@ -178,9 +201,16 @@ function chapterCode(zone: RawZone): string | null {
   return Number.isInteger(n) ? `第${chineseNumber(n)}章` : zone.zoneNameFirst;
 }
 
+/** 區域代號: the letters every stage code starts with (IS-1 -> IS); null when they differ. */
+function activityCode(stages: StageEntry[]): string | null {
+  const prefixes = new Set(stages.map((s) => /^[A-Za-z]*/.exec(s.code)![0]));
+  const [only] = prefixes;
+  return prefixes.size === 1 && only ? only : null;
+}
+
+/** An area while its stages are collected: section (zone) id -> stages, in table order. */
 interface AreaDraft {
-  area: Area;
-  sortKey: number;
+  place: Placement;
   sections: Map<string, StageEntry[]>;
 }
 
@@ -219,23 +249,35 @@ export function buildStageIndex(
     return tw.zone.zones[zoneId]?.zoneNameSecond ?? cn.zone.zones[zoneId]?.zoneNameSecond ?? null;
   }
 
-  function newArea({ kind, areaId }: Placement): AreaDraft {
-    const base = { id: areaId, kind, sections: [] };
+  function toArea({ place: { kind, areaId }, sections }: AreaDraft): SortedArea {
+    const base = {
+      id: areaId,
+      kind,
+      sections: [...sections].map(([zoneId, stages]) => ({
+        name: sections.size > 1 ? zoneName(zoneId) : null,
+        stages,
+      })),
+    };
     switch (kind) {
       case "MAINLINE": {
         const zone = tw.zone.zones[areaId] ?? cn.zone.zones[areaId]!;
         return {
           area: { ...base, code: chapterCode(zone), name: zoneName(areaId) ?? areaId },
           sortKey: Number(cn.zone.zones[areaId]!.zoneNameTitleCurrent),
-          sections: new Map(),
         };
       }
       case "ACTIVITY": {
-        const name = tw.activity.basicInfo[areaId]?.name ?? cn.activity.basicInfo[areaId]!.name;
+        // A 復刻 is listed as its original, named by its first stage's id; the area keeps its id.
+        const stages = [...sections.values()].flat();
+        const listed =
+          rerunOriginal(cn.activity, areaId, stages[0]!.id) ?? cn.activity.basicInfo[areaId]!;
         return {
-          area: { ...base, code: null, name },
-          sortKey: -cn.activity.basicInfo[areaId]!.startTime,
-          sections: new Map(),
+          area: {
+            ...base,
+            code: activityCode(stages),
+            name: tw.activity.basicInfo[listed.id]?.name ?? listed.name,
+          },
+          sortKey: -listed.startTime,
         };
       }
       case "CAMPAIGN": {
@@ -243,7 +285,6 @@ export function buildStageIndex(
         return {
           area: { ...base, code: null, name: zone?.name ?? areaId },
           sortKey: Number(/\d+$/.exec(areaId)?.[0] ?? 0),
-          sections: new Map(),
         };
       }
     }
@@ -274,7 +315,7 @@ export function buildStageIndex(
     };
     let draft = drafts.get(place.areaId);
     if (!draft) {
-      draft = newArea(place);
+      draft = { place, sections: new Map() };
       drafts.set(place.areaId, draft);
     }
     const section = draft.sections.get(place.sectionId) ?? [];
@@ -283,16 +324,7 @@ export function buildStageIndex(
   }
 
   const sorted: SortedArea[] = [
-    ...[...drafts.values()].map(({ area, sortKey, sections }) => ({
-      sortKey,
-      area: {
-        ...area,
-        sections: [...sections].map(([zoneId, stages]) => ({
-          name: sections.size > 1 ? zoneName(zoneId) : null,
-          stages,
-        })),
-      },
-    })),
+    ...[...drafts.values()].map(toArea),
     ...roguelikeAreas(tables, facts, skipped),
   ];
   const areas = sorted

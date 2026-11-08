@@ -175,9 +175,17 @@ export interface RawZoneTable {
   zones: Record<string, RawZone>;
 }
 
+export interface RawActivity {
+  id: string;
+  type: string;
+  name: string;
+  startTime: number;
+  isReplicate: boolean;
+}
+
 export interface RawActivityTable {
   zoneToActivity: Record<string, string>;
-  basicInfo: Record<string, { id: string; type: string; name: string; startTime: number }>;
+  basicInfo: Record<string, RawActivity>;
 }
 
 export interface RawCampaignTable {

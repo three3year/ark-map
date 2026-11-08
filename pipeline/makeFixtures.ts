@@ -3,8 +3,9 @@
 // in the fixture directory (old and new), the enemies already in the subset, and any
 // `--enemy` ids. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
-// pipeline reads. The stage tables' `tileInfo` keeps the tile keys the fixture levels use, the
-// keys already in the fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
+// pipeline reads; the activity tables also keep each 復刻's original activity. The stage
+// tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
+// fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
 // keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
 // the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
@@ -27,6 +28,7 @@ import type {
   RawZone,
   RawZoneTable,
 } from "./raw.ts";
+import { rerunOriginal, type GameTables } from "./stageIndex.ts";
 
 const fixtureDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -121,13 +123,34 @@ const zoneKeys: (keyof RawZone)[] = [
   "zoneNameTitleCurrent",
 ];
 
-async function writeTables(source: RepoSource, suffix: string): Promise<void> {
-  const stage = await fetchJson<RawStageTable>(source, "excel/stage_table.json");
-  const zone = await fetchJson<RawZoneTable>(source, "excel/zone_table.json");
-  const activity = await fetchJson<RawActivityTable>(source, "excel/activity_table.json");
-  const campaign = await fetchJson<RawCampaignTable>(source, "excel/campaign_table.json");
+type ZoneTables = Omit<GameTables, "roguelike">;
+
+async function fetchTables(source: RepoSource): Promise<ZoneTables> {
+  return {
+    stage: await fetchJson<RawStageTable>(source, "excel/stage_table.json"),
+    zone: await fetchJson<RawZoneTable>(source, "excel/zone_table.json"),
+    activity: await fetchJson<RawActivityTable>(source, "excel/activity_table.json"),
+    campaign: await fetchJson<RawCampaignTable>(source, "excel/campaign_table.json"),
+  };
+}
+
+/** The original activity of each 復刻 in the fixture zones, read from the CN tables. */
+function originalActivityIds({ stage, activity }: ZoneTables): Set<string> {
+  const ids = Object.values(stage.stages).flatMap((s) => {
+    const actId = zoneIds.has(s.zoneId) ? activity.zoneToActivity[s.zoneId] : undefined;
+    const original = actId && rerunOriginal(activity, actId, s.stageId);
+    return original ? [original.id] : [];
+  });
+  return new Set(ids);
+}
+
+async function writeTables(
+  { stage, zone, activity, campaign }: ZoneTables,
+  suffix: string,
+  originals: Set<string>,
+): Promise<void> {
   const zoneToActivity = filterEntries(activity.zoneToActivity, (z) => zoneIds.has(z));
-  const actIds = new Set(Object.values(zoneToActivity));
+  const actIds = new Set([...Object.values(zoneToActivity), ...originals]);
   const tables: Record<string, unknown> = {
     stage_table: {
       stages: mapValues(
@@ -146,7 +169,7 @@ async function writeTables(source: RepoSource, suffix: string): Promise<void> {
       zoneToActivity,
       basicInfo: mapValues(
         filterEntries(activity.basicInfo, (id) => actIds.has(id)),
-        (b) => pick(b, ["id", "type", "name", "startTime"]),
+        (b) => pick(b, ["id", "type", "name", "startTime", "isReplicate"]),
       ),
     } satisfies RawActivityTable,
     campaign_table: {
@@ -169,8 +192,10 @@ const existingTiles = await readFile(path.join(fixtureDir, "stage_table.json"), 
 );
 for (const key of existingTiles) tileKeys.add(key);
 if (zoneIds.size > 0) {
-  await writeTables(sources.cn, "");
-  await writeTables(sources.tw, ".tw");
+  const cn = await fetchTables(sources.cn);
+  const originals = originalActivityIds(cn);
+  await writeTables(cn, "", originals);
+  await writeTables(await fetchTables(sources.tw), ".tw", originals);
   console.log(`fixtures: ${zoneIds.size} 個區域的關卡表、區域表、活動表、剿滅表`);
 }
 
