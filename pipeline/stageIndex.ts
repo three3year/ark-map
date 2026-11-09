@@ -3,6 +3,7 @@ import type {
   Area,
   AreaKind,
   Difficulty,
+  Expansion,
   Section,
   StageEntry,
   StageIndex,
@@ -49,13 +50,14 @@ export function levelFacts(raw: RawLevel): LevelFacts {
 }
 
 /**
- * A stage left out of the index: by default because its level file is missing upstream;
- * `unlinkedEmergency` is a 緊急作戰 whose `linkedStageId` names no node of its theme.
+ * A stage, or one 內容拓展 of it, left out of the index: by default because its level file is
+ * missing upstream; `unlinkedEmergency` is a 緊急作戰 whose `linkedStageId` names no node of its
+ * theme; `unnumberedExpansion` is a 內容拓展 file whose name ends in neither `_rN` nor `_dlcN`.
  */
 export interface SkippedStage {
   stageId: string;
   levelPath: string;
-  reason?: "unlinkedEmergency";
+  reason?: "unlinkedEmergency" | "unnumberedExpansion";
 }
 
 /** Raw paths are case-sensitive and lowercase upstream: "obt/main/level_main_01-07". */
@@ -142,7 +144,7 @@ export function indexedLevelPaths(tables: StageIndexTables): string[] {
   return [...new Set([...paths, ...roguelikeLevelPaths(tables.cn.roguelike)])];
 }
 
-/** 集成戰略 level files: every stage's own file and its 替換地圖 files. */
+/** 集成戰略 level files: every stage's own file and its 內容拓展 files. */
 export function roguelikeLevelPaths(table: RawRoguelikeTopicTable): string[] {
   const paths = Object.values(table.details).flatMap((topic) =>
     Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds].map(levelPath)),
@@ -352,6 +354,15 @@ function roguelikeZone(stageId: string): string | null {
   return zone ? `zone_${zone}` : null;
 }
 
+/**
+ * A 內容拓展 file's 拓展編號, from its name's `_rN` or `_dlcN` ending: level_rogue4_1-1_r2 and
+ * level_rogue5_7-1_dlc2 are both 2. Null when the name has neither.
+ */
+function expansionNumber(path: string): number | null {
+  const n = /_(?:r|dlc)([1-9]\d*)$/.exec(path)?.[1];
+  return n ? Number(n) : null;
+}
+
 /** A 集成戰略 stage's own difficulty: 緊急作戰 run at FOUR_STAR. */
 function roguelikeDifficulty(stage: RawRoguelikeStage): Difficulty {
   return stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
@@ -359,9 +370,10 @@ function roguelikeDifficulty(stage: RawRoguelikeStage): Difficulty {
 
 /**
  * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its nodes; stages
- * with no zone come last. A node's 緊急作戰 is its `emergency` variant, on the node's file; its
- * 替換地圖 are further variants, each on its own file. A 緊急作戰 that links to no node is
- * skipped and reported.
+ * with no zone come last. A node's 緊急作戰 is its `emergency` variant, on the node's file. Its
+ * 內容拓展, numbered by file name, are listed on the node for every variant. A 緊急作戰 that
+ * links to no node, and a 內容拓展 file missing or named without a number, are skipped and
+ * reported.
  */
 function roguelikeAreas(
   { cn, tw }: StageIndexTables,
@@ -405,7 +417,9 @@ function roguelikeAreas(
 
     for (const stage of Object.values(detail.stages).filter(isNode)) {
       const emergency = emergencies.get(stage.id);
-      const [basePath, ...replacePaths] = [stage.levelId, ...stage.levelReplaceIds].map(levelPath);
+      const [basePath, ...expansionPaths] = [stage.levelId, ...stage.levelReplaceIds].map(
+        levelPath,
+      );
       if (!facts.has(basePath!)) {
         for (const s of [stage, ...(emergency ? [emergency] : [])]) {
           skipped.push({ stageId: s.id, levelPath: basePath! });
@@ -420,10 +434,19 @@ function roguelikeAreas(
       });
       const variants = [variant("normal", stage, basePath!)];
       if (emergency) variants.push(variant("emergency", emergency, basePath!));
-      replacePaths.forEach((path, i) => {
-        if (facts.has(path)) variants.push(variant(`replace${i + 1}`, stage, path));
-        else skipped.push({ stageId: stage.id, levelPath: path });
+      const expansions = expansionPaths.flatMap((path): Expansion[] => {
+        const number = expansionNumber(path);
+        if (number === null) {
+          skipped.push({ stageId: stage.id, levelPath: path, reason: "unnumberedExpansion" });
+          return [];
+        }
+        if (!facts.has(path)) {
+          skipped.push({ stageId: stage.id, levelPath: path });
+          return [];
+        }
+        return [{ number, levelFile: siteLevelFile(path) }];
       });
+      expansions.sort((a, b) => a.number - b.number);
       const twStage = twDetail?.stages[stage.id];
       const condition =
         emergency && (twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc);
@@ -433,6 +456,7 @@ function roguelikeAreas(
         name: twStage?.name ?? stage.name,
         variants,
         ...(condition ? { emergencyCondition: condition } : {}),
+        ...(expansions.length > 0 ? { expansions } : {}),
       };
       sectionFor(roguelikeZone(stage.id)).stages.push(entry);
     }

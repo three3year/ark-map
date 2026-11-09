@@ -191,7 +191,12 @@ const outcome = pipelineOutcome(skipped, failures);
 if (outcome.missing.length > 0) {
   log(`略過 ${outcome.missing.length} 個關卡:`);
   for (const s of outcome.missing) {
-    const why = s.reason === "unlinkedEmergency" ? "緊急作戰連結不到節點" : "上游沒有關卡檔";
+    const why =
+      s.reason === "unlinkedEmergency"
+        ? "緊急作戰連結不到節點"
+        : s.reason === "unnumberedExpansion"
+          ? "內容拓展檔名解析不出拓展編號"
+          : "上游沒有關卡檔";
     console.log(`  ${s.stageId} -> levels/${s.levelPath}.json(${why})`);
   }
 }

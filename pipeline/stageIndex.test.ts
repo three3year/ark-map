@@ -282,29 +282,28 @@ describe("stage index: 集成戰略", () => {
     ]);
   });
 
-  it("lists each 替換地圖 of a theme-4 node after its emergency variant, each on its own file", () => {
+  it("numbers a theme-4 node's 內容拓展 by their _rN files; its 緊急作戰 is no 內容拓展", () => {
     const index = build();
-    const rows = (id: string) =>
-      stageById(index, id).variants.map((v) => [v.id, v.difficulty, v.levelFile]);
-    expect(rows("ro4_n_1_1")).toEqual([
+    const node = stageById(index, "ro4_n_1_1");
+    expect(node.variants.map((v) => [v.id, v.difficulty, v.levelFile])).toEqual([
       ["normal", "NORMAL", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
       ["emergency", "FOUR_STAR", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
-      [
-        "replace1",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
-      ],
-      [
-        "replace2",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
-      ],
+    ]);
+    expect(node.expansions).toEqual([
+      {
+        number: 1,
+        levelFile: "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
+      },
+      {
+        number: 2,
+        levelFile: "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
+      },
     ]);
     const ids = index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages.map((x) => x.id)));
     expect(ids.filter((id) => /^ro\d+_e_/.test(id))).toEqual([]);
   });
 
-  it("fetches every theme's files: DLC stages and 替換地圖 included", () => {
+  it("fetches every theme's files: DLC stages and 內容拓展 included", () => {
     const paths = indexedLevelPaths(tables);
     expect(paths).toEqual(
       expect.arrayContaining([
@@ -316,18 +315,49 @@ describe("stage index: 集成戰略", () => {
     );
   });
 
-  it("drops a 替換地圖 whose file is missing and reports it", () => {
+  it("numbers a theme-5 node's 內容拓展 by their _dlcN files", () => {
+    expect(stageById(build(), "ro5_n_1_1").expansions).toEqual([
+      { number: 1, levelFile: "data/levels/obt/roguelike/ro5/dlc1/level_rogue5_1-1_dlc1.json" },
+    ]);
+  });
+
+  it("numbers 7-1's only 內容拓展, its _dlc2 file, 2", () => {
+    const node = stageById(build(), "ro5_n_7_1");
+    expect(node.code).toBe("ISW-NO");
+    expect(node.expansions).toEqual([
+      { number: 2, levelFile: "data/levels/obt/roguelike/ro5/dlc2/level_rogue5_7-1_dlc2.json" },
+    ]);
+  });
+
+  it("a node without 內容拓展 has no list of them, whatever its own id ends in", () => {
+    const index = build();
+    expect(stageById(index, "ro1_n_1_1").expansions).toBeUndefined();
+    expect(stageById(index, "ro6_n_3_1_dlc1").expansions).toBeUndefined();
+  });
+
+  it("drops a 內容拓展 whose file is missing and reports it", () => {
     const facts = allFilesPresent();
     facts.delete("obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1");
     const { index, skipped } = buildStageIndex(tables, facts);
-    expect(stageById(index, "ro4_n_1_1").variants.map((v) => v.id)).toEqual([
-      "normal",
-      "emergency",
-      "replace2",
-    ]);
+    expect(stageById(index, "ro4_n_1_1").expansions?.map((x) => x.number)).toEqual([2]);
     expect(skipped).toContainEqual({
       stageId: "ro4_n_1_1",
       levelPath: "obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1",
+    });
+  });
+
+  it("drops a 內容拓展 file named without a 拓展編號 and reports it", () => {
+    const renamed = rawTables();
+    const node = renamed.cn.roguelike.details["rogue_4"]!.stages["ro4_n_1_1"]!;
+    node.levelReplaceIds[0] = "Obt/Roguelike/RO4/LevelReplacers/level_rogue4_1-1_new";
+    const facts = allFilesPresent();
+    facts.set("obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_new", { difficulties: [] });
+    const { index, skipped } = buildStageIndex(renamed, facts);
+    expect(stageById(index, "ro4_n_1_1").expansions?.map((x) => x.number)).toEqual([2]);
+    expect(skipped).toContainEqual({
+      stageId: "ro4_n_1_1",
+      levelPath: "obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_new",
+      reason: "unnumberedExpansion",
     });
   });
 
