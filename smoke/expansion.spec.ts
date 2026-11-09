@@ -1,10 +1,12 @@
-// Smoke test: the 內容拓展開關 on 集成戰略 node pages, in the built site (dist/).
+// Smoke test: the 內容拓展開關 on 集成戰略 lists and node pages, and the site-wide 內容拓展選擇
+// behind it, in the built site (dist/).
 import { expect, test, type Page } from "@playwright/test";
 import type { Difficulty } from "../src/level/index.ts";
 import { spawnPlan } from "../src/timeline/index.ts";
 import {
   expectDefaultSwitches,
   expectVariantShown,
+  phoneWindow,
   readSiteLevel,
   seek,
   selectWave,
@@ -15,6 +17,8 @@ import {
 const expansionSwitch = (page: Page) => page.getByRole("group", { name: "內容拓展" });
 const expansionButton = (page: Page, name: string) =>
   expansionSwitch(page).getByRole("button", { name, exact: true });
+/** The stage list's link to stage `id`. */
+const nodeLink = (page: Page, id: string) => page.locator(`a[data-stage="${id}"]`);
 
 /** The level file of stage `id`'s 內容拓展 `n`. */
 function expansionFile(id: string, n: number): string {
@@ -56,8 +60,166 @@ test("the switch sits right of the site title on a theme-4 node", async ({ page 
   expect(group.y + group.height, "on the title's row").toBeGreaterThan(title.y);
 });
 
+for (const theme of ["rogue_4", "rogue_5"]) {
+  test(`the ${theme} list offers 原版 and every 內容拓展 of the theme, 原版 lit`, async ({
+    page,
+  }) => {
+    await page.goto(`#/area/${theme}`);
+
+    await expect(expansionSwitch(page).getByRole("button")).toHaveText([
+      "原版",
+      "內容拓展 1",
+      "內容拓展 2",
+    ]);
+    await expectExpansionLit(page, "原版");
+  });
+}
+
+test("choosing 內容拓展 2 on the list keeps the URL; a node opened from it shows 內容拓展 2", async ({
+  page,
+}) => {
+  await page.goto("#/area/rogue_4");
+  await expect(nodeLink(page, "ro4_n_1_1")).toHaveAttribute("href", "#/level/ro4_n_1_1?v=normal");
+
+  await expansionButton(page, "內容拓展 2").click();
+
+  await expectExpansionLit(page, "內容拓展 2");
+  await expect(page).toHaveURL(/#\/area\/rogue_4$/);
+  await nodeLink(page, "ro4_n_1_1").click();
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
+  await expectExpansionLit(page, "內容拓展 2");
+  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+});
+
+test("the list's choice is in memory only: reloading the list brings back 原版", async ({
+  page,
+}) => {
+  await page.goto("#/area/rogue_4");
+  await expansionButton(page, "內容拓展 2").click();
+
+  await page.reload();
+
+  await expectExpansionLit(page, "原版");
+  await expect(nodeLink(page, "ro4_n_1_1")).toHaveAttribute("href", "#/level/ro4_n_1_1?v=normal");
+});
+
+test("a node's fallback keeps the choice: after a node with 內容拓展 1 only, the next shows 2", async ({
+  page,
+}) => {
+  await page.goto("#/area/rogue_4");
+  await expansionButton(page, "內容拓展 2").click();
+  await nodeLink(page, "ro4_t_2").click();
+  await expectExpansionLit(page, "內容拓展 1");
+  await expect(page).toHaveURL(/#\/level\/ro4_t_2\?v=normal&x=2$/);
+
+  await page.goBack();
+
+  await expectExpansionLit(page, "內容拓展 2");
+  await nodeLink(page, "ro4_n_1_1").click();
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
+  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+});
+
+test("opening a node link sets the choice to its x, none being 原版", async ({ page }) => {
+  await page.goto("#/level/ro4_n_1_1?x=1");
+  await expectExpansionLit(page, "內容拓展 1");
+  await page.goto("#/area/rogue_4");
+  await expectExpansionLit(page, "內容拓展 1");
+
+  await page.goto("#/level/ro4_n_1_2");
+  await expectExpansionLit(page, "原版");
+  await page.goto("#/area/rogue_4");
+  await expectExpansionLit(page, "原版");
+});
+
+test("going back to a node sets the choice to its x", async ({ page }) => {
+  await page.goto("#/level/ro4_n_1_1?x=2");
+  await expectExpansionLit(page, "內容拓展 2");
+  await page.goto("#/level/ro4_n_1_2");
+  await expectExpansionLit(page, "原版");
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?x=2$/);
+  await expectExpansionLit(page, "內容拓展 2");
+  await page.goto("#/area/rogue_4");
+  await expectExpansionLit(page, "內容拓展 2");
+});
+
+test("pressing the switch on a node changes the choice", async ({ page }) => {
+  await page.goto("#/level/ro4_n_1_1");
+
+  await expansionButton(page, "內容拓展 2").click();
+
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?x=2$/);
+  await page.goto("#/area/rogue_4");
+  await expectExpansionLit(page, "內容拓展 2");
+});
+
+test("a mainline stage between leaves the choice: back on theme 4, a node shows 內容拓展 2", async ({
+  page,
+}) => {
+  await page.goto("#/area/rogue_4");
+  await expansionButton(page, "內容拓展 2").click();
+  await page.goto("#/level/main_01-07");
+  await expect(page.locator("svg.map")).toBeVisible();
+  await expect(page).toHaveURL(/#\/level\/main_01-07$/);
+
+  await page.goto("#/area/rogue_4");
+
+  await expectExpansionLit(page, "內容拓展 2");
+  await nodeLink(page, "ro4_n_1_1").click();
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
+  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+});
+
+test("the choice carries across themes; lists without 內容拓展 link without x", async ({
+  page,
+}) => {
+  await page.goto("#/area/rogue_4");
+  await expansionButton(page, "內容拓展 2").click();
+
+  await page.goto("#/area/rogue_1");
+  await expect(nodeLink(page, "ro1_n_1_1")).toHaveAttribute("href", "#/level/ro1_n_1_1?v=normal");
+  await page.goto("#/area/rogue_5");
+
+  await expectExpansionLit(page, "內容拓展 2");
+  await expect(nodeLink(page, "ro5_n_7_1")).toHaveAttribute(
+    "href",
+    "#/level/ro5_n_7_1?v=normal&x=2",
+  );
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: phoneWindow });
+
+  for (const [where, hash] of [
+    ["the theme-4 list", "#/area/rogue_4"],
+    ["a theme-4 node", "#/level/ro4_n_1_1"],
+  ] as const) {
+    test(`on ${where} the switch wraps below the title, at its left, without horizontal scroll`, async ({
+      page,
+    }) => {
+      await page.goto(hash);
+      if (hash.startsWith("#/level/")) await expect(page.locator("svg.map")).toBeVisible();
+      await expect(expansionSwitch(page).getByRole("button")).toHaveCount(3);
+
+      const title = (await page.locator("h1").boundingBox())!;
+      const group = (await expansionSwitch(page).boundingBox())!;
+      expect(group.y, "below the title").toBeGreaterThanOrEqual(title.y + title.height);
+      expect(group.x, "at the title's left").toBeCloseTo(title.x, 0);
+      expect(group.x + group.width, "inside the window").toBeLessThanOrEqual(phoneWindow.width);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, "no horizontal scroll").toBeLessThanOrEqual(0);
+    });
+  }
+});
+
 for (const [where, hash] of [
   ["the home page", "#/"],
+  ["a mainline list", "#/area/main_1"],
   ["a mainline stage", "#/level/main_01-07"],
   ["the theme-1 list", "#/area/rogue_1"],
   ["a theme-1 node", "#/level/ro1_n_1_1"],
