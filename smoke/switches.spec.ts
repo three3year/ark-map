@@ -278,7 +278,7 @@ test("15-13: a 出生點 or 消失點 filters the spawn table; again, 清除 or 
   await expect(filterCaption(page)).toHaveCount(0);
 });
 
-test("15-13: a 端點篩選 fades the enemies outside it until selected or cleared", async ({
+test("15-13: a 端點篩選 fades the enemies outside it, selected or not, until cleared", async ({
   page,
 }) => {
   const level = siteLevel("main_15-12");
@@ -303,7 +303,11 @@ test("15-13: a 端點篩選 fades the enemies outside it until selected or clear
   await seek(page, t!);
   await expect(fadedEnemies).toHaveCount(0);
 
+  // Selected before the filter, it fades with the rest and stays selected.
+  const picked = outside[0]!.individual.id;
+  await enemyOnMap(page, picked).dispatchEvent("click");
   await page.getByRole("button", { name: "出生點(3, 0)" }).click();
+  await expect(page.locator(`g.path[data-path="${picked}"]`)).toBeVisible();
 
   for (const { individual } of outside) {
     await expect(enemyOnMap(page, individual.id)).toHaveAttribute("data-filtered-out");
@@ -314,12 +318,13 @@ test("15-13: a 端點篩選 fades the enemies outside it until selected or clear
     expect(await opacityOf(individual.id)).toBeCloseTo(1, 2);
   }
 
-  // A faded enemy can still be selected, and shows in full while it is.
-  const picked = outside[0]!.individual.id;
+  // A faded enemy can still be selected, and stays faded while it is.
+  await enemyOnMap(page, picked).dispatchEvent("click");
+  await expect(page.locator(`g.path[data-path="${picked}"]`)).toHaveCount(0);
   await enemyOnMap(page, picked).dispatchEvent("click");
   await expect(page.locator(`g.path[data-path="${picked}"]`)).toBeVisible();
-  await expect(enemyOnMap(page, picked)).not.toHaveAttribute("data-filtered-out");
-  expect(await opacityOf(picked)).toBeCloseTo(1, 2);
+  await expect(enemyOnMap(page, picked)).toHaveAttribute("data-filtered-out");
+  expect(await opacityOf(picked)).toBeCloseTo(0.4, 2);
   await expect(filterCaption(page)).toContainText("出生點(3, 0)");
 
   await page.getByRole("button", { name: "清除", exact: true }).click();
