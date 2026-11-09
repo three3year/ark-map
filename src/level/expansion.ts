@@ -1,5 +1,5 @@
 // 內容拓展: which one a 內容拓展選擇 shows, and so which level file is on screen.
-import type { StageEntry, Variant } from "./types.ts";
+import type { Area, StageEntry, Variant } from "./types.ts";
 
 /**
  * The 內容拓展 `choice` shows among `expansions`: the latest numbered no higher than `choice`.
@@ -19,4 +19,14 @@ export function shownExpansion<T extends { number: number }>(
  */
 export function shownLevelFile(stage: StageEntry, variant: Variant, choice: number | null): string {
   return shownExpansion(stage.expansions, choice)?.levelFile ?? variant.levelFile;
+}
+
+/**
+ * The 拓展編號 a 集成戰略 theme offers, ascending: the union of its stages' 內容拓展. Empty for
+ * any other area and for a theme without 內容拓展.
+ */
+export function themeExpansions(area: Area): number[] {
+  if (area.kind !== "ROGUELIKE") return [];
+  const numbers = area.sections.flatMap((s) => s.stages.flatMap((x) => x.expansions ?? []));
+  return [...new Set(numbers.map((x) => x.number))].sort((a, b) => a - b);
 }

@@ -5,8 +5,10 @@
 
   interface Props {
     area: Area;
+    /** 內容拓展選擇 the stage links carry as `x`; null for 原版 and for areas without 內容拓展. */
+    expansion: number | null;
   }
-  let { area }: Props = $props();
+  let { area, expansion }: Props = $props();
 
   /** Unnamed sections only get a heading when the area has others to tell them from. */
   function heading(section: Section): string | null {
@@ -29,7 +31,7 @@
             page: "level",
             stageId: stage.id,
             variant: stage.variants[0]!.id,
-            expansion: null,
+            expansion,
           })}
           data-stage={stage.id}
         >

@@ -2,6 +2,7 @@
   import {
     shownExpansion,
     shownLevelFile,
+    themeExpansions,
     withNames,
     type Area,
     type Level,
@@ -149,15 +150,41 @@
       : undefined,
   );
 
+  /** The site-wide 內容拓展選擇: a 拓展編號, or null for 原版. */
+  let expansionChoice = $state<number | null>(null);
+
   /**
-   * The 內容拓展開關 beside the site title: on the nodes of a 集成戰略 theme where some stage has
-   * a 內容拓展, offering 原版 and the node's own; null elsewhere.
+   * Landing on a node of a theme with 內容拓展 sets the choice to the link's `x`, so the switch
+   * matches the map on screen. Other level pages carry no `x` and leave the choice alone.
+   */
+  $effect(() => {
+    if (route.page === "level" && found && themeExpansions(found.area).length > 0) {
+      expansionChoice = route.expansion;
+    }
+  });
+
+  /**
+   * The 內容拓展開關 beside the site title, on a 集成戰略 theme with 內容拓展: its stage list
+   * offers 原版 and every 內容拓展 of the theme, and a press changes only the choice in memory;
+   * its nodes offer 原版 and the node's own. Null elsewhere.
    */
   const expansionSwitch = $derived.by(() => {
+    if (route.page === "area") {
+      const numbers = area ? themeExpansions(area) : [];
+      if (numbers.length === 0) return null;
+      return {
+        numbers,
+        shown:
+          shownExpansion(
+            numbers.map((number) => ({ number })),
+            expansionChoice,
+          )?.number ?? null,
+        onSelect: (expansion: number | null) => (expansionChoice = expansion),
+      };
+    }
     if (route.page !== "level" || !found) return null;
-    const { area, stage } = found;
-    const themeHasExpansions = area.sections.some((s) => s.stages.some((x) => x.expansions));
-    if (area.kind !== "ROGUELIKE" || !themeHasExpansions) return null;
+    const { area: theme, stage } = found;
+    if (themeExpansions(theme).length === 0) return null;
     const levelRoute = route;
     return {
       numbers: (stage.expansions ?? []).map((x) => x.number),
@@ -238,7 +265,7 @@
       <AreaList {index} />
     {:else if route.page === "area"}
       {#if area}
-        <StageList {area} />
+        <StageList {area} expansion={themeExpansions(area).length > 0 ? expansionChoice : null} />
       {:else}
         <p>{strings.areaNotFound(route.areaId)}</p>
       {/if}
@@ -267,12 +294,14 @@
   }
   /*
    * The page's top padding is the title row's own: on the level page, the spawn table's column
-   * beside the title then starts at the page's top edge. The 內容拓展開關 sits right of the title.
+   * beside the title then starts at the page's top edge. The 內容拓展開關 sits right of the title,
+   * or on the next line at the left when the row is too narrow for both.
    */
   .title-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 16px;
+    gap: 8px 16px;
     margin: 0 0 8px;
     padding-top: 12px;
   }
