@@ -3,7 +3,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
-import { seek, siteLevel, timeDisplay, wideWindow } from "./levelPage.ts";
+import { orderCell, seek, siteLevel, timeDisplay, wideWindow } from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -11,8 +11,6 @@ const siteRows = (stageId: string): SpawnRow[] => spawnTable(siteLevel(stageId))
 
 const rowOf = (page: Page, row: SpawnRow) =>
   page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
-/** The 次序 cell: a part of the row that is not the enemy name. */
-const orderCell = (page: Page, row: SpawnRow) => rowOf(page, row).locator("td").nth(2);
 const firstIndividual = (row: SpawnRow) => `${actionKey(row)}-0`;
 
 test("1-7: clicking a row away from the name jumps to its spawn and shows the route", async ({
@@ -22,7 +20,7 @@ test("1-7: clicking a row away from the name jumps to its spawn and shows the ro
   await page.goto("#/level/main_01-07?v=normal");
   await expect(page.locator("svg.map")).toBeVisible();
 
-  await orderCell(page, row).click();
+  await orderCell(rowOf(page, row)).click();
 
   await expect(timeDisplay(page)).toHaveText(`${ceilTenth(row.waveTime).toFixed(1)} 秒`);
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", firstIndividual(row));
@@ -38,7 +36,7 @@ test("1-7: the 路徑 hides before the selected individual spawns and comes back
   const path = page.locator(`g.path[data-path="${individual}"]`);
   const legend = page.getByRole("list", { name: "圖例" });
   await page.goto("#/level/main_01-07?v=normal");
-  await orderCell(page, row).click();
+  await orderCell(rowOf(page, row)).click();
 
   await seek(page, 0);
 
@@ -70,7 +68,7 @@ test("ro2_n_2_6: 切換 switches the candidate and keeps the selection and the t
   const candidate = rows.find((r) => r.random && !r.random.picked)!;
   const at = `${ceilTenth(selectedRow.waveTime).toFixed(1)} 秒`;
   await page.goto("#/level/ro2_n_2_6?v=normal");
-  await orderCell(page, selectedRow).click();
+  await orderCell(rowOf(page, selectedRow)).click();
   await expect(timeDisplay(page)).toHaveText(at);
 
   await rowOf(page, candidate).locator("button.pick").click();
