@@ -232,7 +232,7 @@
   });
 
   /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1440;
+  const breakpoint = 1472;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -401,24 +401,25 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 824px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
-   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
+   * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   *   column's scrollbar. To measure, squeeze --side-column-width to a few px so each table
+   *   shrinks to its min-content width, and take the widest `table` over every stage's variants. A fixed width keeps the map from resizing as a 端點篩選 or a switch
    *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
-   *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   * - Breakpoint: 540 + 24px gap + 857 + 32px page padding + 17px page scrollbar = 1470px, so
+   *   1472px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
    *   above and the two `@media` rules below.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 824px;
+    --side-column-width: 857px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1440px) {
+  @media (min-width: 1472px) {
     .level-page {
       max-width: none;
       display: grid;
@@ -458,7 +459,7 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1440px) {
+  @media (width < 1472px) {
     .side {
       position: fixed;
       top: 0;
