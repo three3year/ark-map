@@ -25,11 +25,6 @@
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
 
-  /**
-   * The level page's 播放位置 and 開關狀態; the URL only picks the stage, variant and 內容拓展.
-   * They live here rather than in the level page, which only exists once the shown level file
-   * has loaded, so a switch that loads another file keeps the 播放位置.
-   */
   let position = $state({ wave: 0, t: 0 });
   /** Only what differs from the variant's default. */
   let switches = $state.raw<SpawnSwitches>({});
@@ -37,18 +32,12 @@
   /** The id of the variant a level route shows: no `v` is the stage's base variant. */
   const variantId = (r: LevelRoute) => r.variant ?? stages[r.stageId]?.stage.variants[0]?.id;
 
-  /** 實際顯示的關卡檔 of a level route; undefined when the stage or variant does not exist. */
   function routeLevelFile(r: LevelRoute): string | undefined {
     const stage = stages[r.stageId]?.stage;
     const variant = stage?.variants.find((v) => v.id === variantId(r));
     return stage && variant ? shownLevelFile(stage, variant, r.expansion) : undefined;
   }
 
-  /**
-   * Follow a new hash. Entering a level page, or moving to another stage, starts at wave 1, 0 s
-   * with the variant's default switches; moving to another variant or shown level file (a
-   * 內容拓展) resets only the switches.
-   */
   function followHash(next: string) {
     const to = parseHash(next);
     if (to.page === "level") {
@@ -96,10 +85,6 @@
     ),
   );
 
-  /**
-   * Stage-table ids that are no stage of the index but some stage's variant (an old 緊急作戰 id
-   * such as ro4_e_1_1), mapped to that stage and variant.
-   */
   const movedStages: Record<string, { stageId: string; variant: VariantId }> = $derived(
     Object.fromEntries(
       Object.values(stages).flatMap(({ stage }) =>
@@ -110,12 +95,6 @@
     ),
   );
 
-  /**
-   * Old links, replacing their history entry: an old 緊急作戰 id opens its node's variant, keeping
-   * `x`. `v=replaceN`, which named a node's N-th 內容拓展 file when they were variants, opens the
-   * base variant (or the 緊急作戰 of an old 緊急作戰 id) with `x` the stage's N-th 內容拓展, none
-   * when it has fewer; it overrides any `x` of the link.
-   */
   $effect(() => {
     if (route.page !== "level") return;
     const moved = stages[route.stageId] ? undefined : movedStages[route.stageId];
@@ -143,31 +122,20 @@
       : undefined,
   );
 
-  /** 實際顯示的關卡檔: the variant's own, or the 內容拓展 the route's `x` shows. */
   const levelFile = $derived(
     route.page === "level" && found && variant
       ? shownLevelFile(found.stage, variant, route.expansion)
       : undefined,
   );
 
-  /** The site-wide 內容拓展選擇: a 拓展編號, or null for 原版. */
   let expansionChoice = $state<number | null>(null);
 
-  /**
-   * Landing on a node of a theme with 內容拓展 sets the choice to the link's `x`, so the switch
-   * matches the map on screen. Other level pages carry no `x` and leave the choice alone.
-   */
   $effect(() => {
     if (route.page === "level" && found && themeExpansions(found.area).length > 0) {
       expansionChoice = route.expansion;
     }
   });
 
-  /**
-   * The 內容拓展開關 beside the site title, on a 集成戰略 theme with 內容拓展: its stage list
-   * offers 原版 and every 內容拓展 of the theme, and a press changes only the choice in memory;
-   * its nodes offer 原版 and the node's own. Null elsewhere.
-   */
   const expansionSwitch = $derived.by(() => {
     if (route.page === "area") {
       const numbers = area ? themeExpansions(area) : [];
@@ -217,7 +185,6 @@
     );
   });
 
-  /** What the level page shows, once its level file has loaded. */
   const levelPage = $derived(
     route.page === "level" && !error && found && variant && levelFile && loaded?.file === levelFile
       ? { route, ...found, variant, levelFile, level: loaded.level, terrain: loaded.terrain }
@@ -292,11 +259,6 @@
   main.level {
     max-width: none;
   }
-  /*
-   * The page's top padding is the title row's own: on the level page, the spawn table's column
-   * beside the title then starts at the page's top edge. The 內容拓展開關 sits right of the title,
-   * or on the next line at the left when the row is too narrow for both.
-   */
   .title-row {
     display: flex;
     flex-wrap: wrap;

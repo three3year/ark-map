@@ -1,12 +1,9 @@
-// Smoke test: the variant buttons are a Segmented Button: joined, one border between neighbours,
-// rounded only at the ends, as wide as their contents.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readSiteJson, siteStage } from "./levelPage.ts";
 import type { StageIndex } from "../src/level/index.ts";
 
 const variantGroup = (page: Page) => page.getByRole("group", { name: "關卡變體" });
 
-/** What a player sees of one button's box: where it is, its borders, its corners, its fill. */
 const look = (button: Locator) =>
   button.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -22,7 +19,6 @@ const look = (button: Locator) =>
     };
   });
 
-/** The color `cssColor` resolves to on this page. */
 const resolved = (page: Page, cssColor: string) =>
   page.evaluate((c) => {
     const probe = document.createElement("div");
@@ -48,7 +44,6 @@ for (const [id, pressed] of [
     await expect(buttons).toHaveCount(variants.length);
     const looks = await Promise.all((await buttons.all()).map(look));
 
-    // Neighbours touch, with a single border line between their insides.
     for (const [i, next] of looks.slice(1).entries()) {
       const prev = looks[i]!;
       const between = next.left + next.borderLeft - (prev.right - prev.borderRight);
@@ -57,7 +52,6 @@ for (const [id, pressed] of [
         1,
       );
     }
-    // Rounded only on the outside ends.
     const first = looks[0]!;
     const last = looks.at(-1)!;
     for (const [i, b] of looks.entries()) {
@@ -66,13 +60,11 @@ for (const [id, pressed] of [
       for (const r of b.leftRadius) expect(r > 0, `button ${i} left corners`).toBe(outerLeft);
       for (const r of b.rightRadius) expect(r > 0, `button ${i} right corners`).toBe(outerRight);
     }
-    // As wide as its buttons, not stretched across the row.
     const groupBox = (await group.boundingBox())!;
     expect(groupBox.width).toBeCloseTo(last.right - first.left, 0);
     const rowWidth = await group.evaluate((g) => g.parentElement!.clientWidth);
     expect(groupBox.width).toBeLessThan(rowWidth / 2);
 
-    // The pressed one is accent-filled; the rest keep the panel fill.
     const accent = await resolved(page, "var(--accent)");
     const panel = await resolved(page, "var(--panel)");
     for (const [i, v] of variants.entries()) {

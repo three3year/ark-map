@@ -29,11 +29,6 @@ body {
   background: var(--bg);
 }
 
-/*
- * Segmented Button: a group (role="group" with an aria-label) of joined buttons, the chosen one
- * aria-pressed="true". Neighbours share one border and only the ends are rounded; the group is as
- * wide as its buttons, however many there are.
- */
 .segmented {
   display: flex;
   width: fit-content;
@@ -56,7 +51,6 @@ body {
 .segmented > button:last-child {
   border-radius: 0 999px 999px 0;
 }
-/* Raised so the pressed and the focused button show all four of their borders. */
 .segmented > button[aria-pressed="true"] {
   z-index: 1;
   background: var(--accent);

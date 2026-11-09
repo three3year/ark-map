@@ -11,7 +11,6 @@ import {
   timeDisplay,
 } from "./levelPage.ts";
 
-/** The 附加條件說明 under the stage's name. */
 const conditionText = (page: Page) => page.locator("[data-emergency-condition]");
 
 test("a theme lists its nodes only: a node with a 緊急作戰 lists it, without its condition text", async ({

@@ -5,7 +5,6 @@
 
   interface Props {
     area: Area;
-    /** 內容拓展選擇 the stage links carry as `x`; null for 原版 and for areas without 內容拓展. */
     expansion: number | null;
   }
   let { area, expansion }: Props = $props();

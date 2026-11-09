@@ -345,9 +345,6 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   const expansion = view(stage.expansions!.find((x) => x.number === 1)!.levelFile);
   expect(original.waves, "原版 has 2 波次").toBe(2);
   expect(expansion.waves, "內容拓展 1 has 3 波次").toBe(3);
-  // 內容拓展 1's third 波次 spawns nothing by default, so its time slider ends at 0 s; the
-  // seconds move on 原版's first 波次 instead. The two 波次 differ at 0 s and at `t`, so each
-  // count says which one is shown.
   const t = 30;
   for (const s of [0, t]) {
     expect(original.onField(0, s), `the two 波次 differ at ${s} s`).not.toBe(

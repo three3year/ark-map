@@ -1,12 +1,8 @@
-// Hash routing. The URL picks which level, variant and 內容拓展 to show (關卡連結); the level page
-// keeps its own 播放位置 (wave and seconds) and 開關狀態.
-
 export interface LevelRoute {
   page: "level";
   stageId: string;
   /** Variant id; null picks the stage's base variant. */
   variant: string | null;
-  /** 內容拓展選擇 `x`: a 拓展編號, or null for 原版. */
   expansion: number | null;
 }
 

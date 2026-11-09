@@ -1,5 +1,3 @@
-// Smoke test: the 內容拓展開關 on 集成戰略 lists and node pages, and the site-wide 內容拓展選擇
-// behind it, in the built site (dist/).
 import { expect, test, type Page } from "@playwright/test";
 import type { Difficulty } from "../src/level/index.ts";
 import { spawnPlan } from "../src/timeline/index.ts";
@@ -17,20 +15,14 @@ import {
 const expansionSwitch = (page: Page) => page.getByRole("group", { name: "內容拓展" });
 const expansionButton = (page: Page, name: string) =>
   expansionSwitch(page).getByRole("button", { name, exact: true });
-/** The stage list's link to stage `id`. */
 const nodeLink = (page: Page, id: string) => page.locator(`a[data-stage="${id}"]`);
 
-/** The level file of stage `id`'s 內容拓展 `n`. */
 function expansionFile(id: string, n: number): string {
   const file = siteStage(id).expansions?.find((x) => x.number === n)?.levelFile;
   expect(file, `${id} has 內容拓展 ${n}`).toBeDefined();
   return file!;
 }
 
-/**
- * The page shows level `file`: its switch panel lists exactly that file's 隱藏組. The 內容拓展
- * files of the stages below each add 隱藏組 their 原版 lacks, so this tells the files apart.
- */
 async function expectFileShown(page: Page, file: string, difficulty: Difficulty = "NORMAL") {
   const names = spawnPlan(readSiteLevel(file), difficulty).groups.hidden.map((g) => g.name);
   await expect
@@ -42,7 +34,6 @@ async function expectFileShown(page: Page, file: string, difficulty: Difficulty 
     .toEqual([...names].sort());
 }
 
-/** The switch shows `label` lit, and it alone. */
 async function expectExpansionLit(page: Page, label: string) {
   await expect(expansionSwitch(page).locator('button[aria-pressed="true"]')).toHaveText([label]);
 }
@@ -50,7 +41,6 @@ async function expectExpansionLit(page: Page, label: string) {
 test("the switch sits right of the site title on a theme-4 node", async ({ page }) => {
   await page.goto("#/level/ro4_n_1_1");
 
-  // The level page draws its own title row once the level has loaded.
   await expect(page.locator("svg.map")).toBeVisible();
   await expect(expansionSwitch(page)).toBeVisible();
   const title = (await page.locator("h1").boundingBox())!;

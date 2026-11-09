@@ -49,11 +49,6 @@ export function levelFacts(raw: RawLevel): LevelFacts {
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 
-/**
- * A stage, or one 內容拓展 of it, left out of the index: by default because its level file is
- * missing upstream; `unlinkedEmergency` is a 緊急作戰 whose `linkedStageId` names no node of its
- * theme; `unnumberedExpansion` is a 內容拓展 file whose name ends in neither `_rN` nor `_dlcN`.
- */
 export interface SkippedStage {
   stageId: string;
   levelPath: string;
@@ -144,7 +139,6 @@ export function indexedLevelPaths(tables: StageIndexTables): string[] {
   return [...new Set([...paths, ...roguelikeLevelPaths(tables.cn.roguelike)])];
 }
 
-/** 集成戰略 level files: every stage's own file and its 內容拓展 files. */
 export function roguelikeLevelPaths(table: RawRoguelikeTopicTable): string[] {
   const paths = Object.values(table.details).flatMap((topic) =>
     Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds].map(levelPath)),
@@ -354,27 +348,15 @@ function roguelikeZone(stageId: string): string | null {
   return zone ? `zone_${zone}` : null;
 }
 
-/**
- * A 內容拓展 file's 拓展編號, from its name's `_rN` or `_dlcN` ending: level_rogue4_1-1_r2 and
- * level_rogue5_7-1_dlc2 are both 2. Null when the name has neither.
- */
 function expansionNumber(path: string): number | null {
   const n = /_(?:r|dlc)([1-9]\d*)$/.exec(path)?.[1];
   return n ? Number(n) : null;
 }
 
-/** A 集成戰略 stage's own difficulty: 緊急作戰 run at FOUR_STAR. */
 function roguelikeDifficulty(stage: RawRoguelikeStage): Difficulty {
   return stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
 }
 
-/**
- * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its nodes; stages
- * with no zone come last. A node's 緊急作戰 is its `emergency` variant, on the node's file. Its
- * 內容拓展, numbered by file name, are listed on the node for every variant. A 緊急作戰 that
- * links to no node, and a 內容拓展 file missing or named without a number, are skipped and
- * reported.
- */
 function roguelikeAreas(
   { cn, tw }: StageIndexTables,
   facts: Map<string, LevelFacts>,
@@ -385,7 +367,6 @@ function roguelikeAreas(
     const twDetail = tw.roguelike.details[topic.id];
     const isNode = (stage: RawRoguelikeStage | undefined) => stage?.linkedStageId === "";
 
-    /** Node id -> its 緊急作戰, wherever either comes in the table. */
     const emergencies = new Map<string, RawRoguelikeStage>();
     for (const stage of Object.values(detail.stages)) {
       if (isNode(stage)) continue;
@@ -401,7 +382,6 @@ function roguelikeAreas(
     }
 
     const sections = new Map<string, Section>();
-    // Keys sort into display order: zone_1, zone_2, ..., then "~" (no zone).
     const sectionFor = (zone: string | null): Section => {
       const key = zone ?? "~";
       let section = sections.get(key);

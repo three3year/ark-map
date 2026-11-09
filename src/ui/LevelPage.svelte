@@ -49,7 +49,6 @@
     area: Area;
     stage: StageEntry;
     variant: Variant;
-    /** 實際顯示的關卡檔: the variant's own, or a 內容拓展's. `level` is its content. */
     levelFile: string;
     level: Level;
     /** The 名稱表's 地形表. */
@@ -146,7 +145,6 @@
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
-  /** 收起 holds for one stage, variant and shown level file: any change drops it. */
   interface Stowed {
     stageId: string;
     variant: VariantId;
@@ -213,7 +211,6 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
-  /** The 端點篩選 in one wave of one stage, variant and shown level file. */
   interface EndpointFilter {
     levelId: string;
     variant: VariantId;
@@ -235,8 +232,6 @@
     const key = endpointKey(f.endpoint);
     return endpoints.find((e) => endpointKey(e) === key) ?? null;
   });
-  // Another wave, variant, level or shown level file, or switches that remove the dot, clear the filter for good:
-  // coming back to that wave or dot does not bring it back.
   $effect(() => {
     if (endpointFilter && !filtered) endpointFilter = null;
   });

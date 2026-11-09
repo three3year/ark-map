@@ -28,7 +28,6 @@ export const strings = {
     tough: "磨難",
     emergency: "緊急作戰",
   } satisfies Record<VariantId, string>,
-  /** The 內容拓展開關: its group's label and its buttons. */
   expansionPicker: "內容拓展",
   original: "原版",
   expansion: (n: number) => `內容拓展 ${n}`,

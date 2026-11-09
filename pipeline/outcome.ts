@@ -8,7 +8,6 @@ export interface ConversionFailure {
 }
 
 export interface PipelineOutcome {
-  /** Stages left out for an upstream gap (no level file, unlinked 緊急作戰): listed, not an error. */
   missing: SkippedStage[];
   failures: ConversionFailure[];
   /** 1 when any level file failed to convert, so the CI step fails; else 0. */
