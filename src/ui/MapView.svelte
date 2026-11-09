@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import {
     cellKey,
     isWalkable,
@@ -36,8 +35,8 @@
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
     /**
-     * The 端點篩選's dot, drawn pressed; the individuals outside it fade unless selected. Null when
-     * the spawn table is not filtered.
+     * The 端點篩選's dot, drawn pressed; the individuals outside it fade, selected or not. Null
+     * when the spawn table is not filtered.
      */
     filter: EndpointPlace | null;
     /** A dot was clicked. */
@@ -61,25 +60,15 @@
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
   const stayBarWidth = 0.64;
 
-  /**
-   * Selecting moves a faded enemy to the shown layer, which redraws it; focus follows it there so
-   * the keyboard does not lose its place.
-   */
-  async function toggleSelect(individual: Individual, event: Event) {
-    const hadFocus = document.activeElement === event.currentTarget;
+  const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
-    if (!hadFocus) return;
-    await tick();
-    svg?.querySelector<SVGElement>(`[data-individual="${individual.id}"]`)?.focus();
-  }
 
   type OnField = Snapshot["onField"][number];
-  /** Outside the 端點篩選, unless selected. */
+  /** Outside the 端點篩選, selected or not. */
   const isFaded = ({ individual }: OnField) =>
-    filter !== null && individual.id !== selected?.id && !matchesEndpoint(individual, filter);
+    filter !== null && !matchesEndpoint(individual, filter);
   const fadedEnemies = $derived(enemies.filter(isFaded));
   const shownEnemies = $derived(enemies.filter((e) => !isFaded(e)));
-  let svg = $state<SVGSVGElement>();
 
   const points = (ps: Vec2[]) => ps.map((p) => `${p.x},${svgY(p.y)}`).join(" ");
   const tenth = (s: number) => Math.round(s * 10) / 10;
@@ -184,7 +173,7 @@
     tabindex="0"
     aria-label={individual.enemy.name}
     aria-pressed={individual.id === selected?.id}
-    onclick={(e) => toggleSelect(individual, e)}
+    onclick={() => toggleSelect(individual)}
     oncontextmenu={(e) => {
       e.preventDefault();
       onToggleStow(individual);
@@ -192,7 +181,7 @@
     onkeydown={(e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        toggleSelect(individual, e);
+        toggleSelect(individual);
       }
     }}
   >
@@ -243,7 +232,6 @@
 
   <div class="stage" class:tilted={view === "tilted"} style={stageStyle}>
     <svg
-      bind:this={svg}
       class="map"
       viewBox="-0.5 -0.5 {map.width} {map.height}"
       role="img"
