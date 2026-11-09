@@ -226,6 +226,8 @@ export const strings = {
   /** Beside the counts: how many individuals of the 波次 are 收起. */
   stowedCount: (n: number) => `已收起 ${n} 隻`,
   showAllStowed: "全部顯示",
+  /** A spawn-table row's 收起 box, by the row's 序號 and enemy name. */
+  showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
 } as const;
 
 /** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */

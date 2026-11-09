@@ -13,19 +13,24 @@ import {
   timelineEnd,
   type Individual,
   type Snapshot,
+  type SpawnRow,
   type Timeline,
 } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
 import {
+  drawerButton,
   endpointDot,
   enemyOnMap,
   filterCaption,
+  orderCell,
   phoneWindow,
   readSiteLevel,
   seek,
   selectWave,
+  shownOpacity,
   siteLevel,
   siteStage,
+  spawnTableRegion,
   timeDisplay,
   wideWindow,
 } from "./levelPage.ts";
@@ -344,4 +349,169 @@ test("another stage on the stage list shows every enemy again, though it shares 
 
   await expect(stowedHint(page)).toHaveCount(0);
   await expect(enemyOnMap(page, individual.id)).toHaveCount(1);
+});
+
+const rowOf = (page: Page, row: SpawnRow) =>
+  page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
+/** A spawn-table row's 收起 checkbox: checked while all its individuals show. */
+const rowBox = (page: Page, row: SpawnRow) => rowOf(page, row).getByRole("checkbox");
+
+test("1-7: unchecking a row's box stows its every individual, without jumping or deselecting", async ({
+  page,
+}) => {
+  const level = siteLevel("main_01-07");
+  const timeline = buildTimeline(level);
+  const { t, individual, onField } = aloneOnField(timeline, withActionMate);
+  const rows = spawnTable(level);
+  const row = rows.find((r) => r.waveIndex === 0 && sameAction(r, individual))!;
+  const other = rows.find((r) => r.waveIndex === 0 && !sameAction(r, individual))!;
+  const onFieldOfRow = onField.filter((e) => sameAction(e.individual, row));
+  const selection = page.locator("p.selection");
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await orderCell(rowOf(page, other)).click();
+  await seek(page, 0);
+  const before = await counts(page);
+  const url = page.url();
+  await expect(rowBox(page, row)).toBeChecked();
+
+  // Stowed before they spawn.
+  await rowBox(page, row).click();
+
+  await expect(rowBox(page, row)).not.toBeChecked();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(selection).toHaveAttribute("data-selected", `${actionKey(other)}-0`);
+  expect(await counts(page)).toEqual(before);
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", String(row.count));
+  // No fading or strike-through of its own.
+  expect(await shownOpacity(rowOf(page, row).locator("button.enemy"))).toBeCloseTo(1, 2);
+  await expect(rowOf(page, row).locator("button.enemy")).toHaveCSS("text-decoration-line", "none");
+  expect(page.url()).toBe(url);
+
+  await seek(page, t);
+
+  for (const e of onFieldOfRow) await expect(enemyOnMap(page, e.individual.id)).toHaveCount(0);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField.length - onFieldOfRow.length);
+
+  await rowBox(page, row).click();
+
+  await expect(rowBox(page, row)).toBeChecked();
+  await expect(stowedHint(page)).toHaveCount(0);
+  for (const e of onFieldOfRow) await expect(enemyOnMap(page, e.individual.id)).toHaveCount(1);
+});
+
+test("1-7: a right-clicked enemy leaves its row's box half-checked; clicking it shows the row", async ({
+  page,
+}) => {
+  const level = siteLevel("main_01-07");
+  const { t, individual, onField } = aloneOnField(buildTimeline(level), withActionMate);
+  const row = spawnTable(level).find((r) => r.waveIndex === 0 && sameAction(r, individual))!;
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await seek(page, t);
+  await enemyOnMap(page, individual.id).click({ button: "right" });
+
+  await expect(rowBox(page, row)).toBeChecked({ indeterminate: true });
+  await expect(rowOf(page, row)).toHaveAttribute("data-stow", "mixed");
+
+  await rowBox(page, row).click();
+
+  await expect(rowBox(page, row)).toBeChecked();
+  await expect(rowOf(page, row)).toHaveAttribute("data-stow", "shown");
+  await expect(stowedHint(page)).toHaveCount(0);
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(onField.length);
+  await expect(timeDisplay(page)).toHaveText(`${t.toFixed(1)} 秒`);
+});
+
+test("1-7: unchecking the selected enemy's row deselects it", async ({ page }) => {
+  const level = siteLevel("main_01-07");
+  const row = spawnTable(level).find((r) => r.waveTime > 0 && r.count > 1)!;
+  const selection = page.locator("p.selection");
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await orderCell(rowOf(page, row)).click();
+  await expect(selection).toHaveAttribute("data-selected", `${actionKey(row)}-0`);
+  const at = (await timeDisplay(page).textContent())!;
+
+  await rowBox(page, row).click();
+
+  await expect(selection).toHaveCount(0);
+  await expect(page.locator(`g.path[data-path="${actionKey(row)}-0"]`)).toHaveCount(0);
+  await expect(enemyOnMap(page, `${actionKey(row)}-0`)).toHaveCount(0);
+  await expect(timeDisplay(page)).toHaveText(at);
+});
+
+test("1-7: a row's box is named after its enemy and toggles from the keyboard", async ({
+  page,
+}) => {
+  const row = spawnTable(siteLevel("main_01-07")).find((r) => r.waveTime > 0)!;
+
+  await page.goto("#/level/main_01-07?v=normal");
+  const box = rowOf(page, row).getByRole("checkbox", { name: row.enemy!.name });
+  await expect(box).toBeChecked();
+
+  await box.focus();
+  await page.keyboard.press("Space");
+
+  await expect(box).not.toBeChecked();
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", String(row.count));
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(page.locator("p.selection")).toHaveCount(0);
+
+  await page.keyboard.press("Space");
+
+  await expect(box).toBeChecked();
+});
+
+test("ro2_n_2_6: only rows that spawn have a box; a stowed row stays stowed across 切換", async ({
+  page,
+}) => {
+  const rows = spawnTable(siteLevel("ro2_n_2_6"));
+  const spawning = rows.filter((r) => r.firstOrder !== null);
+  const silent = rows.filter((r) => r.firstOrder === null);
+  // The 隨機出兵組's default pick is its 不出兵 candidate; the others are not picked.
+  const nothing = silent.find((r) => r.random?.picked && r.enemyId === "")!;
+  const row = silent.find((r) => r.random?.group === nothing.random!.group && !r.random.picked)!;
+  const columns = page.locator("table thead th");
+
+  await page.goto("#/level/ro2_n_2_6?v=normal");
+
+  await expect(page.locator("tr[data-action] input[type=checkbox]")).toHaveCount(spawning.length);
+  for (const r of silent) await expect(rowBox(page, r)).toHaveCount(0);
+  const heads = await page.locator("tr.wave-head th").all();
+  expect(heads.length, "several 波次").toBeGreaterThan(1);
+  for (const head of heads) {
+    await expect(head).toHaveAttribute("colspan", String(await columns.count()));
+  }
+
+  await rowOf(page, row).locator("button.pick").click();
+  await rowBox(page, row).click();
+  await expect(rowBox(page, row)).not.toBeChecked();
+  await rowOf(page, nothing).locator("button.pick").click();
+  await expect(rowBox(page, row)).toHaveCount(0);
+  await rowOf(page, row).locator("button.pick").click();
+
+  await expect(rowBox(page, row)).not.toBeChecked();
+  await expect(rowOf(page, row)).toHaveAttribute("data-stow", "stowed");
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: phoneWindow });
+
+  test("1-7: a box in the drawer's spawn table stows its row and leaves the drawer open", async ({
+    page,
+  }) => {
+    const row = spawnTable(siteLevel("main_01-07")).find((r) => r.waveTime > 0)!;
+
+    await page.goto("#/level/main_01-07?v=normal");
+    await drawerButton(page).click();
+    await expect(spawnTableRegion(page)).toBeInViewport();
+
+    await rowBox(page, row).click();
+
+    await expect(rowBox(page, row)).not.toBeChecked();
+    await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", String(row.count));
+    await expect(timeDisplay(page)).toHaveText("0.0 秒");
+    await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
+  });
 });

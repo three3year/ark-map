@@ -35,7 +35,7 @@
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import SpawnTable from "./SpawnTable.svelte";
+  import SpawnTable, { type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings, variantLabel } from "./strings.ts";
@@ -190,6 +190,21 @@
       selection = null;
     }
   }
+  /** The individuals a spawn-table row spawns, by {@link individualKey}. */
+  const rowIndividuals = (row: SpawnRow) =>
+    Array.from({ length: row.count }, (_, k) => individualKey({ ...row, spawnIndex: k }));
+  function rowStow(row: SpawnRow): RowStow {
+    const here = stowedWaves.get(row.waveIndex);
+    const n = rowIndividuals(row).filter((id) => here?.has(id)).length;
+    return n === 0 ? "shown" : n === row.count ? "stowed" : "mixed";
+  }
+  /** 收起 the individuals spawn-table `rows` spawn, or show them. */
+  function stowRows(rows: SpawnRow[], stow: boolean) {
+    for (const wave of new Set(rows.map((r) => r.waveIndex))) {
+      const ids = rows.filter((r) => r.waveIndex === wave).flatMap(rowIndividuals);
+      setStowed(wave, ids, stow);
+    }
+  }
   /** A right-click on the map: 收起 the individual, or show it if it is 收起 and drawn as selected. */
   const toggleStow = (individual: Individual) =>
     setStowed(waveIndex, [individual.id], !stowedHere.has(individual.id));
@@ -217,7 +232,7 @@
   });
 
   /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1440;
+  const breakpoint = 1472;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -381,6 +396,8 @@
         branchKeys={level.branches.map((b) => b.key)}
         filter={filtered}
         onClearFilter={() => (endpointFilter = null)}
+        {rowStow}
+        onStow={stowRows}
       />
     </div>
   </div>
@@ -389,24 +406,25 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 824px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
-   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
+   * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   *   column's scrollbar. To measure, squeeze --side-column-width to a few px so each table
+   *   shrinks to its min-content width, and take the widest `table` over every stage's variants. A fixed width keeps the map from resizing as a 端點篩選 or a switch
    *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
-   *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   * - Breakpoint: 540 + 24px gap + 857 + 32px page padding + 17px page scrollbar = 1470px, so
+   *   1472px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
    *   above and the two `@media` rules below.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 824px;
+    --side-column-width: 857px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1440px) {
+  @media (min-width: 1472px) {
     .level-page {
       max-width: none;
       display: grid;
@@ -446,7 +464,7 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1440px) {
+  @media (width < 1472px) {
     .side {
       position: fixed;
       top: 0;
