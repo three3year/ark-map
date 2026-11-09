@@ -20,6 +20,7 @@ import {
   endpointDot,
   enemyOnMap,
   filterCaption,
+  phoneWindow,
   readSiteLevel,
   seek,
   selectWave,
@@ -167,6 +168,63 @@ test("1-7: stowing the selected enemy deselects it; selected again, it shows unt
   await expect(selection).toHaveAttribute("data-selected", individual.id);
   await page.getByRole("button", { name: "取消選取" }).click();
   await expect(enemyOnMap(page, individual.id)).toHaveCount(1);
+});
+
+/** The selection row's button that 收起 or shows the selected enemy, by what it reads. */
+const selectionButton = (page: Page, name: "收起" | "顯示") =>
+  page.locator("p.selection").getByRole("button", { name, exact: true });
+
+test("1-7: the selection row's 收起 stows and deselects; 顯示 on a stowed one shows it, kept selected", async ({
+  page,
+}) => {
+  const level = siteLevel("main_01-07");
+  const { t, individual } = aloneOnField(buildTimeline(level), (i) => i.spawnIndex === 0);
+  const row = spawnTable(level).find((r) => r.waveIndex === 0 && sameAction(r, individual))!;
+  const selection = page.locator("p.selection");
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await seek(page, t);
+  await enemyOnMap(page, individual.id).click();
+  await expect(selectionButton(page, "顯示")).toHaveCount(0);
+  await expect(stowedHint(page)).toHaveCount(0);
+
+  await selectionButton(page, "收起").click();
+
+  await expect(selection).toHaveCount(0);
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+
+  // Its row selects it again, stowed: the button reads 顯示, and works from the keyboard.
+  await page.locator(`tr[data-wave="0"][data-action="${actionKey(row)}"] button.enemy`).click();
+  await expect(selection).toHaveAttribute("data-selected", individual.id);
+  await expect(selectionButton(page, "收起")).toHaveCount(0);
+
+  await selectionButton(page, "顯示").focus();
+  await page.keyboard.press("Enter");
+
+  await expect(stowedHint(page)).toHaveCount(0);
+  await expect(selection).toHaveAttribute("data-selected", individual.id);
+  await expect(selectionButton(page, "收起")).toBeVisible();
+  await page.getByRole("button", { name: "取消選取" }).click();
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(1);
+});
+
+test.describe("in a phone's window", () => {
+  test.use({ viewport: phoneWindow });
+
+  test("1-7: the selection row's 收起 stows the selected enemy", async ({ page }) => {
+    const { t, individual } = aloneOnField(buildTimeline(siteLevel("main_01-07")), () => true);
+
+    await page.goto("#/level/main_01-07?v=normal");
+    await seek(page, t);
+    await enemyOnMap(page, individual.id).click();
+
+    await selectionButton(page, "收起").click();
+
+    await expect(page.locator("p.selection")).toHaveCount(0);
+    await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+    await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+  });
 });
 
 test("ro4_b_5: each 波次 keeps its stowed enemies; 全部顯示 shows this 波次's again", async ({
