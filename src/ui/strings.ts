@@ -38,7 +38,7 @@ export const strings = {
   play: "播放",
   pause: "暫停",
   timeSlider: "時間軸",
-  emptyWave: "本波沒有敵人",
+  emptyWaveNote: "本波沒有敵人",
   playbackSpeed: "播放速度",
   speedLabel: (speed: number) => `${speed}x`,
   countPending: "未出現",

@@ -48,6 +48,9 @@ export function takeSnapshot(timeline: Timeline, t: number): Snapshot {
   return snapshot;
 }
 
+/** 空波次: the wave spawns no enemy individual. */
+export const isEmptyWave = (timeline: Timeline): boolean => timeline.individuals.length === 0;
+
 /** Last second anything happens: the latest leak, or the latest spawn when nothing leaks. */
 export function timelineEnd(timeline: Timeline): number {
   let end = 0;

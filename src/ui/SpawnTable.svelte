@@ -355,7 +355,7 @@
   }
   tr.unpicked td:not(.markers),
   tr.unpicked .badge.random {
-    opacity: 0.45;
+    opacity: var(--dimmed);
   }
   .marker-list {
     display: flex;

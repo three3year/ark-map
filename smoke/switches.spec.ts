@@ -5,6 +5,7 @@ import { cellKey, type Level } from "../src/level/index.ts";
 import {
   buildTimeline,
   endpointRows,
+  isEmptyWave,
   matchesEndpoint,
   routeEndpoints,
   spawnTable,
@@ -25,6 +26,7 @@ import {
   siteLevel,
   spawnTableRegion,
   timeDisplay,
+  timeSlider,
   wideWindow,
 } from "./levelPage.ts";
 
@@ -98,13 +100,16 @@ test("15-13: 出生點 and 消失點 dots follow hidden group1, in both views", 
 test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page }) => {
   const level = siteLevel("ro2_n_2_6");
   const t = 5;
-  expect(onField(level, t, { waveIndex: 1 }), "the default pick spawns nothing").toBe(0);
+  expect(
+    isEmptyWave(buildTimeline(level, { waveIndex: 1 })),
+    "the default pick leaves 第 2 波 a 空波次",
+  ).toBe(true);
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await selectWave(page, 1);
   await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
-  const slider = page.getByRole("slider", { name: "時間軸" });
+  const slider = timeSlider(page);
   await expect(slider).toBeDisabled();
   const url = page.url();
   const pickThief = page.locator('tr[data-random="0-1"] button.pick');
@@ -131,7 +136,10 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
 
 test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", async ({ page }) => {
   const level = siteLevel("ro2_n_2_6");
-  expect(onField(level, 5, { waveIndex: 1 }), "the default pick spawns nothing").toBe(0);
+  expect(
+    isEmptyWave(buildTimeline(level, { waveIndex: 1 })),
+    "the default pick leaves 第 2 波 a 空波次",
+  ).toBe(true);
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
@@ -140,7 +148,7 @@ test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", a
   await page.locator('tr[data-random="0-1"] button.enemy').click();
 
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
-  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
+  await expect(timeSlider(page)).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   const thief = spawnTable(level).find((r) => r.random?.group === 0 && r.random.candidate === 1)!;
   expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
@@ -210,7 +218,7 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   const group = page.locator('input[data-hidden-group="random"]');
   await expect(group).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
-  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
+  await expect(timeSlider(page)).toBeDisabled();
 
   await group.check();
   await seek(page, t);

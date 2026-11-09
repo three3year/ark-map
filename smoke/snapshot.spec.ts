@@ -3,6 +3,7 @@
 import { expect, test } from "@playwright/test";
 import {
   buildTimeline,
+  isEmptyWave,
   matchesEndpoint,
   routeEndpoints,
   spawnTable,
@@ -16,6 +17,7 @@ import {
   enemyOnMap,
   expectDefaultSwitches,
   expectVariantShown,
+  playButton,
   readSiteLevel,
   seek,
   selectWave,
@@ -23,6 +25,7 @@ import {
   siteLevel,
   siteStage,
   timeDisplay,
+  timeSlider,
   wideWindow,
 } from "./levelPage.ts";
 
@@ -186,7 +189,7 @@ test("playback leaves the URL alone", async ({ page }) => {
   await expect(page.locator("svg.map")).toBeVisible();
   const url = page.url();
 
-  await page.getByRole("button", { name: "播放", exact: true }).click();
+  await playButton(page).click();
 
   await expect(timeDisplay(page)).not.toHaveText(/^0\.0 /);
   expect(page.url()).toBe(url);
@@ -202,7 +205,6 @@ test("8x playback runs on from 第 1 波 into 第 2 波 and stops at the end of 
   );
   expect(stops, "ro4_b_5 has 2 波次").toHaveLength(2);
   expect(stops[1], "第 2 波 runs past 4 s").toBeGreaterThan(4);
-  const playButton = page.getByRole("button", { name: "播放", exact: true });
   const speed8 = page.getByRole("radio", { name: "8x" });
 
   await page.goto("#/level/ro4_b_5?v=normal");
@@ -210,7 +212,7 @@ test("8x playback runs on from 第 1 波 into 第 2 波 and stops at the end of 
   const url = page.url();
   await speed8.click();
   await seek(page, roundTenth(stops[0]! - 4));
-  await playButton.click();
+  await playButton(page).click();
 
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
   await expect(timeDisplay(page)).not.toHaveText(/^0\.0 /);
@@ -219,10 +221,10 @@ test("8x playback runs on from 第 1 波 into 第 2 波 and stops at the end of 
   expect(page.url()).toBe(url);
 
   await seek(page, roundTenth(stops[1]! - 4));
-  await playButton.click();
+  await playButton(page).click();
 
   await expect(timeDisplay(page)).toHaveText(`${stops[1]!.toFixed(1)} 秒`);
-  await expect(playButton).toBeVisible();
+  await expect(playButton(page)).toBeVisible();
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
 });
 
@@ -339,7 +341,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
       waves: level.waves.length,
       onField: (waveIndex: number, t: number) =>
         takeSnapshot(timelines[waveIndex]!, t).counts.onField,
-      individuals: (waveIndex: number) => timelines[waveIndex]!.individuals.length,
+      emptyWave: (waveIndex: number) => isEmptyWave(timelines[waveIndex]!),
       end: (waveIndex: number) => timelineEnd(timelines[waveIndex]!),
     };
   };
@@ -348,7 +350,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   expect(original.waves, "原版 has 2 波次").toBe(2);
   expect(expansion.waves, "內容拓展 1 has 3 波次").toBe(3);
   const t = 30;
-  expect(expansion.individuals(2), "內容拓展 1's 第 3 波 is a 空波次").toBe(0);
+  expect(expansion.emptyWave(2), "內容拓展 1's 第 3 波 is a 空波次").toBe(true);
   expect(
     original.end(0),
     `原版's 第 1 波 lasts past ${t} s, so the seconds move there`,
@@ -361,7 +363,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   const expansionButton = (name: string) =>
     page.getByRole("group", { name: "內容拓展" }).getByRole("button", { name, exact: true });
 
-  const slider = page.getByRole("slider", { name: "時間軸" });
+  const slider = timeSlider(page);
 
   await page.goto("#/level/ro4_b_5?x=1");
   await selectWave(page, 2);
@@ -383,7 +385,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   await expect(page.getByRole("radio", { name: "第 3 波" })).toBeChecked();
   await expect(slider).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, t));
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, 0));
 
   await expansionButton("原版").click();
 

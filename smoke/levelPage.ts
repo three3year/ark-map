@@ -87,9 +87,13 @@ export async function openLink(page: Page, hash: string) {
 
 export const timeDisplay = (page: Page) => page.locator(".controls output");
 
+export const timeSlider = (page: Page) => page.getByRole("slider", { name: "時間軸" });
+
+export const playButton = (page: Page) => page.getByRole("button", { name: "播放", exact: true });
+
 /** Drag the time slider to `t` seconds. */
 export async function seek(page: Page, t: number) {
-  await page.getByRole("slider", { name: "時間軸" }).fill(String(t));
+  await timeSlider(page).fill(String(t));
   await expect(timeDisplay(page)).toHaveText(`${t.toFixed(1)} 秒`);
 }
 
