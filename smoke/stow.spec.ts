@@ -562,6 +562,14 @@ test("15-12: under a 端點篩選 the header box stows only the rows from that �
   for (const r of others) await expect(rowBox(page, r)).toBeChecked();
 });
 
+test("VS-1: with no row to stow the header box is disabled", async ({ page }) => {
+  expect(spawnTable(siteLevel("act1enemyduel_01a")), "VS-1 lists no row").toEqual([]);
+
+  await page.goto("#/level/act1enemyduel_01a?v=normal");
+
+  await expect(headerBox(page)).toBeDisabled();
+});
+
 test("1-7: everything stowed with the header box, then one row checked: only its enemies show", async ({
   page,
 }) => {
