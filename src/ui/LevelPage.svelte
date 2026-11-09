@@ -317,7 +317,12 @@
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>
         <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
-        <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+        <span class="selection-actions">
+          <button type="button" onclick={() => toggleStow(selected)}>
+            {stowedHere.has(selected.id) ? strings.show : strings.stow}
+          </button>
+          <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+        </span>
       </p>
     {/if}
     {#if level.waves.length > 1}
@@ -536,6 +541,10 @@
     gap: 8px;
     margin: 8px 0 0;
     font-size: 0.9rem;
+  }
+  .selection-actions {
+    display: flex;
+    gap: 8px;
   }
   .stowed {
     display: flex;

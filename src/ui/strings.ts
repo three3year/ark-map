@@ -220,11 +220,12 @@ export const strings = {
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   deselect: "取消選取",
+  /** The selection row's button: 收起 the selected individual, or show it if it is 收起. */
+  stow: "收起",
+  show: "顯示",
   /** Beside the counts: how many individuals of the 波次 are 收起. */
   stowedCount: (n: number) => `已收起 ${n} 隻`,
   showAllStowed: "全部顯示",
-  /** The spawn table's 收起 column: its boxes are checked while their rows' enemies show. */
-  stowColumn: "顯示",
   /** A spawn-table row's 收起 box, by the row's 序號 and enemy name. */
   showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
 } as const;

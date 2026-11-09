@@ -85,7 +85,8 @@
     <table>
       <thead>
         <tr>
-          <th aria-label={strings.stowColumn}></th>
+          <!-- The 收起 boxes: checked while their rows' enemies show. -->
+          <th aria-label={strings.show}></th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
           <th>{strings.spawnTableOrder}</th>
