@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   actionKey,
   buildTimeline,
+  endpointRows,
   matchesEndpoint,
   routeEndpoints,
   sameAction,
@@ -514,4 +515,95 @@ test.describe("on a phone", () => {
     await expect(timeDisplay(page)).toHaveText("0.0 秒");
     await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "true");
   });
+});
+
+/** The spawn table's header box: checked while every listed row's enemies show. */
+const headerBox = (page: Page) =>
+  spawnTableRegion(page).locator("thead").getByRole("checkbox", { name: "顯示列出的所有列" });
+
+test("ro4_b_5: with no 端點篩選 the header box stows and shows every 波次's rows", async ({
+  page,
+}) => {
+  const rows = spawnTable(siteLevel("ro4_b_5")).filter((r) => r.firstOrder !== null);
+  expect(new Set(rows.map((r) => r.waveIndex)).size, "several 波次").toBeGreaterThan(1);
+  const selected = rows.find((r) => r.waveIndex === 0)!;
+  const selection = page.locator("p.selection");
+
+  await page.goto("#/level/ro4_b_5?v=normal");
+  await orderCell(rowOf(page, selected)).click();
+  await expect(selection).toHaveAttribute("data-selected", `${actionKey(selected)}-0`);
+  await expect(headerBox(page)).toBeChecked();
+
+  await headerBox(page).click();
+
+  await expect(headerBox(page)).not.toBeChecked();
+  for (const r of rows) await expect(rowBox(page, r)).not.toBeChecked();
+  await expect(selection).toHaveCount(0);
+
+  // One row shown leaves it half-checked; clicking it then shows every row.
+  await rowBox(page, selected).click();
+  await expect(headerBox(page)).toBeChecked({ indeterminate: true });
+
+  await headerBox(page).click();
+
+  await expect(headerBox(page)).toBeChecked();
+  for (const r of rows) await expect(rowBox(page, r)).toBeChecked();
+  await expect(stowedHint(page)).toHaveCount(0);
+
+  // From the keyboard too.
+  await headerBox(page).focus();
+  await page.keyboard.press("Space");
+
+  await expect(headerBox(page)).not.toBeChecked();
+  for (const r of rows) await expect(rowBox(page, r)).not.toBeChecked();
+});
+
+test("15-12: under a 端點篩選 the header box stows only the rows from that 出生點", async ({
+  page,
+}) => {
+  const level = siteLevel("main_15-12");
+  const rows = spawnTable(level).filter((r) => r.firstOrder !== null);
+  const [spawn, listed] = routeEndpoints(buildTimeline(level))
+    .filter((e) => e.kind === "spawn")
+    .map((e) => [e, endpointRows(rows, 0, e)] as const)
+    .find(([, listed]) => listed.length > 0 && listed.length < rows.length)!;
+  const others = rows.filter((r) => !listed.includes(r));
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await endpointDot(page, spawn).click();
+  await expect(filterCaption(page)).toBeVisible();
+
+  await headerBox(page).click();
+
+  await expect(headerBox(page)).not.toBeChecked();
+  for (const r of listed) await expect(rowBox(page, r)).not.toBeChecked();
+
+  await filterCaption(page).getByRole("button").click();
+
+  await expect(headerBox(page)).toBeChecked({ indeterminate: true });
+  for (const r of listed) await expect(rowBox(page, r)).not.toBeChecked();
+  for (const r of others) await expect(rowBox(page, r)).toBeChecked();
+});
+
+test("1-7: everything stowed with the header box, then one row checked: only its enemies show", async ({
+  page,
+}) => {
+  const level = siteLevel("main_01-07");
+  const { t, individual, onField } = aloneOnField(
+    buildTimeline(level),
+    (i, onField) => withActionMate(i, onField) && onField.some((e) => !sameAction(e.individual, i)),
+  );
+  const row = spawnTable(level).find((r) => r.waveIndex === 0 && sameAction(r, individual))!;
+  const ofRow = onField.filter((e) => sameAction(e.individual, row));
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await seek(page, t);
+  await headerBox(page).click();
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+
+  await rowBox(page, row).click();
+
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(ofRow.length);
+  for (const e of ofRow) await expect(enemyOnMap(page, e.individual.id)).toHaveCount(1);
+  await expect(headerBox(page)).toBeChecked({ indeterminate: true });
 });

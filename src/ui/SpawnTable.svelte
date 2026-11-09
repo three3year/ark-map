@@ -57,6 +57,15 @@
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
 
+  /** The header box's rows: the listed ones that have a box. */
+  const boxed = $derived(shown.filter((r) => r.firstOrder !== null));
+  /** The header box's state over its rows; null when there are none. */
+  const listedStow = $derived.by((): RowStow | null => {
+    const states = new Set(boxed.map(rowStow));
+    if (states.size === 0) return null;
+    return states.size === 1 ? [...states][0]! : "mixed";
+  });
+
   const isSelected = (r: SpawnRow) =>
     selected !== null && r.waveIndex === wave && sameAction(r, selected);
 
@@ -86,7 +95,18 @@
       <thead>
         <tr>
           <!-- The 收起 boxes: checked while their rows' enemies show. -->
-          <th aria-label={strings.show}></th>
+          <th class="stow">
+            <label>
+              <input
+                type="checkbox"
+                checked={listedStow === "shown"}
+                indeterminate={listedStow === "mixed"}
+                disabled={listedStow === null}
+                aria-label={strings.showListedRows}
+                onchange={() => onStow(boxed, listedStow === "shown")}
+              />
+            </label>
+          </th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
           <th>{strings.spawnTableOrder}</th>
@@ -280,7 +300,7 @@
     background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
   /* The whole cell is the box's target. */
-  td.stow {
+  .stow {
     padding: 0;
   }
   .stow label {
