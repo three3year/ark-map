@@ -32,6 +32,7 @@
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
+  import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
@@ -49,7 +50,7 @@
     area: Area;
     stage: StageEntry;
     variant: Variant;
-    levelFile: string;
+    view: LevelView;
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
@@ -70,7 +71,7 @@
     area,
     stage,
     variant,
-    levelFile,
+    view,
     level,
     terrain,
     wave,
@@ -146,16 +147,12 @@
   }
 
   interface Stowed {
-    stageId: string;
-    variant: VariantId;
-    levelFile: string;
+    view: LevelView;
     waves: ReadonlyMap<number, ReadonlySet<string>>;
   }
   let stowed = $state.raw<Stowed | null>(null);
   const stowedWaves = $derived(
-    stowed?.stageId === stage.id && stowed.variant === variant.id && stowed.levelFile === levelFile
-      ? stowed.waves
-      : new Map<number, ReadonlySet<string>>(),
+    stowed && sameView(stowed.view, view) ? stowed.waves : new Map<number, ReadonlySet<string>>(),
   );
   $effect(() => {
     if (stowed && stowedWaves !== stowed.waves) stowed = null;
@@ -170,7 +167,7 @@
 
   function writeStowed(wave: number, ids: Iterable<string>) {
     const waves = new Map([...stowedWaves, [wave, new Set(ids)]]);
-    stowed = { stageId: stage.id, variant: variant.id, levelFile, waves };
+    stowed = { view, waves };
   }
   function stowAndDeselect(wave: number, ids: Iterable<string>) {
     const stowing = new Set(ids);
@@ -212,23 +209,14 @@
   }
 
   interface EndpointFilter {
-    levelId: string;
-    variant: VariantId;
-    levelFile: string;
+    view: LevelView;
     wave: number;
     endpoint: EndpointPlace;
   }
   let endpointFilter = $state<EndpointFilter | null>(null);
   const filtered = $derived.by(() => {
     const f = endpointFilter;
-    if (
-      f?.levelId !== level.levelId ||
-      f.variant !== variant.id ||
-      f.levelFile !== levelFile ||
-      f.wave !== waveIndex
-    ) {
-      return null;
-    }
+    if (!f || !sameView(f.view, view) || f.wave !== waveIndex) return null;
     const key = endpointKey(f.endpoint);
     return endpoints.find((e) => endpointKey(e) === key) ?? null;
   });
@@ -260,13 +248,7 @@
       endpointFilter = null;
       return;
     }
-    endpointFilter = {
-      levelId: level.levelId,
-      variant: variant.id,
-      levelFile,
-      wave: waveIndex,
-      endpoint,
-    };
+    endpointFilter = { view, wave: waveIndex, endpoint };
     if (drawerMode.current) setDrawerOpen(true);
   }
 
@@ -296,8 +278,8 @@
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
     <h2>{stage.code} {stage.name}</h2>
-    {#if variant.id === "emergency" && stage.emergencyCondition}
-      <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
     {/if}
     {#if stage.variants.length > 1}
       <div class="variants segmented" role="group" aria-label={strings.variantPicker}>

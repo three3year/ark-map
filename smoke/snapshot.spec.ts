@@ -339,6 +339,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
       waves: level.waves.length,
       onField: (waveIndex: number, t: number) =>
         takeSnapshot(timelines[waveIndex]!, t).counts.onField,
+      end: (waveIndex: number) => timelineEnd(timelines[waveIndex]!),
     };
   };
   const original = view(stage.variants[0]!.levelFile);
@@ -346,6 +347,11 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   expect(original.waves, "原版 has 2 波次").toBe(2);
   expect(expansion.waves, "內容拓展 1 has 3 波次").toBe(3);
   const t = 30;
+  expect(expansion.end(2), "內容拓展 1's 第 3 波 spawns nothing: its slider ends at 0 s").toBe(0);
+  expect(
+    original.end(0),
+    `原版's 第 1 波 lasts past ${t} s, so the seconds move there`,
+  ).toBeGreaterThan(t);
   for (const s of [0, t]) {
     expect(original.onField(0, s), `the two 波次 differ at ${s} s`).not.toBe(
       expansion.onField(2, s),

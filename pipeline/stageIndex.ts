@@ -49,10 +49,18 @@ export function levelFacts(raw: RawLevel): LevelFacts {
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 
+export type SkipReason = "missingFile" | "unlinkedEmergency" | "unnumberedExpansion";
+
+export const skipReasonMessage: Record<SkipReason, string> = {
+  missingFile: "上游沒有關卡檔",
+  unlinkedEmergency: "緊急作戰連結不到節點",
+  unnumberedExpansion: "內容拓展檔名解析不出拓展編號",
+};
+
 export interface SkippedStage {
   stageId: string;
   levelPath: string;
-  reason?: "unlinkedEmergency" | "unnumberedExpansion";
+  reason: SkipReason;
 }
 
 /** Raw paths are case-sensitive and lowercase upstream: "obt/main/level_main_01-07". */
@@ -234,7 +242,9 @@ export function buildStageIndex(
     const path = id === "easy" ? basePath : levelPath(stage.levelId!);
     const fileFacts = facts.get(path);
     if (!fileFacts) {
-      if (id !== "easy") skipped.push({ stageId: stage.stageId, levelPath: path });
+      if (id !== "easy") {
+        skipped.push({ stageId: stage.stageId, levelPath: path, reason: "missingFile" });
+      }
       return null;
     }
     if (id === "easy" && !fileFacts.difficulties.includes("EASY")) return null;
@@ -343,9 +353,9 @@ interface SortedArea {
 }
 
 /** Normal nodes are `roN_n_<zone>_<i>...`; other stages (bosses, events, ...) have no zone. */
-function roguelikeZone(stageId: string): string | null {
+function roguelikeZone(stageId: string): number | null {
   const zone = /^ro\d+_n_(\d+)_\d+/.exec(stageId)?.[1];
-  return zone ? `zone_${zone}` : null;
+  return zone ? Number(zone) : null;
 }
 
 function expansionNumber(path: string): number | null {
@@ -381,16 +391,17 @@ function roguelikeAreas(
       }
     }
 
-    const sections = new Map<string, Section>();
-    const sectionFor = (zone: string | null): Section => {
-      const key = zone ?? "~";
-      let section = sections.get(key);
+    const sections = new Map<number | null, Section>();
+    const sectionFor = (zone: number | null): Section => {
+      let section = sections.get(zone);
       if (!section) {
-        const name = zone
-          ? (twDetail?.zones[zone]?.name ?? detail.zones[zone]?.name ?? zone)
-          : null;
+        const zoneId = `zone_${zone}`;
+        const name =
+          zone === null
+            ? null
+            : (twDetail?.zones[zoneId]?.name ?? detail.zones[zoneId]?.name ?? zoneId);
         section = { name, stages: [] };
-        sections.set(key, section);
+        sections.set(zone, section);
       }
       return section;
     };
@@ -402,7 +413,7 @@ function roguelikeAreas(
       );
       if (!facts.has(basePath!)) {
         for (const s of [stage, ...(emergency ? [emergency] : [])]) {
-          skipped.push({ stageId: s.id, levelPath: basePath! });
+          skipped.push({ stageId: s.id, levelPath: basePath!, reason: "missingFile" });
         }
         continue;
       }
@@ -413,7 +424,13 @@ function roguelikeAreas(
         difficulty: roguelikeDifficulty(source),
       });
       const variants = [variant("normal", stage, basePath!)];
-      if (emergency) variants.push(variant("emergency", emergency, basePath!));
+      if (emergency) {
+        const condition = twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc;
+        variants.push({
+          ...variant("emergency", emergency, basePath!),
+          ...(condition ? { emergencyCondition: condition } : {}),
+        });
+      }
       const expansions = expansionPaths.flatMap((path): Expansion[] => {
         const number = expansionNumber(path);
         if (number === null) {
@@ -421,28 +438,28 @@ function roguelikeAreas(
           return [];
         }
         if (!facts.has(path)) {
-          skipped.push({ stageId: stage.id, levelPath: path });
+          skipped.push({ stageId: stage.id, levelPath: path, reason: "missingFile" });
           return [];
         }
         return [{ number, levelFile: siteLevelFile(path) }];
       });
       expansions.sort((a, b) => a.number - b.number);
       const twStage = twDetail?.stages[stage.id];
-      const condition =
-        emergency && (twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc);
       const entry: StageEntry = {
         id: stage.id,
         code: twStage?.code ?? stage.code,
         name: twStage?.name ?? stage.name,
         variants,
-        ...(condition ? { emergencyCondition: condition } : {}),
         ...(expansions.length > 0 ? { expansions } : {}),
       };
       sectionFor(roguelikeZone(stage.id)).stages.push(entry);
     }
     if (sections.size === 0) return [];
 
-    const ordered = [...sections.keys()].sort().map((key) => sections.get(key)!);
+    const zonelessLast = (zone: number | null) => zone ?? Number.POSITIVE_INFINITY;
+    const ordered = [...sections.keys()]
+      .sort((a, b) => zonelessLast(a) - zonelessLast(b))
+      .map((zone) => sections.get(zone)!);
     return [
       {
         sortKey: topic.sort,
