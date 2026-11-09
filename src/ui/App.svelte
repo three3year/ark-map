@@ -1,7 +1,10 @@
 <script lang="ts">
   import {
+    shownExpansion,
+    themeExpansions,
     withNames,
     type Area,
+    type ExpansionChoice,
     type Level,
     type LevelFile,
     type NameTable,
@@ -11,7 +14,10 @@
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
   import AreaList from "./AreaList.svelte";
+  import ExpansionSwitch from "./ExpansionSwitch.svelte";
+  import { legacyRedirect } from "./legacyRedirect.ts";
   import LevelPage from "./LevelPage.svelte";
+  import { levelView, sameView } from "./levelView.ts";
   import { ceilTenth, roundTenth } from "./playback.ts";
   import { formatHash, parseHash, type LevelRoute, type Route } from "./route.ts";
   import StageList from "./StageList.svelte";
@@ -20,22 +26,20 @@
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
 
-  /**
-   * The level page's 播放位置 and 開關狀態; the URL only picks the stage and variant. They live
-   * here rather than in the level page, which only exists once the variant's level file has
-   * loaded, so a variant switch that loads another file keeps the 播放位置.
-   */
   let position = $state({ wave: 0, t: 0 });
   /** Only what differs from the variant's default. */
   let switches = $state.raw<SpawnSwitches>({});
 
-  /** The id of the variant a level route shows: no `v` is the stage's base variant. */
-  const variantId = (r: LevelRoute) => r.variant ?? stages[r.stageId]?.stage.variants[0]?.id;
+  /** The variant a level route shows: no `v` is the stage's base variant. */
+  const variantOf = (stage: StageEntry, r: LevelRoute) =>
+    stage.variants.find((v) => v.id === (r.variant ?? stage.variants[0]!.id));
 
-  /**
-   * Follow a new hash. Entering a level page, or moving to another stage, starts at wave 1, 0 s
-   * with the variant's default switches; moving to another variant resets only the switches.
-   */
+  function routeView(r: LevelRoute) {
+    const stage = stages[r.stageId]?.stage;
+    const variant = stage && variantOf(stage, r);
+    return stage && variant ? levelView(stage, variant, r.expansion) : undefined;
+  }
+
   function followHash(next: string) {
     const to = parseHash(next);
     if (to.page === "level") {
@@ -43,7 +47,7 @@
       if (!from || from.stageId !== to.stageId) {
         position = { wave: 0, t: 0 };
         switches = {};
-      } else if (variantId(from) !== variantId(to)) {
+      } else if (!sameView(routeView(from), routeView(to))) {
         switches = {};
       }
     }
@@ -83,15 +87,55 @@
     ),
   );
 
+  $effect(() => {
+    if (route.page !== "level") return;
+    const redirect = legacyRedirect(
+      route,
+      Object.values(stages).map((s) => s.stage),
+    );
+    if (redirect) navigate(redirect);
+  });
+
   const area = $derived(
     route.page === "area" ? index?.areas.find((a) => a.id === route.areaId) : undefined,
   );
   const found = $derived(route.page === "level" ? stages[route.stageId] : undefined);
   const variant = $derived(
-    route.page === "level"
-      ? found?.stage.variants.find((v) => v.id === variantId(route))
-      : undefined,
+    route.page === "level" && found ? variantOf(found.stage, route) : undefined,
   );
+  const view = $derived(route.page === "level" ? routeView(route) : undefined);
+
+  /** The 拓展編號 of the theme on screen; empty outside a theme with 內容拓展. */
+  const themeNumbers = $derived.by(() => {
+    const theme = route.page === "area" ? area : found?.area;
+    return theme ? themeExpansions(theme) : [];
+  });
+  const inExpansionTheme = $derived(themeNumbers.length > 0);
+
+  let expansionChoice = $state<ExpansionChoice>(null);
+
+  $effect(() => {
+    if (route.page === "level" && inExpansionTheme) expansionChoice = route.expansion;
+  });
+
+  const expansionSwitch = $derived.by(() => {
+    if (!inExpansionTheme) return null;
+    if (route.page === "area") {
+      return {
+        numbers: themeNumbers,
+        shown: shownExpansion(themeNumbers, expansionChoice),
+        onSelect: (expansion: ExpansionChoice) => (expansionChoice = expansion),
+      };
+    }
+    if (route.page !== "level" || !found) return null;
+    const levelRoute = route;
+    const numbers = (found.stage.expansions ?? []).map((x) => x.number);
+    return {
+      numbers,
+      shown: shownExpansion(numbers, route.expansion),
+      onSelect: (expansion: ExpansionChoice) => navigate({ ...levelRoute, expansion }),
+    };
+  });
 
   /** The last level JSON fetched, with the file it came from and the 地形表. */
   let loaded = $state<{
@@ -103,30 +147,34 @@
   /** The 名稱表, fetched with the first level. */
   let names: Promise<NameTable> | null = null;
   $effect(() => {
-    const file = variant?.levelFile;
+    const file = view?.shownFile;
     if (!file || file === requested) return;
     requested = file;
     names ??= fetchJson<NameTable>("data/names.json");
     Promise.all([fetchJson<LevelFile>(file), names]).then(
-      ([levelFile, nameTable]) => {
+      ([json, nameTable]) => {
         if (requested === file) {
-          loaded = { file, level: withNames(levelFile, nameTable), terrain: nameTable.terrain };
+          loaded = { file, level: withNames(json, nameTable), terrain: nameTable.terrain };
         }
       },
       (e: unknown) => (error = String(e)),
     );
   });
 
-  /** What the level page shows, once the variant's level file has loaded. */
   const levelPage = $derived(
-    route.page === "level" && !error && found && variant && loaded?.file === variant.levelFile
-      ? { route, ...found, variant, level: loaded.level, terrain: loaded.terrain }
+    route.page === "level" && !error && found && variant && view && loaded?.file === view.shownFile
+      ? { route, ...found, variant, view, level: loaded.level, terrain: loaded.terrain }
       : null,
   );
 </script>
 
 {#snippet siteTitle()}
-  <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
+  <div class="title-row">
+    <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
+    {#if expansionSwitch}
+      <ExpansionSwitch {...expansionSwitch} />
+    {/if}
+  </div>
 {/snippet}
 
 <main class:level={route.page === "level"}>
@@ -136,6 +184,7 @@
       area={levelPage.area}
       stage={levelPage.stage}
       variant={levelPage.variant}
+      view={levelPage.view}
       level={levelPage.level}
       terrain={levelPage.terrain}
       wave={position.wave}
@@ -159,7 +208,7 @@
       <AreaList {index} />
     {:else if route.page === "area"}
       {#if area}
-        <StageList {area} />
+        <StageList {area} expansion={inExpansionTheme ? expansionChoice : null} />
       {:else}
         <p>{strings.areaNotFound(route.areaId)}</p>
       {/if}
@@ -186,15 +235,18 @@
   main.level {
     max-width: none;
   }
-  /*
-   * The page's top padding is the title's own: on the level page, the spawn table's column beside
-   * the title then starts at the page's top edge.
-   */
+  .title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin: 0 0 8px;
+    padding-top: 12px;
+  }
   h1 {
     font-size: 1.1rem;
     font-weight: 600;
-    margin: 0 0 8px;
-    padding-top: 12px;
+    margin: 0;
   }
   h1 a {
     color: var(--muted);

@@ -23,6 +23,7 @@ import {
   indexedLevelPaths,
   levelFacts,
   roguelikeLevelPaths,
+  skipReasonMessage,
   type GameTables,
   type LevelFacts,
 } from "./stageIndex.ts";
@@ -189,8 +190,10 @@ log(
 
 const outcome = pipelineOutcome(skipped, failures);
 if (outcome.missing.length > 0) {
-  log(`略過 ${outcome.missing.length} 個關卡(上游沒有關卡檔):`);
-  for (const s of outcome.missing) console.log(`  ${s.stageId} -> levels/${s.levelPath}.json`);
+  log(`略過 ${outcome.missing.length} 個關卡:`);
+  for (const s of outcome.missing) {
+    console.log(`  ${s.stageId} -> levels/${s.levelPath}.json(${skipReasonMessage[s.reason]})`);
+  }
 }
 
 const keyCounts = [...modifierKeys].sort((a, b) => b[1] - a[1]);

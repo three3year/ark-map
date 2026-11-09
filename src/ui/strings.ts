@@ -1,5 +1,5 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, NamedVariantId, VariantId } from "../level/index.ts";
+import type { AreaKind, KnownModifierKey, VariantId } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
@@ -27,11 +27,12 @@ export const strings = {
     easy: "簡單",
     tough: "磨難",
     emergency: "緊急作戰",
-  } satisfies Record<NamedVariantId, string>,
-  replacement: (n: number) => `替換地圖 ${n}`,
+  } satisfies Record<VariantId, string>,
+  expansionPicker: "內容拓展",
+  original: "原版",
+  expansion: (n: number) => `內容拓展 ${n}`,
   /** Heading of a 集成戰略 section of stages outside the numbered zones. */
   otherStages: "其他關卡",
-  emergencySection: (zone: string) => `${zone}・緊急作戰`,
   variantPicker: "關卡變體",
   seconds: "秒",
   play: "播放",
@@ -234,6 +235,5 @@ export function endpointName({ kind, cell }: EndpointPlace): string {
 }
 
 export function variantLabel(id: VariantId): string {
-  const replace = /^replace(\d+)$/.exec(id);
-  return replace ? strings.replacement(Number(replace[1])) : strings.variants[id as NamedVariantId];
+  return strings.variants[id];
 }

@@ -3,6 +3,7 @@ import type {
   Area,
   AreaKind,
   Difficulty,
+  Expansion,
   Section,
   StageEntry,
   StageIndex,
@@ -15,6 +16,7 @@ import type {
   RawActivityTable,
   RawCampaignTable,
   RawLevel,
+  RawRoguelikeStage,
   RawRoguelikeTopicTable,
   RawStage,
   RawStageTable,
@@ -47,10 +49,18 @@ export function levelFacts(raw: RawLevel): LevelFacts {
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 
-/** A stage left out of the index because its level file is missing upstream. */
+export type SkipReason = "missingFile" | "unlinkedEmergency" | "unnumberedExpansion";
+
+export const skipReasonMessage: Record<SkipReason, string> = {
+  missingFile: "上游沒有關卡檔",
+  unlinkedEmergency: "緊急作戰連結不到節點",
+  unnumberedExpansion: "內容拓展檔名解析不出拓展編號",
+};
+
 export interface SkippedStage {
   stageId: string;
   levelPath: string;
+  reason: SkipReason;
 }
 
 /** Raw paths are case-sensitive and lowercase upstream: "obt/main/level_main_01-07". */
@@ -137,7 +147,6 @@ export function indexedLevelPaths(tables: StageIndexTables): string[] {
   return [...new Set([...paths, ...roguelikeLevelPaths(tables.cn.roguelike)])];
 }
 
-/** 集成戰略 level files: every stage's own file and its 替換地圖 files. */
 export function roguelikeLevelPaths(table: RawRoguelikeTopicTable): string[] {
   const paths = Object.values(table.details).flatMap((topic) =>
     Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds].map(levelPath)),
@@ -233,7 +242,9 @@ export function buildStageIndex(
     const path = id === "easy" ? basePath : levelPath(stage.levelId!);
     const fileFacts = facts.get(path);
     if (!fileFacts) {
-      if (id !== "easy") skipped.push({ stageId: stage.stageId, levelPath: path });
+      if (id !== "easy") {
+        skipped.push({ stageId: stage.stageId, levelPath: path, reason: "missingFile" });
+      }
       return null;
     }
     if (id === "easy" && !fileFacts.difficulties.includes("EASY")) return null;
@@ -342,16 +353,20 @@ interface SortedArea {
 }
 
 /** Normal nodes are `roN_n_<zone>_<i>...`; other stages (bosses, events, ...) have no zone. */
-function roguelikeZone(stageId: string): string | null {
+function roguelikeZone(stageId: string): number | null {
   const zone = /^ro\d+_n_(\d+)_\d+/.exec(stageId)?.[1];
-  return zone ? `zone_${zone}` : null;
+  return zone ? Number(zone) : null;
 }
 
-/**
- * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its normal nodes,
- * then its emergency operations (which share the linked node's file and zone); stages with no
- * zone come last. A node's 替換地圖 are further variants of it, each on its own file.
- */
+function expansionNumber(path: string): number | null {
+  const n = /_(?:r|dlc)([1-9]\d*)$/.exec(path)?.[1];
+  return n ? Number(n) : null;
+}
+
+function roguelikeDifficulty(stage: RawRoguelikeStage): Difficulty {
+  return stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
+}
+
 function roguelikeAreas(
   { cn, tw }: StageIndexTables,
   facts: Map<string, LevelFacts>,
@@ -360,49 +375,91 @@ function roguelikeAreas(
   return Object.values(cn.roguelike.topics).flatMap((topic) => {
     const detail = cn.roguelike.details[topic.id]!;
     const twDetail = tw.roguelike.details[topic.id];
-    const sections = new Map<string, Section>();
-    // Keys sort into display order: zone_1|false, zone_1|true, ..., then "~" (no zone).
-    const sectionFor = (zone: string | null, emergency: boolean): Section => {
-      const key = `${zone ?? "~"}|${emergency}`;
-      let section = sections.get(key);
+    const isNode = (stage: RawRoguelikeStage | undefined) => stage?.linkedStageId === "";
+
+    const emergencies = new Map<string, RawRoguelikeStage>();
+    for (const stage of Object.values(detail.stages)) {
+      if (isNode(stage)) continue;
+      if (isNode(detail.stages[stage.linkedStageId])) {
+        emergencies.set(stage.linkedStageId, stage);
+      } else {
+        skipped.push({
+          stageId: stage.id,
+          levelPath: levelPath(stage.levelId),
+          reason: "unlinkedEmergency",
+        });
+      }
+    }
+
+    const sections = new Map<number | null, Section>();
+    const sectionFor = (zone: number | null): Section => {
+      let section = sections.get(zone);
       if (!section) {
-        const name = zone
-          ? (twDetail?.zones[zone]?.name ?? detail.zones[zone]?.name ?? zone)
-          : null;
-        section = { name, ...(emergency && { emergency }), stages: [] };
-        sections.set(key, section);
+        const zoneId = `zone_${zone}`;
+        const name =
+          zone === null
+            ? null
+            : (twDetail?.zones[zoneId]?.name ?? detail.zones[zoneId]?.name ?? zoneId);
+        section = { name, stages: [] };
+        sections.set(zone, section);
       }
       return section;
     };
 
-    for (const stage of Object.values(detail.stages)) {
-      const emergency = stage.linkedStageId !== "";
-      const difficulty: Difficulty = stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
-      const files = [stage.levelId, ...stage.levelReplaceIds].map(levelPath);
-      const variants = files.flatMap((path, i): Variant[] => {
-        if (!facts.has(path)) {
-          skipped.push({ stageId: stage.id, levelPath: path });
+    for (const stage of Object.values(detail.stages).filter(isNode)) {
+      const emergency = emergencies.get(stage.id);
+      const [basePath, ...expansionPaths] = [stage.levelId, ...stage.levelReplaceIds].map(
+        levelPath,
+      );
+      if (!facts.has(basePath!)) {
+        for (const s of [stage, ...(emergency ? [emergency] : [])]) {
+          skipped.push({ stageId: s.id, levelPath: basePath!, reason: "missingFile" });
+        }
+        continue;
+      }
+      const variant = (id: VariantId, source: RawRoguelikeStage, path: string): Variant => ({
+        id,
+        sourceStageId: source.id,
+        levelFile: siteLevelFile(path),
+        difficulty: roguelikeDifficulty(source),
+      });
+      const variants = [variant("normal", stage, basePath!)];
+      if (emergency) {
+        const condition = twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc;
+        variants.push({
+          ...variant("emergency", emergency, basePath!),
+          ...(condition ? { emergencyCondition: condition } : {}),
+        });
+      }
+      const expansions = expansionPaths.flatMap((path): Expansion[] => {
+        const number = expansionNumber(path);
+        if (number === null) {
+          skipped.push({ stageId: stage.id, levelPath: path, reason: "unnumberedExpansion" });
           return [];
         }
-        const id: VariantId = i > 0 ? `replace${i}` : emergency ? "emergency" : "normal";
-        return [{ id, sourceStageId: stage.id, levelFile: siteLevelFile(path), difficulty }];
+        if (!facts.has(path)) {
+          skipped.push({ stageId: stage.id, levelPath: path, reason: "missingFile" });
+          return [];
+        }
+        return [{ number, levelFile: siteLevelFile(path) }];
       });
-      if (!facts.has(files[0]!)) continue;
+      expansions.sort((a, b) => a.number - b.number);
       const twStage = twDetail?.stages[stage.id];
-      const condition = twStage?.eliteDesc ?? stage.eliteDesc;
       const entry: StageEntry = {
         id: stage.id,
         code: twStage?.code ?? stage.code,
         name: twStage?.name ?? stage.name,
         variants,
-        ...(emergency && condition ? { emergencyCondition: condition } : {}),
+        ...(expansions.length > 0 ? { expansions } : {}),
       };
-      const zone = roguelikeZone(emergency ? stage.linkedStageId : stage.id);
-      sectionFor(zone, emergency).stages.push(entry);
+      sectionFor(roguelikeZone(stage.id)).stages.push(entry);
     }
     if (sections.size === 0) return [];
 
-    const ordered = [...sections.keys()].sort().map((key) => sections.get(key)!);
+    const zonelessLast = (zone: number | null) => zone ?? Number.POSITIVE_INFINITY;
+    const ordered = [...sections.keys()]
+      .sort((a, b) => zonelessLast(a) - zonelessLast(b))
+      .map((zone) => sections.get(zone)!);
     return [
       {
         sortKey: topic.sort,

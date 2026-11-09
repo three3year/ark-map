@@ -8,7 +8,6 @@ export interface ConversionFailure {
 }
 
 export interface PipelineOutcome {
-  /** Stages left out because upstream has no level file: listed, not an error. */
   missing: SkippedStage[];
   failures: ConversionFailure[];
   /** 1 when any level file failed to convert, so the CI step fails; else 0. */

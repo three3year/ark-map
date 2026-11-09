@@ -1,17 +1,17 @@
 <script lang="ts">
-  import type { Area, Section } from "../level/index.ts";
+  import type { Area, ExpansionChoice, Section } from "../level/index.ts";
   import { formatHash } from "./route.ts";
   import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
     area: Area;
+    expansion: ExpansionChoice;
   }
-  let { area }: Props = $props();
+  let { area, expansion }: Props = $props();
 
   /** Unnamed sections only get a heading when the area has others to tell them from. */
   function heading(section: Section): string | null {
-    const name = section.name ?? (area.sections.length > 1 ? strings.otherStages : null);
-    return name && section.emergency ? strings.emergencySection(name) : name;
+    return section.name ?? (area.sections.length > 1 ? strings.otherStages : null);
   }
 </script>
 
@@ -26,16 +26,16 @@
     {#each section.stages as stage (stage.id)}
       <li>
         <a
-          href={formatHash({ page: "level", stageId: stage.id, variant: stage.variants[0]!.id })}
+          href={formatHash({
+            page: "level",
+            stageId: stage.id,
+            variant: stage.variants[0]!.id,
+            expansion,
+          })}
           data-stage={stage.id}
         >
           <span class="code">{stage.code}</span>
-          <span class="name">
-            {stage.name}
-            {#if stage.emergencyCondition}
-              <span class="condition">{stage.emergencyCondition}</span>
-            {/if}
-          </span>
+          <span class="name">{stage.name}</span>
           {#if stage.variants.length > 1}
             <span class="variants">
               {stage.variants
@@ -94,11 +94,6 @@
   }
   .name {
     flex: 1;
-  }
-  .condition {
-    display: block;
-    color: var(--muted);
-    font-size: 0.8rem;
   }
   .variants {
     color: var(--muted);

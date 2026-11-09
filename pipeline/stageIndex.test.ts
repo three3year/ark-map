@@ -15,6 +15,12 @@ function build(facts = allFilesPresent()): StageIndex {
   return buildStageIndex(tables, facts).index;
 }
 
+function allStages(index: StageIndex): StageEntry[] {
+  return index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages));
+}
+
+const stageIds = (index: StageIndex) => allStages(index).map((s) => s.id);
+
 function stageByCode(index: StageIndex, areaId: string, code: string): StageEntry {
   const area = index.areas.find((a) => a.id === areaId);
   const stage = area?.sections.flatMap((s) => s.stages).find((s) => s.code === code);
@@ -45,7 +51,7 @@ describe("stage index", () => {
   });
 
   it("lists each stage once: no story stages, no easy_ entries, no #f# entries", () => {
-    const ids = build().areas.flatMap((a) => a.sections.flatMap((s) => s.stages.map((x) => x.id)));
+    const ids = stageIds(build());
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).not.toContain("st_06-03"); // 6-18, story only
     expect(ids.filter((id) => /^(st|easy|tough)_|#/.test(id))).toEqual([]);
@@ -145,11 +151,12 @@ describe("stage index", () => {
     const facts = allFilesPresent();
     facts.delete("activities/act4d0/level_act4d0_02");
     const { index, skipped } = buildStageIndex(tables, facts);
-    const ids = index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages.map((x) => x.id)));
+    const ids = stageIds(index);
     expect(ids).not.toContain("act4d0_02");
     expect(skipped).toContainEqual({
       stageId: "act4d0_02",
       levelPath: "activities/act4d0/level_act4d0_02",
+      reason: "missingFile",
     });
   });
 
@@ -171,99 +178,151 @@ describe("stage index", () => {
 
 describe("stage index: 集成戰略", () => {
   function stageById(index: StageIndex, id: string): StageEntry {
-    const stage = index.areas
-      .flatMap((a) => a.sections.flatMap((s) => s.stages))
-      .find((s) => s.id === id);
+    const stage = allStages(index).find((s) => s.id === id);
     if (!stage) throw new Error(`no ${id}`);
     return stage;
   }
 
-  it("ro1_n_1_1 points at level_rogue1_1-1", () => {
-    const stage = stageById(build(), "ro1_n_1_1");
-    expect([stage.code, stage.name]).toEqual(["ISW-NO", "與蟲為伴"]);
-    expect(stage.variants).toEqual([
+  it("ro1_e_1_1 is ro1_n_1_1's emergency variant: the node's file at FOUR_STAR", () => {
+    const node = stageById(build(), "ro1_n_1_1");
+    expect([node.code, node.name]).toEqual(["ISW-NO", "與蟲為伴"]);
+    expect(node.variants).toEqual([
       {
         id: "normal",
         sourceStageId: "ro1_n_1_1",
         levelFile: "data/levels/obt/roguelike/ro1/level_rogue1_1-1.json",
         difficulty: "NORMAL",
       },
-    ]);
-  });
-
-  it("ro1_e_1_1 is listed apart from ro1_n_1_1 but shares its level JSON, at FOUR_STAR", () => {
-    const index = build();
-    const normal = stageById(index, "ro1_n_1_1");
-    const emergency = stageById(index, "ro1_e_1_1");
-    expect(emergency.variants).toEqual([
       {
         id: "emergency",
         sourceStageId: "ro1_e_1_1",
-        levelFile: normal.variants[0]!.levelFile,
+        levelFile: "data/levels/obt/roguelike/ro1/level_rogue1_1-1.json",
         difficulty: "FOUR_STAR",
+        emergencyCondition: "附加條件：敵人的攻擊力、防禦力和生命值大幅度提升",
       },
     ]);
-    expect(emergency.emergencyCondition).toBe("附加條件：敵人的攻擊力、防禦力和生命值大幅度提升");
-    expect(normal.emergencyCondition).toBeUndefined();
   });
 
-  it("lists each zone's normal nodes, then its emergency operations; zoneless stages last", () => {
-    const area = build().areas.find((a) => a.id === "rogue_1")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
+  it("ro4_e_t_2 is ro4_t_2's emergency variant, its condition on that variant", () => {
+    const node = stageById(build(), "ro4_t_2");
+    expect([node.code, node.name]).toEqual(["ISW-SP", "訊號燈"]);
+    expect(node.variants.slice(0, 2)).toEqual([
+      {
+        id: "normal",
+        sourceStageId: "ro4_t_2",
+        levelFile: "data/levels/obt/roguelike/ro4/level_rogue4_t-2.json",
+        difficulty: "NORMAL",
+      },
+      {
+        id: "emergency",
+        sourceStageId: "ro4_e_t_2",
+        levelFile: "data/levels/obt/roguelike/ro4/level_rogue4_t-2.json",
+        difficulty: "FOUR_STAR",
+        emergencyCondition:
+          "敵人的攻擊力、防禦力和生命值提升，出現額外敵人，道路障礙物的生命值大幅提升",
+      },
+    ]);
+  });
+
+  it("ro6_e_3_1_dlc1 is theme 6's _dlc1 node ro6_n_3_1_dlc1's emergency variant", () => {
+    const node = stageById(build(), "ro6_n_3_1_dlc1");
+    expect(node.variants).toEqual([
+      {
+        id: "normal",
+        sourceStageId: "ro6_n_3_1_dlc1",
+        levelFile: "data/levels/obt/roguelike/ro6/dlc1/level_rogue6_3-1_dlc1.json",
+        difficulty: "NORMAL",
+      },
+      {
+        id: "emergency",
+        sourceStageId: "ro6_e_3_1_dlc1",
+        levelFile: "data/levels/obt/roguelike/ro6/dlc1/level_rogue6_3-1_dlc1.json",
+        difficulty: "FOUR_STAR",
+        emergencyCondition: "敌人的攻击力、防御力和生命值提升，部分敌人有所不同",
+      },
+    ]);
+  });
+
+  it("merges an emergency operation listed before its node in the table", () => {
+    const reordered = rawTables();
+    const detail = reordered.cn.roguelike.details["rogue_1"]!;
+    const { ro1_e_1_1, ...rest } = detail.stages;
+    detail.stages = { ro1_e_1_1: ro1_e_1_1!, ...rest };
+    const index = buildStageIndex(reordered, allFilesPresent()).index;
+    expect(stageById(index, "ro1_n_1_1").variants.map((v) => [v.id, v.sourceStageId])).toEqual([
+      ["normal", "ro1_n_1_1"],
+      ["emergency", "ro1_e_1_1"],
+    ]);
+  });
+
+  it("skips and reports an emergency operation that links to no node", () => {
+    const unlinked = rawTables();
+    unlinked.cn.roguelike.details["rogue_1"]!.stages["ro1_e_1_1"]!.linkedStageId = "ro1_n_9_9";
+    const { index, skipped } = buildStageIndex(unlinked, allFilesPresent());
+    const ids = stageIds(index);
+    expect(ids).not.toContain("ro1_e_1_1");
+    expect(stageById(index, "ro1_n_1_1").variants.map((v) => v.id)).toEqual(["normal"]);
+    expect(skipped).toContainEqual({
+      stageId: "ro1_e_1_1",
+      levelPath: "obt/roguelike/ro1/level_rogue1_1-1",
+      reason: "unlinkedEmergency",
+    });
+  });
+
+  it("lists each zone's nodes, zoneless stages last; no emergency sections", () => {
+    const sections = (areaId: string) =>
+      build()
+        .areas.find((a) => a.id === areaId)!
+        .sections.map((s) => [s.name, "emergency" in s, s.stages.map((x) => x.id)]);
+    expect(sections("rogue_1")).toEqual([
       ["迷霧歧途", false, ["ro1_n_1_1"]],
-      ["迷霧歧途", true, ["ro1_e_1_1"]],
       ["落陽庭院", false, ["ro1_n_2_1"]],
       [null, false, ["ro1_b_1"]],
     ]);
-  });
-
-  it("files an emergency operation under its linked stage's zone (none for ro4_t_2)", () => {
-    const area = build().areas.find((a) => a.id === "rogue_4")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
+    expect(sections("rogue_4")).toEqual([
       ["熔魂之始", false, ["ro4_n_1_1"]],
-      ["熔魂之始", true, ["ro4_e_1_1"]],
       [null, false, ["ro4_t_2"]],
-      [null, true, ["ro4_e_t_2"]],
     ]);
   });
 
-  it("lists each 替換地圖 of a theme-4 node as a variant on its own file", () => {
+  it("orders zones by number: zone 10 after zone 2, zoneless stages still last", () => {
+    const tenZones = rawTables();
+    const detail = tenZones.cn.roguelike.details["rogue_1"]!;
+    detail.stages["ro1_n_10_1"] = { ...detail.stages["ro1_n_2_1"]!, id: "ro1_n_10_1" };
+    detail.zones["zone_10"] = { id: "zone_10", name: "第十層" };
+    const area = buildStageIndex(tenZones, allFilesPresent()).index.areas.find(
+      (a) => a.id === "rogue_1",
+    )!;
+    expect(area.sections.map((s) => [s.name, s.stages.map((x) => x.id)])).toEqual([
+      ["迷霧歧途", ["ro1_n_1_1"]],
+      ["落陽庭院", ["ro1_n_2_1"]],
+      ["第十層", ["ro1_n_10_1"]],
+      [null, ["ro1_b_1"]],
+    ]);
+  });
+
+  it("numbers a theme-4 node's 內容拓展 by their _rN files; its 緊急作戰 is no 內容拓展", () => {
     const index = build();
-    const rows = (id: string) =>
-      stageById(index, id).variants.map((v) => [v.id, v.difficulty, v.levelFile]);
-    expect(rows("ro4_n_1_1")).toEqual([
+    const node = stageById(index, "ro4_n_1_1");
+    expect(node.variants.map((v) => [v.id, v.difficulty, v.levelFile])).toEqual([
       ["normal", "NORMAL", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
-      [
-        "replace1",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
-      ],
-      [
-        "replace2",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
-      ],
-    ]);
-    expect(rows("ro4_e_1_1")).toEqual([
       ["emergency", "FOUR_STAR", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
-      [
-        "replace1",
-        "FOUR_STAR",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
-      ],
-      [
-        "replace2",
-        "FOUR_STAR",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
-      ],
     ]);
+    expect(node.expansions).toEqual([
+      {
+        number: 1,
+        levelFile: "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
+      },
+      {
+        number: 2,
+        levelFile: "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
+      },
+    ]);
+    const ids = stageIds(index);
+    expect(ids.filter((id) => /^ro\d+_e_/.test(id))).toEqual([]);
   });
 
-  it("fetches every theme's files: DLC stages and 替換地圖 included", () => {
+  it("fetches every theme's files: theme 6's _dlc1 nodes and 內容拓展 included", () => {
     const paths = indexedLevelPaths(tables);
     expect(paths).toEqual(
       expect.arrayContaining([
@@ -275,28 +334,58 @@ describe("stage index: 集成戰略", () => {
     );
   });
 
-  it("drops a 替換地圖 whose file is missing and reports it", () => {
+  it("numbers a theme-5 node's 內容拓展 by their _dlcN files", () => {
+    expect(stageById(build(), "ro5_n_1_1").expansions).toEqual([
+      { number: 1, levelFile: "data/levels/obt/roguelike/ro5/dlc1/level_rogue5_1-1_dlc1.json" },
+    ]);
+  });
+
+  it("numbers 7-1's only 內容拓展, its _dlc2 file, 2", () => {
+    const node = stageById(build(), "ro5_n_7_1");
+    expect(node.code).toBe("ISW-NO");
+    expect(node.expansions).toEqual([
+      { number: 2, levelFile: "data/levels/obt/roguelike/ro5/dlc2/level_rogue5_7-1_dlc2.json" },
+    ]);
+  });
+
+  it("a node without 內容拓展 has no list of them, whatever its own id ends in", () => {
+    const index = build();
+    expect(stageById(index, "ro1_n_1_1").expansions).toBeUndefined();
+    expect(stageById(index, "ro6_n_3_1_dlc1").expansions).toBeUndefined();
+  });
+
+  it("drops a 內容拓展 whose file is missing and reports it", () => {
     const facts = allFilesPresent();
     facts.delete("obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1");
     const { index, skipped } = buildStageIndex(tables, facts);
-    expect(stageById(index, "ro4_n_1_1").variants.map((v) => v.id)).toEqual(["normal", "replace2"]);
+    expect(stageById(index, "ro4_n_1_1").expansions?.map((x) => x.number)).toEqual([2]);
     expect(skipped).toContainEqual({
       stageId: "ro4_n_1_1",
       levelPath: "obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1",
+      reason: "missingFile",
     });
   });
 
-  it("names theme 6, which TW lacks, in CN; its DLC nodes join the numbered zone", () => {
+  it("drops a 內容拓展 file named without a 拓展編號 and reports it", () => {
+    const renamed = rawTables();
+    const node = renamed.cn.roguelike.details["rogue_4"]!.stages["ro4_n_1_1"]!;
+    node.levelReplaceIds[0] = "Obt/Roguelike/RO4/LevelReplacers/level_rogue4_1-1_new";
+    const facts = allFilesPresent();
+    facts.set("obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_new", { difficulties: [] });
+    const { index, skipped } = buildStageIndex(renamed, facts);
+    expect(stageById(index, "ro4_n_1_1").expansions?.map((x) => x.number)).toEqual([2]);
+    expect(skipped).toContainEqual({
+      stageId: "ro4_n_1_1",
+      levelPath: "obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_new",
+      reason: "unnumberedExpansion",
+    });
+  });
+
+  it("names theme 6, which TW lacks, in CN; its _dlc1 nodes join the numbered zone", () => {
     const area = build().areas.find((a) => a.id === "rogue_6")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
-      ["玻利瓦尔肤层", false, ["ro6_n_1_1"]],
-      ["血色空脉", false, ["ro6_n_3_1_dlc1"]],
-      ["血色空脉", true, ["ro6_e_3_1_dlc1"]],
+    expect(area.sections.map((s) => [s.name, s.stages.map((x) => x.id)])).toEqual([
+      ["玻利瓦尔肤层", ["ro6_n_1_1"]],
+      ["血色空脉", ["ro6_n_3_1_dlc1"]],
     ]);
-    expect(stageById(build(), "ro6_e_3_1_dlc1").emergencyCondition).toBe(
-      "敌人的攻击力、防御力和生命值提升，部分敌人有所不同",
-    );
   });
 });

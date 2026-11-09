@@ -326,51 +326,57 @@ test("entering a stage starts at 第 1 波, 0 s; changing only the variant keeps
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 
-test("a variant without the 波次 on screen shows 第 1 波; switching back returns to that 波次", async ({
+test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching back returns to that 波次", async ({
   page,
 }) => {
-  const variants = siteStage("ro4_b_5").variants;
-  const view = (id: string) => {
-    const variant = variants.find((v) => v.id === id)!;
-    const level = readSiteLevel(variant.levelFile);
+  const stage = siteStage("ro4_b_5");
+  const view = (levelFile: string) => {
+    const level = readSiteLevel(levelFile);
     const timelines = level.waves.map((_, waveIndex) =>
-      buildTimeline(level, { waveIndex, difficulty: variant.difficulty }),
+      buildTimeline(level, { waveIndex, difficulty: "NORMAL" }),
     );
     return {
       waves: level.waves.length,
       onField: (waveIndex: number, t: number) =>
         takeSnapshot(timelines[waveIndex]!, t).counts.onField,
+      end: (waveIndex: number) => timelineEnd(timelines[waveIndex]!),
     };
   };
-  const normal = view("normal");
-  const replace = view("replace1");
-  expect(normal.waves, "the base map has 2 波次").toBe(2);
-  expect(replace.waves, "the 替換地圖 has 3 波次").toBe(3);
-  // The 替換地圖's third 波次 spawns nothing by default, so its time slider ends at 0 s; the
-  // seconds move on the base map's first 波次 instead. The two 波次 differ at 0 s and at `t`, so
-  // each count says which one is shown.
+  const original = view(stage.variants[0]!.levelFile);
+  const expansion = view(stage.expansions!.find((x) => x.number === 1)!.levelFile);
+  expect(original.waves, "原版 has 2 波次").toBe(2);
+  expect(expansion.waves, "內容拓展 1 has 3 波次").toBe(3);
   const t = 30;
+  expect(expansion.end(2), "內容拓展 1's 第 3 波 spawns nothing: its slider ends at 0 s").toBe(0);
+  expect(
+    original.end(0),
+    `原版's 第 1 波 lasts past ${t} s, so the seconds move there`,
+  ).toBeGreaterThan(t);
   for (const s of [0, t]) {
-    expect(normal.onField(0, s), `the two 波次 differ at ${s} s`).not.toBe(replace.onField(2, s));
+    expect(original.onField(0, s), `the two 波次 differ at ${s} s`).not.toBe(
+      expansion.onField(2, s),
+    );
   }
+  const expansionButton = (name: string) =>
+    page.getByRole("group", { name: "內容拓展" }).getByRole("button", { name, exact: true });
 
-  await page.goto("#/level/ro4_b_5?v=replace1");
+  await page.goto("#/level/ro4_b_5?x=1");
   await selectWave(page, 2);
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(replace.onField(2, 0));
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, 0));
 
-  await page.locator('button[data-variant="normal"]').click();
+  await expansionButton("原版").click();
 
-  await expectVariantShown(page, "normal");
+  await expect(page).toHaveURL(/#\/level\/ro4_b_5$/);
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(normal.onField(0, 0));
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(original.onField(0, 0));
   await seek(page, t);
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(normal.onField(0, t));
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(original.onField(0, t));
 
-  await page.locator('button[data-variant="replace1"]').click();
+  await expansionButton("內容拓展 1").click();
 
-  await expectVariantShown(page, "replace1");
+  await expect(page).toHaveURL(/#\/level\/ro4_b_5\?x=1$/);
   await expect(page.getByRole("radio", { name: "第 3 波" })).toBeChecked();
   await expect(timeDisplay(page)).toHaveText(`${t.toFixed(1)} 秒`);
-  await expect(page.locator("svg.map g.enemy")).toHaveCount(replace.onField(2, t));
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, t));
 });

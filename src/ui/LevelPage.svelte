@@ -32,6 +32,7 @@
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
+  import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
@@ -49,6 +50,7 @@
     area: Area;
     stage: StageEntry;
     variant: Variant;
+    view: LevelView;
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
@@ -69,6 +71,7 @@
     area,
     stage,
     variant,
+    view,
     level,
     terrain,
     wave,
@@ -144,15 +147,12 @@
   }
 
   interface Stowed {
-    stageId: string;
-    variant: VariantId;
+    view: LevelView;
     waves: ReadonlyMap<number, ReadonlySet<string>>;
   }
   let stowed = $state.raw<Stowed | null>(null);
   const stowedWaves = $derived(
-    stowed?.stageId === stage.id && stowed.variant === variant.id
-      ? stowed.waves
-      : new Map<number, ReadonlySet<string>>(),
+    stowed && sameView(stowed.view, view) ? stowed.waves : new Map<number, ReadonlySet<string>>(),
   );
   $effect(() => {
     if (stowed && stowedWaves !== stowed.waves) stowed = null;
@@ -167,7 +167,7 @@
 
   function writeStowed(wave: number, ids: Iterable<string>) {
     const waves = new Map([...stowedWaves, [wave, new Set(ids)]]);
-    stowed = { stageId: stage.id, variant: variant.id, waves };
+    stowed = { view, waves };
   }
   function stowAndDeselect(wave: number, ids: Iterable<string>) {
     const stowing = new Set(ids);
@@ -208,24 +208,18 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
-  /** The 端點篩選 in one variant's wave. */
   interface EndpointFilter {
-    levelId: string;
-    variant: VariantId;
+    view: LevelView;
     wave: number;
     endpoint: EndpointPlace;
   }
   let endpointFilter = $state<EndpointFilter | null>(null);
   const filtered = $derived.by(() => {
     const f = endpointFilter;
-    if (f?.levelId !== level.levelId || f.variant !== variant.id || f.wave !== waveIndex) {
-      return null;
-    }
+    if (!f || !sameView(f.view, view) || f.wave !== waveIndex) return null;
     const key = endpointKey(f.endpoint);
     return endpoints.find((e) => endpointKey(e) === key) ?? null;
   });
-  // Another wave, variant or level, or switches that remove the dot, clear the filter for good:
-  // coming back to that wave or dot does not bring it back.
   $effect(() => {
     if (endpointFilter && !filtered) endpointFilter = null;
   });
@@ -254,7 +248,7 @@
       endpointFilter = null;
       return;
     }
-    endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    endpointFilter = { view, wave: waveIndex, endpoint };
     if (drawerMode.current) setDrawerOpen(true);
   }
 
@@ -284,11 +278,11 @@
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
     <h2>{stage.code} {stage.name}</h2>
-    {#if stage.emergencyCondition}
-      <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
     {/if}
     {#if stage.variants.length > 1}
-      <div class="variants" role="group" aria-label={strings.variantPicker}>
+      <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
           <button
             type="button"
@@ -561,23 +555,7 @@
     cursor: pointer;
   }
   .variants {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     margin-bottom: 12px;
-  }
-  .variants button {
-    padding: 4px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--fg);
-    cursor: pointer;
-  }
-  .variants button[aria-pressed="true"] {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
   }
   .counts {
     display: flex;
