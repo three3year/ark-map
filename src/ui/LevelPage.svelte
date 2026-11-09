@@ -143,6 +143,57 @@
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
+  /**
+   * 收起: the individuals left off the map, by {@link individualKey}, per 波次 of one stage's
+   * variant. Another stage on the stage list, even one sharing the level file, or another variant
+   * shows them all again; another 波次 or 開關狀態 keeps them.
+   */
+  interface Stowed {
+    stageId: string;
+    variant: VariantId;
+    waves: ReadonlyMap<number, ReadonlySet<string>>;
+  }
+  let stowed = $state.raw<Stowed | null>(null);
+  const stowedWaves = $derived(
+    stowed?.stageId === stage.id && stowed.variant === variant.id
+      ? stowed.waves
+      : new Map<number, ReadonlySet<string>>(),
+  );
+  // Coming back to the stage or variant does not bring them back.
+  $effect(() => {
+    if (stowed && stowedWaves !== stowed.waves) stowed = null;
+  });
+  /** The individuals 收起 in the 波次 on screen. */
+  const stowedHere: ReadonlySet<string> = $derived(stowedWaves.get(waveIndex) ?? new Set());
+  /** How many individuals of the 波次's timeline are 收起. */
+  const stowedCount = $derived(timeline.individuals.filter((i) => stowedHere.has(i.id)).length);
+  /** Drawn on the map: what is on field, less what is 收起 unless selected. */
+  const drawn = $derived(
+    snapshot.onField.filter(
+      (e) => !stowedHere.has(e.individual.id) || e.individual.id === selected?.id,
+    ),
+  );
+
+  /** 收起 the individuals `ids` of 波次 `wave`, or show them; 收起 the selected one deselects it. */
+  function setStowed(wave: number, ids: Iterable<string>, stow: boolean) {
+    const changed = new Set(ids);
+    const before = [...(stowedWaves.get(wave) ?? [])];
+    const after = stow ? [...before, ...changed] : before.filter((id) => !changed.has(id));
+    const waves = new Map([...stowedWaves, [wave, new Set(after)]]);
+    stowed = { stageId: stage.id, variant: variant.id, waves };
+    if (
+      stow &&
+      selection?.levelId === level.levelId &&
+      selection.wave === wave &&
+      changed.has(selection.individual)
+    ) {
+      selection = null;
+    }
+  }
+  /** A right-click on the map: 收起 the individual, or show it if it is 收起 and drawn as selected. */
+  const toggleStow = (individual: Individual) =>
+    setStowed(waveIndex, [individual.id], !stowedHere.has(individual.id));
+
   /** The 端點篩選 in one variant's wave. */
   interface EndpointFilter {
     levelId: string;
@@ -240,12 +291,13 @@
       map={level.map}
       {terrain}
       {endpoints}
-      enemies={snapshot.onField}
+      enemies={drawn}
       {t}
       {selected}
       onSelect={select}
       filter={filtered}
       onFilter={toggleFilter}
+      onToggleStow={toggleStow}
     />
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>
@@ -271,6 +323,16 @@
         <dd data-count="leaked">{snapshot.counts.leaked}</dd>
       </div>
     </dl>
+    <div aria-live="polite">
+      {#if stowedCount > 0}
+        <p class="stowed" data-stowed-count={stowedCount}>
+          <span>{strings.stowedCount(stowedCount)}</span>
+          <button type="button" onclick={() => setStowed(waveIndex, stowedHere, false)}>
+            {strings.showAllStowed}
+          </button>
+        </p>
+      {/if}
+    </div>
     <SwitchPanel
       {level}
       {plan}
@@ -457,7 +519,16 @@
     margin: 8px 0 0;
     font-size: 0.9rem;
   }
-  .selection button {
+  .stowed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .selection button,
+  .stowed button {
     padding: 2px 10px;
     border-radius: 6px;
     border: 1px solid var(--border);

@@ -28,7 +28,7 @@
     terrain: TerrainTable;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
-    /** The 時刻快照's individuals on field at second `t`. */
+    /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
     enemies: Snapshot["onField"];
     t: number;
     /** The selected individual, whose 路徑 is drawn; it may be off the field right now. */
@@ -42,9 +42,21 @@
     filter: EndpointPlace | null;
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
+    /** An enemy was right-clicked, its browser menu cancelled: 收起 it, or show it again. */
+    onToggleStow: (individual: Individual) => void;
   }
-  let { map, terrain, endpoints, enemies, t, selected, onSelect, filter, onFilter }: Props =
-    $props();
+  let {
+    map,
+    terrain,
+    endpoints,
+    enemies,
+    t,
+    selected,
+    onSelect,
+    filter,
+    onFilter,
+    onToggleStow,
+  }: Props = $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
@@ -174,6 +186,10 @@
     aria-label={individual.enemy.name}
     aria-pressed={individual.id === selected?.id}
     onclick={(e) => toggleSelect(individual, e)}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      onToggleStow(individual);
+    }}
     onkeydown={(e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
