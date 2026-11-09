@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   drawerButton,
   filterCaption,
+  orderCell,
   phoneWindow,
   spawnTableRegion,
   timeDisplay,
@@ -56,7 +57,7 @@ test("jumping from a row of the drawer's spawn table leaves the drawer open", as
   await drawerButton(page).click();
   const row = spawnTableRegion(page).locator("tr[data-action]").nth(3);
 
-  await row.locator("td").nth(2).click();
+  await orderCell(row).click();
 
   await expect(page.locator("p.selection")).toHaveAttribute(
     "data-selected",
