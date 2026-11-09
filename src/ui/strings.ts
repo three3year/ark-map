@@ -220,6 +220,12 @@ export const strings = {
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   deselect: "取消選取",
+  stow: "收起",
+  show: "顯示",
+  stowedCount: (n: number) => `已收起 ${n} 隻`,
+  showAllStowed: "全部顯示",
+  showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
+  showListedRows: "顯示列出的所有列",
 } as const;
 
 /** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */

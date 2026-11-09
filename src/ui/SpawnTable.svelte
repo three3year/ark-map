@@ -1,3 +1,13 @@
+<script lang="ts" module>
+  export type RowStow = "shown" | "stowed" | "mixed";
+
+  export function combinedStow(parts: Iterable<RowStow>): RowStow | null {
+    const states = new Set(parts);
+    if (states.size === 0) return null;
+    return states.size === 1 ? [...states][0]! : "mixed";
+  }
+</script>
+
 <script lang="ts">
   import {
     actionKey,
@@ -27,6 +37,8 @@
     /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
     filter: RouteEndpoint | null;
     onClearFilter: () => void;
+    rowStow: (row: SpawnRow) => RowStow;
+    onStow: (rows: SpawnRow[], stow: boolean) => void;
   }
   let {
     rows,
@@ -38,6 +50,8 @@
     branchKeys,
     filter,
     onClearFilter,
+    rowStow,
+    onStow,
   }: Props = $props();
 
   /** Rows keep their 編號 in the whole table while filtered. */
@@ -45,6 +59,10 @@
     const numbered = rows.map((row, i) => ({ ...row, number: i + 1 }));
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
+
+  const hasStowBox = (r: SpawnRow) => r.firstOrder !== null;
+  const listedWithBox = $derived(shown.filter(hasStowBox));
+  const listedStow = $derived(combinedStow(listedWithBox.map(rowStow)));
 
   const isSelected = (r: SpawnRow) =>
     selected !== null && r.waveIndex === wave && sameAction(r, selected);
@@ -74,6 +92,18 @@
     <table>
       <thead>
         <tr>
+          <th class="stow">
+            <label>
+              <input
+                type="checkbox"
+                checked={listedStow === "shown"}
+                indeterminate={listedStow === "mixed"}
+                disabled={listedStow === null}
+                aria-label={strings.showListedRows}
+                onchange={() => onStow(listedWithBox, listedStow === "shown")}
+              />
+            </label>
+          </th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
           <th>{strings.spawnTableOrder}</th>
@@ -85,9 +115,10 @@
       </thead>
       <tbody>
         {#each shown as row, i (`${row.waveIndex}-${actionKey(row)}`)}
+          {@const stow = hasStowBox(row) ? rowStow(row) : null}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
-              <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
+              <th colspan="8" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
@@ -102,7 +133,23 @@
             data-conditional={row.branchIndex}
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
             data-picked={row.random?.picked}
+            data-stow={stow ?? undefined}
           >
+            {#if stow !== null}
+              <td class="stow" onclick={(event) => event.stopPropagation()}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={stow === "shown"}
+                    indeterminate={stow === "mixed"}
+                    aria-label={strings.showRow(row.number, enemyName(row))}
+                    onchange={() => onStow([row], stow === "shown")}
+                  />
+                </label>
+              </td>
+            {:else}
+              <td></td>
+            {/if}
             <td class="num">{row.number}</td>
             <td>
               <button
@@ -245,6 +292,17 @@
   tr.current td,
   .wave-head.current th {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .stow {
+    padding: 0;
+  }
+  .stow label {
+    display: grid;
+    place-items: center;
+    padding: 6px 10px;
+  }
+  .stow input {
+    margin: 0;
   }
   .enemy {
     display: inline-flex;

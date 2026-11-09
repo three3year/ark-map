@@ -35,7 +35,7 @@
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import SpawnTable from "./SpawnTable.svelte";
+  import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings, variantLabel } from "./strings.ts";
@@ -143,6 +143,71 @@
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
+  interface Stowed {
+    stageId: string;
+    variant: VariantId;
+    waves: ReadonlyMap<number, ReadonlySet<string>>;
+  }
+  let stowed = $state.raw<Stowed | null>(null);
+  const stowedWaves = $derived(
+    stowed?.stageId === stage.id && stowed.variant === variant.id
+      ? stowed.waves
+      : new Map<number, ReadonlySet<string>>(),
+  );
+  $effect(() => {
+    if (stowed && stowedWaves !== stowed.waves) stowed = null;
+  });
+  const stowedHere: ReadonlySet<string> = $derived(stowedWaves.get(waveIndex) ?? new Set());
+  const stowedCount = $derived(timeline.individuals.filter((i) => stowedHere.has(i.id)).length);
+  const drawn = $derived(
+    snapshot.onField.filter(
+      (e) => !stowedHere.has(e.individual.id) || e.individual.id === selected?.id,
+    ),
+  );
+
+  function writeStowed(wave: number, ids: Iterable<string>) {
+    const waves = new Map([...stowedWaves, [wave, new Set(ids)]]);
+    stowed = { stageId: stage.id, variant: variant.id, waves };
+  }
+  function stowAndDeselect(wave: number, ids: Iterable<string>) {
+    const stowing = new Set(ids);
+    writeStowed(wave, [...(stowedWaves.get(wave) ?? []), ...stowing]);
+    if (
+      selection?.levelId === level.levelId &&
+      selection.wave === wave &&
+      stowing.has(selection.individual)
+    ) {
+      selection = null;
+    }
+  }
+  function showStowed(wave: number, ids: Iterable<string>) {
+    const showing = new Set(ids);
+    writeStowed(
+      wave,
+      [...(stowedWaves.get(wave) ?? [])].filter((id) => !showing.has(id)),
+    );
+  }
+  const rowIndividuals = (row: SpawnRow) =>
+    Array.from({ length: row.count }, (_, k) => individualKey({ ...row, spawnIndex: k }));
+  function rowStow(row: SpawnRow): RowStow {
+    const stowedInWave = stowedWaves.get(row.waveIndex);
+    const individualStows = rowIndividuals(row).map((id) =>
+      stowedInWave?.has(id) ? "stowed" : "shown",
+    );
+    return combinedStow(individualStows) ?? "shown";
+  }
+  function stowRows(rows: SpawnRow[], stow: boolean) {
+    for (const wave of new Set(rows.map((r) => r.waveIndex))) {
+      const ids = rows.filter((r) => r.waveIndex === wave).flatMap(rowIndividuals);
+      if (stow) stowAndDeselect(wave, ids);
+      else showStowed(wave, ids);
+    }
+  }
+  function toggleStow(individual: Individual) {
+    if (stowedHere.has(individual.id)) showStowed(waveIndex, [individual.id]);
+    else stowAndDeselect(waveIndex, [individual.id]);
+  }
+
   /** The 端點篩選 in one variant's wave. */
   interface EndpointFilter {
     levelId: string;
@@ -166,7 +231,7 @@
   });
 
   /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1440;
+  const breakpoint = 1472;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -240,17 +305,23 @@
       map={level.map}
       {terrain}
       {endpoints}
-      enemies={snapshot.onField}
+      enemies={drawn}
       {t}
       {selected}
       onSelect={select}
       filter={filtered}
       onFilter={toggleFilter}
+      onToggleStow={toggleStow}
     />
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>
         <span>{strings.selected(selected.enemy.name, strings.stateLabel[selectedState])}</span>
-        <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+        <span class="selection-actions">
+          <button type="button" onclick={() => toggleStow(selected)}>
+            {stowedHere.has(selected.id) ? strings.show : strings.stow}
+          </button>
+          <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
+        </span>
       </p>
     {/if}
     {#if level.waves.length > 1}
@@ -271,6 +342,16 @@
         <dd data-count="leaked">{snapshot.counts.leaked}</dd>
       </div>
     </dl>
+    <div aria-live="polite">
+      {#if stowedCount > 0}
+        <p class="stowed" data-stowed-count={stowedCount}>
+          <span>{strings.stowedCount(stowedCount)}</span>
+          <button type="button" onclick={() => showStowed(waveIndex, stowedHere)}>
+            {strings.showAllStowed}
+          </button>
+        </p>
+      {/if}
+    </div>
     <SwitchPanel
       {level}
       {plan}
@@ -314,6 +395,8 @@
         branchKeys={level.branches.map((b) => b.key)}
         filter={filtered}
         onClearFilter={() => (endpointFilter = null)}
+        {rowStow}
+        onStow={stowRows}
       />
     </div>
   </div>
@@ -322,24 +405,24 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 824px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (807px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
    *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
    *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 824 + 32px page padding + 17px page scrollbar = 1437px, so
-   *   1440px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   * - Breakpoint: 540 + 24px gap + 857 + 32px page padding + 17px page scrollbar = 1470px, so
+   *   1472px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
    *   above and the two `@media` rules below.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 824px;
+    --side-column-width: 857px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1440px) {
+  @media (min-width: 1472px) {
     .level-page {
       max-width: none;
       display: grid;
@@ -379,7 +462,7 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1440px) {
+  @media (width < 1472px) {
     .side {
       position: fixed;
       top: 0;
@@ -449,15 +532,26 @@
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
-  .selection {
+  .selection,
+  .stowed {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     margin: 8px 0 0;
     font-size: 0.9rem;
   }
-  .selection button {
+  .selection {
+    justify-content: space-between;
+  }
+  .selection-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .stowed {
+    color: var(--muted);
+  }
+  .selection button,
+  .stowed button {
     padding: 2px 10px;
     border-radius: 6px;
     border: 1px solid var(--border);
