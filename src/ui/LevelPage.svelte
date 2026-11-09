@@ -143,11 +143,6 @@
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
-  /**
-   * 收起: the individuals left off the map, by {@link individualKey}, per 波次 of one stage's
-   * variant. Another stage on the stage list, even one sharing the level file, or another variant
-   * shows them all again; another 波次 or 開關狀態 keeps them.
-   */
   interface Stowed {
     stageId: string;
     variant: VariantId;
@@ -159,22 +154,17 @@
       ? stowed.waves
       : new Map<number, ReadonlySet<string>>(),
   );
-  // Coming back to the stage or variant does not bring them back.
   $effect(() => {
     if (stowed && stowedWaves !== stowed.waves) stowed = null;
   });
-  /** The individuals 收起 in the 波次 on screen. */
   const stowedHere: ReadonlySet<string> = $derived(stowedWaves.get(waveIndex) ?? new Set());
-  /** How many individuals of the 波次's timeline are 收起. */
   const stowedCount = $derived(timeline.individuals.filter((i) => stowedHere.has(i.id)).length);
-  /** Drawn on the map: what is on field, less what is 收起 unless selected. */
   const drawn = $derived(
     snapshot.onField.filter(
       (e) => !stowedHere.has(e.individual.id) || e.individual.id === selected?.id,
     ),
   );
 
-  /** 收起 the individuals `ids` of 波次 `wave`, or show them; 收起 the selected one deselects it. */
   function setStowed(wave: number, ids: Iterable<string>, stow: boolean) {
     const changed = new Set(ids);
     const before = [...(stowedWaves.get(wave) ?? [])];
@@ -190,7 +180,6 @@
       selection = null;
     }
   }
-  /** The individuals a spawn-table row spawns, by {@link individualKey}. */
   const rowIndividuals = (row: SpawnRow) =>
     Array.from({ length: row.count }, (_, k) => individualKey({ ...row, spawnIndex: k }));
   function rowStow(row: SpawnRow): RowStow {
@@ -198,14 +187,12 @@
     const n = rowIndividuals(row).filter((id) => here?.has(id)).length;
     return n === 0 ? "shown" : n === row.count ? "stowed" : "mixed";
   }
-  /** 收起 the individuals spawn-table `rows` spawn, or show them. */
   function stowRows(rows: SpawnRow[], stow: boolean) {
     for (const wave of new Set(rows.map((r) => r.waveIndex))) {
       const ids = rows.filter((r) => r.waveIndex === wave).flatMap(rowIndividuals);
       setStowed(wave, ids, stow);
     }
   }
-  /** A right-click on the map: 收起 the individual, or show it if it is 收起 and drawn as selected. */
   const toggleStow = (individual: Individual) =>
     setStowed(waveIndex, [individual.id], !stowedHere.has(individual.id));
 
@@ -408,8 +395,7 @@
    * Wide screens: the map beside a column holding the spawn table.
    * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
    *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
-   *   column's scrollbar. To measure, squeeze --side-column-width to a few px so each table
-   *   shrinks to its min-content width, and take the widest `table` over every stage's variants. A fixed width keeps the map from resizing as a 端點篩選 or a switch
+   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
    *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.

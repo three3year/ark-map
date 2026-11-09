@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  /** A row's 收起 state over the individuals it spawns: none, all, or some of them 收起. */
   export type RowStow = "shown" | "stowed" | "mixed";
 </script>
 
@@ -32,9 +31,7 @@
     /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
     filter: RouteEndpoint | null;
     onClearFilter: () => void;
-    /** The 收起 state of a row that spawns (次序 not 「-」). */
     rowStow: (row: SpawnRow) => RowStow;
-    /** 收起 the individuals `rows` spawn, or show them. */
     onStow: (rows: SpawnRow[], stow: boolean) => void;
   }
   let {
@@ -57,9 +54,7 @@
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
 
-  /** The header box's rows: the listed ones that have a box. */
   const boxed = $derived(shown.filter((r) => r.firstOrder !== null));
-  /** The header box's state over its rows; null when there are none. */
   const listedStow = $derived.by((): RowStow | null => {
     const states = new Set(boxed.map(rowStow));
     if (states.size === 0) return null;
@@ -94,7 +89,6 @@
     <table>
       <thead>
         <tr>
-          <!-- The 收起 boxes: checked while their rows' enemies show. -->
           <th class="stow">
             <label>
               <input
@@ -126,7 +120,6 @@
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
           <tr
             onclick={(event) => {
-              // The 收起 box's cell toggles the box alone.
               if (!(event.target as Element).closest(".stow")) onJump(row);
             }}
             class:current={multiWave && row.waveIndex === wave}
@@ -299,7 +292,6 @@
   .wave-head.current th {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
-  /* The whole cell is the box's target. */
   .stow {
     padding: 0;
   }

@@ -56,10 +56,6 @@ export const phoneWindow = { width: 390, height: 844 };
 /** The spawn table, in its column or its drawer. */
 export const spawnTableRegion = (page: Page) => page.getByRole("region", { name: "出兵表" });
 
-/**
- * The 次序 cell of a spawn-table `row`: a part of the row that is not the enemy name. Found by its
- * column's heading, not its position, so a column added to the table does not move it.
- */
 export const orderCell = (row: Locator) => {
   const heading = 'ancestor::table[1]/thead/tr/th[normalize-space()="次序"]';
   return row.locator(`xpath=*[${heading}][count(${heading}/preceding-sibling::*) + 1]`);

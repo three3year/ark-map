@@ -1,6 +1,3 @@
-// Smoke test: 收起 takes enemy individuals off the map, nothing else; the counts, the URL and the
-// endpoint dots stay as they are. Expected values come from 基準時間軸 run on the same data the
-// site ships.
 import { expect, test, type Page } from "@playwright/test";
 import {
   actionKey,
@@ -40,10 +37,6 @@ test.use({ viewport: wideWindow });
 
 type OnField = Snapshot["onField"];
 
-/**
- * The first whole second at which an individual that `fits` is on field with no other within
- * reach of its icon, so a click at its centre lands on it and nothing else.
- */
 function aloneOnField(timeline: Timeline, fits: (i: Individual, onField: OnField) => boolean) {
   for (let t = 0; t <= Math.ceil(timelineEnd(timeline)); t++) {
     const onField = takeSnapshot(timeline, t).onField;
@@ -61,7 +54,6 @@ function aloneOnField(timeline: Timeline, fits: (i: Individual, onField: OnField
   throw new Error("no individual that fits stands alone at any whole second");
 }
 
-/** Another individual of the same action is on field too. */
 const withActionMate = (i: Individual, onField: OnField) =>
   onField.some((e) => e.individual !== i && actionKey(e.individual) === actionKey(i));
 
@@ -71,7 +63,6 @@ const counts = (page: Page) =>
   );
 const stowedHint = (page: Page) => page.locator("[data-stowed-count]");
 
-/** Whether the last `contextmenu` event on the page had its browser menu cancelled. */
 async function watchContextMenu(page: Page) {
   await page.evaluate(() => {
     addEventListener("contextmenu", (e) => {
@@ -110,7 +101,6 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
   await expect(stowedHint(page)).toContainText("已收起 1 隻");
   expect(page.url()).toBe(url);
 
-  // Anywhere else on the map the browser's own menu stays.
   await page.locator("svg.map rect.tile").first().click({ button: "right" });
   expect(await menuCancelled()).toBe("false");
 });
@@ -157,7 +147,6 @@ test("1-7: stowing the selected enemy deselects it; selected again, it shows unt
   await expect(path).toHaveCount(0);
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
 
-  // Its row still jumps to its spawn and selects it, drawn with its 路徑 though stowed.
   await page.locator(`tr[data-wave="0"][data-action="${actionKey(row)}"] button.enemy`).click();
 
   await expect(timeDisplay(page)).toHaveText(`${ceilTenth(row.waveTime).toFixed(1)} 秒`);
@@ -166,7 +155,6 @@ test("1-7: stowing the selected enemy deselects it; selected again, it shows unt
   await expect(path).toBeVisible();
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
 
-  // A right-click on it now shows it again and keeps it selected.
   await seek(page, t);
   await enemyOnMap(page, individual.id).click({ button: "right" });
 
@@ -176,7 +164,6 @@ test("1-7: stowing the selected enemy deselects it; selected again, it shows unt
   await expect(enemyOnMap(page, individual.id)).toHaveCount(1);
 });
 
-/** The selection row's button that 收起 or shows the selected enemy, by what it reads. */
 const selectionButton = (page: Page, name: "收起" | "顯示") =>
   page.locator("p.selection").getByRole("button", { name, exact: true });
 
@@ -200,7 +187,6 @@ test("1-7: the selection row's 收起 stows and deselects; 顯示 on a stowed on
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
 
-  // Its row selects it again, stowed: the button reads 顯示, and works from the keyboard.
   await page.locator(`tr[data-wave="0"][data-action="${actionKey(row)}"] button.enemy`).click();
   await expect(selection).toHaveAttribute("data-selected", individual.id);
   await expect(selectionButton(page, "收起")).toHaveCount(0);
@@ -265,7 +251,6 @@ test("ro4_b_5: each 波次 keeps its stowed enemies; 全部顯示 shows this 波
   await expect(stowedHint(page)).toHaveCount(0);
   await expect(enemyOnMap(page, first.individual.id)).toHaveCount(1);
 
-  // The other 波次 keeps its own.
   await selectWave(page, 1);
   await seek(page, second.t);
 
@@ -316,7 +301,6 @@ test("11-6: another variant, even on the same level file, or a reload shows ever
   await expect(stowedHint(page)).toHaveCount(0);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(easyOnField.counts.onField);
 
-  // Back on 普通 they stay shown.
   await page.locator('button[data-variant="normal"]').click();
 
   await expect(stowedHint(page)).toHaveCount(0);
@@ -354,7 +338,6 @@ test("another stage on the stage list shows every enemy again, though it shares 
 
 const rowOf = (page: Page, row: SpawnRow) =>
   page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
-/** A spawn-table row's 收起 checkbox: checked while all its individuals show. */
 const rowBox = (page: Page, row: SpawnRow) => rowOf(page, row).getByRole("checkbox");
 
 test("1-7: unchecking a row's box stows its every individual, without jumping or deselecting", async ({
@@ -376,7 +359,6 @@ test("1-7: unchecking a row's box stows its every individual, without jumping or
   const url = page.url();
   await expect(rowBox(page, row)).toBeChecked();
 
-  // Stowed before they spawn.
   await rowBox(page, row).click();
 
   await expect(rowBox(page, row)).not.toBeChecked();
@@ -384,7 +366,6 @@ test("1-7: unchecking a row's box stows its every individual, without jumping or
   await expect(selection).toHaveAttribute("data-selected", `${actionKey(other)}-0`);
   expect(await counts(page)).toEqual(before);
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", String(row.count));
-  // No fading or strike-through of its own.
   expect(await shownOpacity(rowOf(page, row).locator("button.enemy"))).toBeCloseTo(1, 2);
   await expect(rowOf(page, row).locator("button.enemy")).toHaveCSS("text-decoration-line", "none");
   expect(page.url()).toBe(url);
@@ -470,7 +451,6 @@ test("ro2_n_2_6: only rows that spawn have a box; a stowed row stays stowed acro
   const rows = spawnTable(siteLevel("ro2_n_2_6"));
   const spawning = rows.filter((r) => r.firstOrder !== null);
   const silent = rows.filter((r) => r.firstOrder === null);
-  // The 隨機出兵組's default pick is its 不出兵 candidate; the others are not picked.
   const nothing = silent.find((r) => r.random?.picked && r.enemyId === "")!;
   const row = silent.find((r) => r.random?.group === nothing.random!.group && !r.random.picked)!;
   const columns = page.locator("table thead th");
@@ -517,7 +497,6 @@ test.describe("on a phone", () => {
   });
 });
 
-/** The spawn table's header box: checked while every listed row's enemies show. */
 const headerBox = (page: Page) =>
   spawnTableRegion(page).locator("thead").getByRole("checkbox", { name: "顯示列出的所有列" });
 
@@ -540,7 +519,6 @@ test("ro4_b_5: with no 端點篩選 the header box stows and shows every 波次'
   for (const r of rows) await expect(rowBox(page, r)).not.toBeChecked();
   await expect(selection).toHaveCount(0);
 
-  // One row shown leaves it half-checked; clicking it then shows every row.
   await rowBox(page, selected).click();
   await expect(headerBox(page)).toBeChecked({ indeterminate: true });
 
@@ -550,7 +528,6 @@ test("ro4_b_5: with no 端點篩選 the header box stows and shows every 波次'
   for (const r of rows) await expect(rowBox(page, r)).toBeChecked();
   await expect(stowedHint(page)).toHaveCount(0);
 
-  // From the keyboard too.
   await headerBox(page).focus();
   await page.keyboard.press("Space");
 

@@ -42,7 +42,6 @@
     filter: EndpointPlace | null;
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
-    /** An enemy was right-clicked, its browser menu cancelled: 收起 it, or show it again. */
     onToggleStow: (individual: Individual) => void;
   }
   let {
