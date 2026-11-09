@@ -220,6 +220,9 @@ export const strings = {
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   deselect: "取消選取",
+  /** Beside the counts: how many individuals of the 波次 are 收起. */
+  stowedCount: (n: number) => `已收起 ${n} 隻`,
+  showAllStowed: "全部顯示",
 } as const;
 
 /** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */
