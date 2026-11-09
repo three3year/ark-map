@@ -240,7 +240,8 @@ test.describe("wide window", () => {
 
     await seek(page, 5);
     await selectWave(page, 1);
-    await expect(timeDisplay(page)).toHaveText("0.0 秒");
+    // The default pick leaves 第 2 波 a 空波次.
+    await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
     await page.locator('tr[data-wave="0"] button.enemy').first().click();
 
     await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
@@ -339,6 +340,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
       waves: level.waves.length,
       onField: (waveIndex: number, t: number) =>
         takeSnapshot(timelines[waveIndex]!, t).counts.onField,
+      individuals: (waveIndex: number) => timelines[waveIndex]!.individuals.length,
       end: (waveIndex: number) => timelineEnd(timelines[waveIndex]!),
     };
   };
@@ -347,7 +349,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   expect(original.waves, "原版 has 2 波次").toBe(2);
   expect(expansion.waves, "內容拓展 1 has 3 波次").toBe(3);
   const t = 30;
-  expect(expansion.end(2), "內容拓展 1's 第 3 波 spawns nothing: its slider ends at 0 s").toBe(0);
+  expect(expansion.individuals(2), "內容拓展 1's 第 3 波 is a 空波次").toBe(0);
   expect(
     original.end(0),
     `原版's 第 1 波 lasts past ${t} s, so the seconds move there`,
@@ -360,8 +362,11 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   const expansionButton = (name: string) =>
     page.getByRole("group", { name: "內容拓展" }).getByRole("button", { name, exact: true });
 
+  const slider = page.getByRole("slider", { name: "時間軸" });
+
   await page.goto("#/level/ro4_b_5?x=1");
   await selectWave(page, 2);
+  await expect(slider).toBeDisabled();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, 0));
 
   await expansionButton("原版").click();
@@ -377,6 +382,7 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
 
   await expect(page).toHaveURL(/#\/level\/ro4_b_5\?x=1$/);
   await expect(page.getByRole("radio", { name: "第 3 波" })).toBeChecked();
-  await expect(timeDisplay(page)).toHaveText(`${t.toFixed(1)} 秒`);
+  await expect(slider).toBeDisabled();
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, t));
 });

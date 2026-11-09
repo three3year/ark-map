@@ -321,7 +321,14 @@
     {#if level.waves.length > 1}
       <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
     {/if}
-    <TimelineBar {t} {end} {stop} {onSeek} onReachStop={playbackReachedStop} />
+    <TimelineBar
+      {t}
+      {end}
+      {stop}
+      emptyWave={timeline.individuals.length === 0}
+      {onSeek}
+      onReachStop={playbackReachedStop}
+    />
     <dl class="counts" aria-live="polite">
       <div>
         <dt>{strings.countPending}</dt>

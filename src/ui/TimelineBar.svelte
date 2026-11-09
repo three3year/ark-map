@@ -9,6 +9,8 @@
     end: number;
     /** Playback stops here: the wave's last individual has leaked. */
     stop: number;
+    /** The 波次 is a 空波次: the slider is disabled at 0 and the seconds give way to a note. */
+    emptyWave: boolean;
     onSeek: (t: number) => void;
     /**
      * Playback has reached `stop`. Returns true when the page has moved on to 0 s of another
@@ -16,7 +18,7 @@
      */
     onReachStop: () => boolean;
   }
-  let { t, end, stop, onSeek, onReachStop }: Props = $props();
+  let { t, end, stop, emptyWave, onSeek, onReachStop }: Props = $props();
 
   let playing = $state(false);
   let speed = $state<PlaybackSpeed>(1);
@@ -51,7 +53,8 @@
     min="0"
     max={end}
     step="0.1"
-    value={t}
+    value={emptyWave ? 0 : t}
+    disabled={emptyWave}
     aria-label={strings.timeSlider}
     oninput={(e) => {
       playing = false;
@@ -74,7 +77,7 @@
         </button>
       {/each}
     </div>
-    <output>{t.toFixed(1)} {strings.seconds}</output>
+    <output>{emptyWave ? strings.emptyWave : `${t.toFixed(1)} ${strings.seconds}`}</output>
   </div>
 </div>
 
@@ -86,6 +89,11 @@
     display: block;
     width: 100%;
     margin: 0;
+  }
+  /* Faded like the spawn table's unpicked candidates, in either color scheme. */
+  input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
   .controls {
     display: flex;

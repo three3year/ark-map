@@ -104,10 +104,10 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
   await selectWave(page, 1);
   await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
   const url = page.url();
 
   await page.locator('tr[data-random="0-1"] button.pick').click();
-  // The default pick leaves the wave empty, so the time slider only reaches 5 s from here.
   await seek(page, t);
 
   await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "true");
@@ -180,9 +180,10 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   const group = page.locator('input[data-hidden-group="random"]');
   await expect(group).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+  // With the group off the wave is a 空波次: the time slider is disabled.
+  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
 
   await group.check();
-  // With the group off the wave is empty, so the time slider only reaches 11 s from here.
   await seek(page, t);
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(1);
@@ -195,9 +196,9 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
   expect(page.url()).toBe(url);
 
-  // An old link's switches are ignored: the page opens at 0 s with the variant's default.
+  // An old link's switches are ignored: the page opens with the variant's default, a 空波次.
   await openLink(page, "#/level/act1dp_01?v=normal&c=0-10&h=random&r=0-0");
-  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(conditional).not.toBeChecked();
   await expect(enemy).toHaveCount(onField(level, 0, {}));
 });
