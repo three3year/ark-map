@@ -1,9 +1,11 @@
+import type { ExpansionChoice } from "../level/index.ts";
+
 export interface LevelRoute {
   page: "level";
   stageId: string;
   /** Variant id; null picks the stage's base variant. */
   variant: string | null;
-  expansion: number | null;
+  expansion: ExpansionChoice;
 }
 
 /** Area list (`#/`), one area's stage list (`#/area/<id>`), or a stage's snapshot page. */

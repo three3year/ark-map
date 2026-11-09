@@ -1,15 +1,26 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { Difficulty } from "../src/level/index.ts";
-import { spawnPlan } from "../src/timeline/index.ts";
 import {
+  actionKey,
+  buildTimeline,
+  endpointKey,
+  routeEndpoints,
+  spawnPlan,
+  spawnTable,
+} from "../src/timeline/index.ts";
+import {
+  endpointDot,
   expectDefaultSwitches,
   expectVariantShown,
+  filterCaption,
   phoneWindow,
   readSiteLevel,
+  rowOf,
   seek,
   selectWave,
   siteStage,
   timeDisplay,
+  wideWindow,
 } from "./levelPage.ts";
 
 const expansionSwitch = (page: Page) => page.getByRole("group", { name: "內容拓展" });
@@ -23,15 +34,36 @@ function expansionFile(id: string, n: number): string {
   return file!;
 }
 
-async function expectFileShown(page: Page, file: string, difficulty: Difficulty = "NORMAL") {
-  const names = spawnPlan(readSiteLevel(file), difficulty).groups.hidden.map((g) => g.name);
+/** The page shows `file` of stage `id`, told from the stage's other files by its 隱藏組. */
+async function expectFileShown(
+  page: Page,
+  id: string,
+  file: string,
+  difficulty: Difficulty = "NORMAL",
+) {
+  const hiddenGroups = (f: string) =>
+    spawnPlan(readSiteLevel(f), difficulty)
+      .groups.hidden.map((g) => g.name)
+      .sort();
+  const names = hiddenGroups(file);
+  const stage = siteStage(id);
+  const files = new Set([
+    ...stage.variants.map((v) => v.levelFile),
+    ...(stage.expansions ?? []).map((x) => x.levelFile),
+  ]);
+  expect(files, `${file} is a file of ${id}`).toContain(file);
+  for (const other of files) {
+    if (other !== file) {
+      expect(hiddenGroups(other), `the 隱藏組 tell ${file} from ${other}`).not.toEqual(names);
+    }
+  }
   await expect
     .poll(() =>
       page
         .locator("input[data-hidden-group]")
         .evaluateAll((boxes) => boxes.map((b) => b.getAttribute("data-hidden-group")).sort()),
     )
-    .toEqual([...names].sort());
+    .toEqual(names);
 }
 
 async function expectExpansionLit(page: Page, label: string) {
@@ -78,7 +110,7 @@ test("choosing 內容拓展 2 on the list keeps the URL; a node opened from it s
   await nodeLink(page, "ro4_n_1_1").click();
   await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
   await expectExpansionLit(page, "內容拓展 2");
-  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+  await expectFileShown(page, "ro4_n_1_1", expansionFile("ro4_n_1_1", 2));
 });
 
 test("the list's choice is in memory only: reloading the list brings back 原版", async ({
@@ -107,7 +139,7 @@ test("a node's fallback keeps the choice: after a node with 內容拓展 1 only,
   await expectExpansionLit(page, "內容拓展 2");
   await nodeLink(page, "ro4_n_1_1").click();
   await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
-  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+  await expectFileShown(page, "ro4_n_1_1", expansionFile("ro4_n_1_1", 2));
 });
 
 test("opening a node link sets the choice to its x, none being 原版", async ({ page }) => {
@@ -160,7 +192,7 @@ test("a mainline stage between leaves the choice: back on theme 4, a node shows 
   await expectExpansionLit(page, "內容拓展 2");
   await nodeLink(page, "ro4_n_1_1").click();
   await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=normal&x=2$/);
-  await expectFileShown(page, expansionFile("ro4_n_1_1", 2));
+  await expectFileShown(page, "ro4_n_1_1", expansionFile("ro4_n_1_1", 2));
 });
 
 test("the choice carries across themes; lists without 內容拓展 link without x", async ({
@@ -245,7 +277,7 @@ test("x=2 on a node with 內容拓展 1 only shows and lights 內容拓展 1, ke
   expect(siteStage("ro4_t_2").expansions?.map((x) => x.number)).toEqual([1]);
   await page.goto("#/level/ro4_t_2?x=2");
 
-  await expectFileShown(page, expansionFile("ro4_t_2", 1));
+  await expectFileShown(page, "ro4_t_2", expansionFile("ro4_t_2", 1));
   await expectExpansionLit(page, "內容拓展 1");
   await expect(page).toHaveURL(/#\/level\/ro4_t_2\?x=2$/);
 });
@@ -258,7 +290,7 @@ test("緊急作戰 on a 內容拓展: the 內容拓展's file at the 緊急作�
   await expectVariantShown(page, "emergency");
   await expectExpansionLit(page, "內容拓展 1");
   const file = expansionFile("ro4_t_2", 1);
-  await expectFileShown(page, file, "FOUR_STAR");
+  await expectFileShown(page, "ro4_t_2", file, "FOUR_STAR");
   await expectDefaultSwitches(page, readSiteLevel(file), "FOUR_STAR");
 });
 
@@ -279,7 +311,7 @@ test("switching 內容拓展 keeps the 波次 and seconds, resets the switches, 
 
   await expect(page).toHaveURL(/#\/level\/ro4_t_2\?v=normal&x=1$/);
   await expectExpansionLit(page, "內容拓展 1");
-  await expectFileShown(page, expansion);
+  await expectFileShown(page, "ro4_t_2", expansion);
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
   await expect(timeDisplay(page)).toHaveText("40.0 秒");
   await expectDefaultSwitches(page, readSiteLevel(expansion), "NORMAL");
@@ -289,10 +321,65 @@ test("switching 內容拓展 keeps the 波次 and seconds, resets the switches, 
 
   await expect(page).toHaveURL(/#\/level\/ro4_t_2\?v=normal$/);
   await expectExpansionLit(page, "原版");
-  await expectFileShown(page, base);
+  await expectFileShown(page, "ro4_t_2", base);
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
   await expect(timeDisplay(page)).toHaveText("40.0 秒");
   await expectDefaultSwitches(page, readSiteLevel(base), "NORMAL");
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/$/);
+});
+
+test.describe("in a wide window", () => {
+  test.use({ viewport: wideWindow });
+
+  test("switching 內容拓展 drops 收起 and the 端點篩選, though the other file has that row and dot", async ({
+    page,
+  }) => {
+    const base = readSiteLevel(siteStage("ro4_t_2").variants[0]!.levelFile);
+    const expansion = readSiteLevel(expansionFile("ro4_t_2", 1));
+    const row = spawnTable(base).find((r) => r.waveIndex === 0 && r.firstOrder !== null)!;
+    const dot = routeEndpoints(buildTimeline(base)).find((e) => e.kind === "spawn")!;
+    expect(
+      spawnTable(expansion).some((r) => r.waveIndex === 0 && actionKey(r) === actionKey(row)),
+      "內容拓展 1 has the row",
+    ).toBe(true);
+    expect(
+      routeEndpoints(buildTimeline(expansion)).map(endpointKey),
+      "內容拓展 1 has the dot",
+    ).toContain(endpointKey(dot));
+    const rowBox = rowOf(page, row).getByRole("checkbox");
+    const stowedHint = page.locator("[data-stowed-count]");
+
+    await page.goto("#/level/ro4_t_2?v=normal");
+    await rowBox.uncheck();
+    await endpointDot(page, dot).click();
+    await expect(stowedHint).toHaveCount(1);
+    await expect(filterCaption(page)).toHaveCount(1);
+
+    await expansionButton(page, "內容拓展 1").click();
+
+    await expectFileShown(page, "ro4_t_2", expansionFile("ro4_t_2", 1));
+    await expect(rowBox).toBeChecked();
+    await expect(stowedHint).toHaveCount(0);
+    await expect(filterCaption(page)).toHaveCount(0);
+
+    await expansionButton(page, "原版").click();
+
+    await expect(rowBox).toBeChecked();
+    await expect(stowedHint).toHaveCount(0);
+    await expect(filterCaption(page)).toHaveCount(0);
+  });
+});
+
+test("an old 緊急作戰 link with an unknown v opens its node, which has no such variant", async ({
+  page,
+}) => {
+  await page.goto("#/");
+  await page.goto("#/level/ro4_e_1_1?v=foo&x=1");
+
+  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=foo&x=1$/);
+  await expect(page.getByText("這個關卡沒有變體 foo")).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(/#\/$/);
@@ -302,7 +389,7 @@ for (const x of ["0", "-1", "1.5", "abc"]) {
   test(`x=${x} is no 拓展編號: 原版 shows`, async ({ page }) => {
     await page.goto(`#/level/ro4_n_1_1?x=${x}`);
 
-    await expectFileShown(page, siteStage("ro4_n_1_1").variants[0]!.levelFile);
+    await expectFileShown(page, "ro4_n_1_1", siteStage("ro4_n_1_1").variants[0]!.levelFile);
     await expectExpansionLit(page, "原版");
   });
 }

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { Area, Section } from "../level/index.ts";
+  import type { Area, ExpansionChoice, Section } from "../level/index.ts";
   import { formatHash } from "./route.ts";
   import { strings, variantLabel } from "./strings.ts";
 
   interface Props {
     area: Area;
-    expansion: number | null;
+    expansion: ExpansionChoice;
   }
   let { area, expansion }: Props = $props();
 

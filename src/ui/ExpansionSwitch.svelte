@@ -1,10 +1,11 @@
 <script lang="ts">
+  import type { ExpansionChoice } from "../level/index.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
     numbers: number[];
-    shown: number | null;
-    onSelect: (expansion: number | null) => void;
+    shown: ExpansionChoice;
+    onSelect: (expansion: ExpansionChoice) => void;
   }
   let { numbers, shown, onSelect }: Props = $props();
 </script>

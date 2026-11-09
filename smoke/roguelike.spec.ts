@@ -12,12 +12,14 @@ import {
 } from "./levelPage.ts";
 
 const conditionText = (page: Page) => page.locator("[data-emergency-condition]");
+const emergencyCondition = (id: string) =>
+  siteStage(id).variants.find((v) => v.id === "emergency")?.emergencyCondition;
 
 test("a theme lists its nodes only: a node with a 緊急作戰 lists it, without its condition text", async ({
   page,
 }) => {
-  const node = siteStage("ro1_n_1_1");
-  expect(node.emergencyCondition, "ro1_n_1_1 has a 緊急作戰").toBeDefined();
+  const condition = emergencyCondition("ro1_n_1_1");
+  expect(condition, "ro1_n_1_1 has a 緊急作戰").toBeDefined();
   await page.goto("#/");
   await page.locator('a[data-area="rogue_1"]').click();
 
@@ -26,7 +28,7 @@ test("a theme lists its nodes only: a node with a 緊急作戰 lists it, without
   await expect(page.locator('a[data-stage^="ro1_e_"]')).toHaveCount(0);
   const row = page.locator('a[data-stage="ro1_n_1_1"]');
   await expect(row.locator(".variants")).toHaveText("緊急作戰");
-  await expect(row).not.toContainText(node.emergencyCondition!);
+  await expect(row).not.toContainText(condition!);
 
   await row.click();
   await expect(page).toHaveURL(/#\/level\/ro1_n_1_1\?v=normal$/);
@@ -36,7 +38,7 @@ test("a theme lists its nodes only: a node with a 緊急作戰 lists it, without
 test("a node switches between 普通 and 緊急作戰; the condition text shows on 緊急作戰 only", async ({
   page,
 }) => {
-  const node = siteStage("ro1_n_1_1");
+  const condition = emergencyCondition("ro1_n_1_1");
   await page.goto("#/level/ro1_n_1_1?v=normal");
 
   const buttons = page.getByRole("group", { name: "關卡變體" }).getByRole("button");
@@ -48,7 +50,7 @@ test("a node switches between 普通 and 緊急作戰; the condition text shows 
 
   await expect(page).toHaveURL(/#\/level\/ro1_n_1_1\?v=emergency$/);
   await expectVariantShown(page, "emergency");
-  await expect(conditionText(page)).toHaveText(node.emergencyCondition!);
+  await expect(conditionText(page)).toHaveText(condition!);
 
   await page.locator('button[data-variant="normal"]').click();
 
@@ -98,7 +100,7 @@ test("an old 緊急作戰 link opens its node's 緊急作戰, leaving no history
 
   await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=emergency$/);
   await expectVariantShown(page, "emergency");
-  await expect(conditionText(page)).toHaveText(siteStage("ro4_n_1_1").emergencyCondition!);
+  await expect(conditionText(page)).toHaveText(emergencyCondition("ro4_n_1_1")!);
 
   await page.goBack();
   await expect(page).toHaveURL(/#\/$/);

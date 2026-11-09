@@ -173,6 +173,8 @@ export interface Variant {
   /** Site-relative path of the level JSON. */
   levelFile: string;
   difficulty: Difficulty;
+  /** The game's 附加條件說明, on a 緊急作戰 only. */
+  emergencyCondition?: string;
 }
 
 /** One stage in the site's stage index. */
@@ -184,7 +186,6 @@ export interface StageEntry {
   name: string;
   /** Base variant first. */
   variants: Variant[];
-  emergencyCondition?: string;
   /** 集成戰略 nodes: their 內容拓展, by ascending number; absent when there are none. */
   expansions?: Expansion[];
 }
