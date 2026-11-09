@@ -52,7 +52,7 @@
     min="0"
     max={end}
     step="0.1"
-    value={emptyWave ? 0 : t}
+    value={t}
     disabled={emptyWave}
     aria-label={strings.timeSlider}
     oninput={(e) => {
@@ -76,7 +76,7 @@
         </button>
       {/each}
     </div>
-    <output>{emptyWave ? strings.emptyWave : `${t.toFixed(1)} ${strings.seconds}`}</output>
+    <output>{emptyWave ? strings.emptyWaveNote : `${t.toFixed(1)} ${strings.seconds}`}</output>
   </div>
 </div>
 
@@ -90,7 +90,7 @@
     margin: 0;
   }
   input:disabled {
-    opacity: 0.45;
+    opacity: var(--dimmed);
     cursor: not-allowed;
   }
   .controls {

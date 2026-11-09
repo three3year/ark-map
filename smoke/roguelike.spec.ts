@@ -1,6 +1,13 @@
 // Smoke test: 集成戰略 stages in the built site (dist/), against the index the site ships.
 import { expect, test, type Page } from "@playwright/test";
-import { spawnPlan } from "../src/timeline/index.ts";
+import type { Difficulty } from "../src/level/index.ts";
+import {
+  buildTimeline,
+  isEmptyWave,
+  spawnPlan,
+  timelineEnd,
+  type SpawnSwitches,
+} from "../src/timeline/index.ts";
 import {
   expectDefaultSwitches,
   expectVariantShown,
@@ -9,6 +16,7 @@ import {
   selectWave,
   siteStage,
   timeDisplay,
+  timeSlider,
 } from "./levelPage.ts";
 
 const conditionText = (page: Page) => page.locator("[data-emergency-condition]");
@@ -72,6 +80,20 @@ test("普通 ↔ 緊急作戰 keeps the 波次 and seconds and resets the switch
   expect(emergency.levelFile, "緊急作戰 shares the node's file").toBe(variants[0]!.levelFile);
   const group = spawnPlan(level, "NORMAL").groups.hidden.find((g) => !g.defaultOn)!;
   expect(group, "ro4_t_2 has a 隱藏組 off in 普通").toBeDefined();
+  const emergencyGroups = spawnPlan(level, emergency.difficulty).groups.hidden;
+  const otherGroup = emergencyGroups.find((g) => !g.defaultOn)!;
+  expect(otherGroup, "ro4_t_2 has a 隱藏組 off in 緊急作戰").toBeDefined();
+  const hiddenOn = [...emergencyGroups.filter((g) => g.defaultOn), otherGroup].map((g) => g.name);
+  expect(
+    isEmptyWave(
+      buildTimeline(level, {
+        waveIndex: 1,
+        difficulty: emergency.difficulty,
+        switches: { hiddenOn },
+      }),
+    ),
+    "switching it on leaves 第 2 波 with enemy individuals",
+  ).toBe(false);
   await page.goto("#/level/ro4_t_2?v=normal");
   await selectWave(page, 1);
   await seek(page, 40);
@@ -84,13 +106,46 @@ test("普通 ↔ 緊急作戰 keeps the 波次 and seconds and resets the switch
   await expect(timeDisplay(page)).toHaveText("40.0 秒");
   await expectDefaultSwitches(page, level, emergency.difficulty);
 
-  await page.locator(`input[data-hidden-group="${group.name}"]`).click();
-  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
+  await page.locator(`input[data-hidden-group="${otherGroup.name}"]`).click();
+  await expect(timeSlider(page)).toBeEnabled();
   await page.locator('button[data-variant="normal"]').click();
 
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
-  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(timeDisplay(page)).toHaveText("40.0 秒");
   await expectDefaultSwitches(page, level, "NORMAL");
+});
+
+test("緊急作戰: a switch that empties the 波次 resets the seconds, and 普通 does not bring them back", async ({
+  page,
+}) => {
+  const variants = siteStage("ro4_t_2").variants;
+  const emergency = variants.find((v) => v.id === "emergency")!;
+  const level = readSiteLevel(variants[0]!.levelFile);
+  const { hidden } = spawnPlan(level, emergency.difficulty).groups;
+  const group = hidden.find((g) => g.name === "hidden")!;
+  expect(group.defaultOn, "緊急作戰 has the 隱藏組 on").toBe(true);
+  const hiddenOn = hidden.filter((g) => g.defaultOn && g !== group).map((g) => g.name);
+  const waveOf = (difficulty: Difficulty, switches: SpawnSwitches = {}) =>
+    buildTimeline(level, { waveIndex: 1, difficulty, switches });
+  expect(
+    isEmptyWave(waveOf(emergency.difficulty, { hiddenOn })),
+    "switching it off leaves 第 2 波 a 空波次",
+  ).toBe(true);
+  expect(timelineEnd(waveOf("NORMAL")), "普通's 第 2 波 lasts past 40 s").toBeGreaterThan(40);
+  await page.goto("#/level/ro4_t_2?v=emergency");
+  await selectWave(page, 1);
+  await seek(page, 40);
+
+  await page.locator(`input[data-hidden-group="${group.name}"]`).uncheck();
+
+  await expect(timeSlider(page)).toBeDisabled();
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
+
+  await page.locator('button[data-variant="normal"]').click();
+
+  await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
+  await expect(timeSlider(page)).toBeEnabled();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 
 test("an old 緊急作戰 link opens its node's 緊急作戰, leaving no history entry behind", async ({

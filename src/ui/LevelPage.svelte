@@ -14,6 +14,7 @@
     buildTimeline,
     endpointKey,
     individualKey,
+    isEmptyWave,
     routeEndpoints,
     spawnPlan,
     spawnTable,
@@ -96,7 +97,7 @@
     onSwitches(switchPick(level, switches, group, candidate));
   const setConditional = (branch: number, trigger: ConditionalTrigger | null) =>
     onSwitches(switchConditional(switches, branch, trigger));
-  const emptyWave = $derived(timeline.individuals.length === 0);
+  const emptyWave = $derived(isEmptyWave(timeline));
   $effect(() => {
     if (emptyWave && t !== 0) onSeek(0);
   });
