@@ -151,16 +151,17 @@ test.describe("short wide window", () => {
     await enemyOnMap(page, individual.id).press("Enter");
 
     await expect(selectedRow).toHaveClass(/\bselected\b/);
-    // The middle of the 捲動範圍: the column's box inside its border.
+    // The middle of the 捲動範圍: the column's box inside its border. The scroll position snaps to
+    // a whole pixel, so the row's middle may sit half a pixel off it.
     const columnMiddle = await page
       .locator("#spawn-table-drawer")
       .evaluate((el) => el.getBoundingClientRect().top + el.clientTop + el.clientHeight / 2);
     await expect
       .poll(async () => {
         const box = (await selectedRow.boundingBox())!;
-        return box.y + box.height / 2 - columnMiddle;
+        return Math.abs(box.y + box.height / 2 - columnMiddle);
       })
-      .toBeCloseTo(0, 0);
+      .toBeLessThanOrEqual(0.5);
     expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
   });
 });
