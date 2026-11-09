@@ -13,7 +13,7 @@ import {
   type StageEntry,
   type StageIndex,
 } from "../src/level/index.ts";
-import { spawnPlan, type EndpointPlace } from "../src/timeline/index.ts";
+import { actionKey, spawnPlan, type EndpointPlace, type SpawnRow } from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 
@@ -55,6 +55,10 @@ export const phoneWindow = { width: 390, height: 844 };
 
 /** The spawn table, in its column or its drawer. */
 export const spawnTableRegion = (page: Page) => page.getByRole("region", { name: "出兵表" });
+
+/** The spawn table's row for `row`. */
+export const rowOf = (page: Page, row: SpawnRow) =>
+  page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
 
 export const orderCell = (row: Locator) => {
   const heading = 'ancestor::table[1]/thead/tr/th[normalize-space()="次序"]';

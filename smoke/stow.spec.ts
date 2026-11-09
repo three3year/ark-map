@@ -24,6 +24,7 @@ import {
   orderCell,
   phoneWindow,
   readSiteLevel,
+  rowOf,
   seek,
   selectWave,
   shownOpacity,
@@ -38,6 +39,8 @@ test.use({ viewport: wideWindow });
 
 type OnField = Snapshot["onField"];
 
+const iconReachInCells = 1;
+
 function aloneOnField(timeline: Timeline, fits: (i: Individual, onField: OnField) => boolean) {
   for (let t = 0; t <= Math.ceil(timelineEnd(timeline)); t++) {
     const onField = takeSnapshot(timeline, t).onField;
@@ -47,7 +50,8 @@ function aloneOnField(timeline: Timeline, fits: (i: Individual, onField: OnField
         onField.every(
           (other) =>
             other.individual === individual ||
-            Math.hypot(other.position.x - position.x, other.position.y - position.y) > 1,
+            Math.hypot(other.position.x - position.x, other.position.y - position.y) >
+              iconReachInCells,
         ),
     );
     if (alone) return { t, individual: alone.individual, onField };
@@ -64,7 +68,7 @@ const counts = (page: Page) =>
   );
 const stowedHint = (page: Page) => page.locator("[data-stowed-count]");
 
-async function watchContextMenu(page: Page) {
+async function watchMenuCancelled(page: Page) {
   await page.evaluate(() => {
     addEventListener("contextmenu", (e) => {
       document.body.dataset.menuCancelled = String(e.defaultPrevented);
@@ -86,7 +90,7 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
 
   await page.goto("#/level/main_01-07?v=normal");
   await seek(page, t);
-  const menuCancelled = await watchContextMenu(page);
+  const lastMenuCancelled = await watchMenuCancelled(page);
   const before = await counts(page);
   const url = page.url();
   await expect(stowedHint(page)).toHaveCount(0);
@@ -94,7 +98,7 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
   await enemyOnMap(page, individual.id).click({ button: "right" });
 
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
-  expect(await menuCancelled()).toBe("true");
+  expect(await lastMenuCancelled()).toBe("true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField.length - 1);
   for (const e of mates) await expect(enemyOnMap(page, e.individual.id)).toHaveCount(1);
   expect(await counts(page)).toEqual(before);
@@ -103,7 +107,7 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
   expect(page.url()).toBe(url);
 
   await page.locator("svg.map rect.tile").first().click({ button: "right" });
-  expect(await menuCancelled()).toBe("false");
+  expect(await lastMenuCancelled()).toBe("false");
 });
 
 test("15-13: a stowed enemy stays off the map inside its 端點篩選; the dots stay", async ({
@@ -148,7 +152,7 @@ test("1-7: stowing the selected enemy deselects it; selected again, it shows unt
   await expect(path).toHaveCount(0);
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
 
-  await page.locator(`tr[data-wave="0"][data-action="${actionKey(row)}"] button.enemy`).click();
+  await rowOf(page, row).locator("button.enemy").click();
 
   await expect(timeDisplay(page)).toHaveText(`${ceilTenth(row.waveTime).toFixed(1)} 秒`);
   await expect(selection).toHaveAttribute("data-selected", individual.id);
@@ -188,7 +192,7 @@ test("1-7: the selection row's 收起 stows and deselects; 顯示 on a stowed on
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
 
-  await page.locator(`tr[data-wave="0"][data-action="${actionKey(row)}"] button.enemy`).click();
+  await rowOf(page, row).locator("button.enemy").click();
   await expect(selection).toHaveAttribute("data-selected", individual.id);
   await expect(selectionButton(page, "收起")).toHaveCount(0);
 
@@ -321,7 +325,7 @@ test("11-7: switching a 條件出兵 on and off keeps an enemy stowed", async ({
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
 });
 
-test("11-6: another variant, even on the same level file, or a reload shows every enemy again", async ({
+test("11-7: another variant, even on the same level file, or a reload shows every enemy again", async ({
   page,
 }) => {
   const variants = siteStage("main_11-06").variants;
@@ -377,8 +381,6 @@ test("another stage on the stage list shows every enemy again, though it shares 
   await expect(enemyOnMap(page, individual.id)).toHaveCount(1);
 });
 
-const rowOf = (page: Page, row: SpawnRow) =>
-  page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
 const rowBox = (page: Page, row: SpawnRow) => rowOf(page, row).getByRole("checkbox");
 
 test("1-7: unchecking a row's box stows its every individual, without jumping or deselecting", async ({
@@ -492,7 +494,9 @@ test("ro2_n_2_6: only rows that spawn have a box; a stowed row stays stowed acro
   const rows = spawnTable(siteLevel("ro2_n_2_6"));
   const spawning = rows.filter((r) => r.firstOrder !== null);
   const silent = rows.filter((r) => r.firstOrder === null);
-  const nothing = silent.find((r) => r.random?.picked && r.enemyId === "")!;
+  const defaultNothing = silent.find((r) => r.random?.picked && r.enemyId === "");
+  expect(defaultNothing, "a 隨機出兵組 picks its 不出兵 candidate by default").toBeDefined();
+  const nothing = defaultNothing!;
   const row = silent.find((r) => r.random?.group === nothing.random!.group && !r.random.picked)!;
   const columns = page.locator("table thead th");
 
@@ -576,7 +580,7 @@ test("ro4_b_5: with no 端點篩選 the header box stows and shows every 波次'
   for (const r of rows) await expect(rowBox(page, r)).not.toBeChecked();
 });
 
-test("15-12: under a 端點篩選 the header box stows only the rows from that 出生點", async ({
+test("15-13: under a 端點篩選 the header box stows only the rows from that 出生點", async ({
   page,
 }) => {
   const level = siteLevel("main_15-12");
