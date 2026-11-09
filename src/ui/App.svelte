@@ -8,6 +8,7 @@
     type StageEntry,
     type StageIndex,
     type TerrainTable,
+    type VariantId,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
   import AreaList from "./AreaList.svelte";
@@ -82,6 +83,27 @@
       ),
     ),
   );
+
+  /**
+   * Stage-table ids that are no stage of the index but some stage's variant (an old 緊急作戰 id
+   * such as ro4_e_1_1), mapped to that stage and variant.
+   */
+  const movedStages: Record<string, { stageId: string; variant: VariantId }> = $derived(
+    Object.fromEntries(
+      Object.values(stages).flatMap(({ stage }) =>
+        stage.variants
+          .filter((v) => v.sourceStageId !== stage.id)
+          .map((v) => [v.sourceStageId, { stageId: stage.id, variant: v.id }]),
+      ),
+    ),
+  );
+
+  // An old link to such an id opens that stage's variant instead, replacing the history entry.
+  $effect(() => {
+    if (route.page !== "level" || stages[route.stageId]) return;
+    const moved = movedStages[route.stageId];
+    if (moved) navigate({ page: "level", ...moved });
+  });
 
   const area = $derived(
     route.page === "area" ? index?.areas.find((a) => a.id === route.areaId) : undefined,

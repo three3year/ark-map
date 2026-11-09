@@ -31,7 +31,6 @@ export const strings = {
   replacement: (n: number) => `替換地圖 ${n}`,
   /** Heading of a 集成戰略 section of stages outside the numbered zones. */
   otherStages: "其他關卡",
-  emergencySection: (zone: string) => `${zone}・緊急作戰`,
   variantPicker: "關卡變體",
   seconds: "秒",
   play: "播放",

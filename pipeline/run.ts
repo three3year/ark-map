@@ -189,8 +189,11 @@ log(
 
 const outcome = pipelineOutcome(skipped, failures);
 if (outcome.missing.length > 0) {
-  log(`略過 ${outcome.missing.length} 個關卡(上游沒有關卡檔):`);
-  for (const s of outcome.missing) console.log(`  ${s.stageId} -> levels/${s.levelPath}.json`);
+  log(`略過 ${outcome.missing.length} 個關卡:`);
+  for (const s of outcome.missing) {
+    const why = s.reason === "unlinkedEmergency" ? "緊急作戰連結不到節點" : "上游沒有關卡檔";
+    console.log(`  ${s.stageId} -> levels/${s.levelPath}.json(${why})`);
+  }
 }
 
 const keyCounts = [...modifierKeys].sort((a, b) => b[1] - a[1]);

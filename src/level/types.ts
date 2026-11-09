@@ -162,8 +162,8 @@ export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";
 
 /**
  * 關卡變體 kinds. Normal, challenge, six-star and easy share one level file; tough has its own.
- * 集成戰略: an emergency operation is the base variant of its own stage, on the normal node's
- * file; `replace<n>` is the node's n-th 替換地圖 (from 1), each its own file.
+ * 集成戰略: a node's emergency variant (緊急作戰) shares its normal file, at FOUR_STAR;
+ * `replace<n>` is the node's n-th 替換地圖 (from 1), each its own file.
  */
 export type VariantId = NamedVariantId | ReplaceVariantId;
 export type NamedVariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough" | "emergency";
@@ -188,7 +188,7 @@ export interface StageEntry {
   name: string;
   /** Base variant first. */
   variants: Variant[];
-  /** 集成戰略 emergency operations (緊急作戰): the condition text, "附加條件:…". */
+  /** 集成戰略 nodes with an emergency variant (緊急作戰): its condition text, "附加條件:…". */
   emergencyCondition?: string;
 }
 
@@ -199,8 +199,6 @@ export interface Section {
    * (bosses, events, ...).
    */
   name: string | null;
-  /** 集成戰略: the section lists emergency operations, kept apart from the normal nodes. */
-  emergency?: boolean;
   stages: StageEntry[];
 }
 

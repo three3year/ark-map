@@ -284,7 +284,7 @@
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
     <h2>{stage.code} {stage.name}</h2>
-    {#if stage.emergencyCondition}
+    {#if variant.id === "emergency" && stage.emergencyCondition}
       <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
     {/if}
     {#if stage.variants.length > 1}
