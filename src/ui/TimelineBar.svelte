@@ -9,7 +9,6 @@
     end: number;
     /** Playback stops here: the wave's last individual has leaked. */
     stop: number;
-    /** The 波次 is a 空波次: the slider is disabled at 0 and the seconds give way to a note. */
     emptyWave: boolean;
     onSeek: (t: number) => void;
     /**
@@ -90,7 +89,6 @@
     width: 100%;
     margin: 0;
   }
-  /* Faded like the spawn table's unpicked candidates, in either color scheme. */
   input:disabled {
     opacity: 0.45;
     cursor: not-allowed;

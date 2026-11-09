@@ -84,8 +84,6 @@ test("普通 ↔ 緊急作戰 keeps the 波次 and seconds and resets the switch
   await expect(timeDisplay(page)).toHaveText("40.0 秒");
   await expectDefaultSwitches(page, level, emergency.difficulty);
 
-  // Turning the group off in 緊急作戰 leaves 第 2 波 a 空波次, which takes the seconds to 0;
-  // switching back keeps them there.
   await page.locator(`input[data-hidden-group="${group.name}"]`).click();
   await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
   await page.locator('button[data-variant="normal"]').click();

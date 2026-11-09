@@ -1,5 +1,3 @@
-// Smoke test: a 空波次 grays out and disables the time slider; playback carries on as before.
-// Whether a 波次 is empty comes from 基準時間軸 run on the same data the site ships.
 import { expect, test, type Page } from "@playwright/test";
 import { buildTimeline } from "../src/timeline/index.ts";
 import { selectWave, shownOpacity, siteLevel, timeDisplay } from "./levelPage.ts";

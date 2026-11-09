@@ -38,7 +38,6 @@ export const strings = {
   play: "播放",
   pause: "暫停",
   timeSlider: "時間軸",
-  /** Stands in for the seconds on a 空波次. */
   emptyWave: "本波沒有敵人",
   playbackSpeed: "播放速度",
   speedLabel: (speed: number) => `${speed}x`,

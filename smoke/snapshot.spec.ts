@@ -240,7 +240,6 @@ test.describe("wide window", () => {
 
     await seek(page, 5);
     await selectWave(page, 1);
-    // The default pick leaves 第 2 波 a 空波次.
     await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
     await page.locator('tr[data-wave="0"] button.enemy').first().click();
 
@@ -386,7 +385,6 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, t));
 
-  // The 空波次 took the seconds to 0: back on 原版 they stay there, not at 30 s.
   await expansionButton("原版").click();
 
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();

@@ -122,7 +122,6 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
   expect(expected).toBe(1);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
 
-  // Back to the default pick the wave is a 空波次 again; picking the thief again starts at 0 s.
   await pickDefault.click();
   await expect(slider).toBeDisabled();
   await pickThief.click();
@@ -143,7 +142,6 @@ test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", a
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
   await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
-  // The jump's seconds gave way to 0 s: picking the thief shows them.
   const thief = spawnTable(level).find((r) => r.random?.group === 0 && r.random.candidate === 1)!;
   expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
   await page.locator('tr[data-random="0-1"] button.pick').click();
@@ -212,7 +210,6 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   const group = page.locator('input[data-hidden-group="random"]');
   await expect(group).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
-  // With the group off the wave is a 空波次: the time slider is disabled.
   await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
 
   await group.check();
@@ -228,7 +225,6 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
   expect(page.url()).toBe(url);
 
-  // An old link's switches are ignored: the page opens with the variant's default, a 空波次.
   await openLink(page, "#/level/act1dp_01?v=normal&c=0-10&h=random&r=0-0");
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(conditional).not.toBeChecked();
