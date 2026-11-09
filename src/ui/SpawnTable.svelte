@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** A row's 收起 state over the individuals it spawns: none, all, or some of them 收起. */
+  export type RowStow = "shown" | "stowed" | "mixed";
+</script>
+
 <script lang="ts">
   import {
     actionKey,
@@ -27,6 +32,10 @@
     /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
     filter: RouteEndpoint | null;
     onClearFilter: () => void;
+    /** The 收起 state of a row that spawns (次序 not 「-」). */
+    rowStow: (row: SpawnRow) => RowStow;
+    /** 收起 the individuals `rows` spawn, or show them. */
+    onStow: (rows: SpawnRow[], stow: boolean) => void;
   }
   let {
     rows,
@@ -38,6 +47,8 @@
     branchKeys,
     filter,
     onClearFilter,
+    rowStow,
+    onStow,
   }: Props = $props();
 
   /** Rows keep their 編號 in the whole table while filtered. */
@@ -74,6 +85,7 @@
     <table>
       <thead>
         <tr>
+          <th aria-label={strings.stowColumn}></th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
           <th>{strings.spawnTableOrder}</th>
@@ -87,12 +99,15 @@
         {#each shown as row, i (`${row.waveIndex}-${actionKey(row)}`)}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
-              <th colspan="7" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
+              <th colspan="8" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
           <tr
-            onclick={() => onJump(row)}
+            onclick={(event) => {
+              // The 收起 box's cell toggles the box alone.
+              if (!(event.target as Element).closest(".stow")) onJump(row);
+            }}
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
             class:unpicked={row.random && !row.random.picked}
@@ -102,7 +117,24 @@
             data-conditional={row.branchIndex}
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
             data-picked={row.random?.picked}
+            data-stow={row.firstOrder !== null ? rowStow(row) : undefined}
           >
+            {#if row.firstOrder !== null}
+              {@const stow = rowStow(row)}
+              <td class="stow">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={stow === "shown"}
+                    indeterminate={stow === "mixed"}
+                    aria-label={strings.showRow(row.number, enemyName(row))}
+                    onchange={() => onStow([row], stow === "shown")}
+                  />
+                </label>
+              </td>
+            {:else}
+              <td></td>
+            {/if}
             <td class="num">{row.number}</td>
             <td>
               <button
@@ -245,6 +277,18 @@
   tr.current td,
   .wave-head.current th {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  /* The whole cell is the box's target. */
+  td.stow {
+    padding: 0;
+  }
+  .stow label {
+    display: grid;
+    place-items: center;
+    padding: 6px 10px;
+  }
+  .stow input {
+    margin: 0;
   }
   .enemy {
     display: inline-flex;

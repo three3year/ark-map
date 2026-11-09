@@ -35,7 +35,7 @@
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import SpawnTable from "./SpawnTable.svelte";
+  import SpawnTable, { type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings, variantLabel } from "./strings.ts";
@@ -188,6 +188,21 @@
       changed.has(selection.individual)
     ) {
       selection = null;
+    }
+  }
+  /** The individuals a spawn-table row spawns, by {@link individualKey}. */
+  const rowIndividuals = (row: SpawnRow) =>
+    Array.from({ length: row.count }, (_, k) => individualKey({ ...row, spawnIndex: k }));
+  function rowStow(row: SpawnRow): RowStow {
+    const here = stowedWaves.get(row.waveIndex);
+    const n = rowIndividuals(row).filter((id) => here?.has(id)).length;
+    return n === 0 ? "shown" : n === row.count ? "stowed" : "mixed";
+  }
+  /** 收起 the individuals spawn-table `rows` spawn, or show them. */
+  function stowRows(rows: SpawnRow[], stow: boolean) {
+    for (const wave of new Set(rows.map((r) => r.waveIndex))) {
+      const ids = rows.filter((r) => r.waveIndex === wave).flatMap(rowIndividuals);
+      setStowed(wave, ids, stow);
     }
   }
   /** A right-click on the map: 收起 the individual, or show it if it is 收起 and drawn as selected. */
@@ -376,6 +391,8 @@
         branchKeys={level.branches.map((b) => b.key)}
         filter={filtered}
         onClearFilter={() => (endpointFilter = null)}
+        {rowStow}
+        onStow={stowRows}
       />
     </div>
   </div>
