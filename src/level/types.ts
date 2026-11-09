@@ -162,12 +162,10 @@ export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";
 
 /**
  * 關卡變體 kinds. Normal, challenge, six-star and easy share one level file; tough has its own.
- * 集成戰略: a node's emergency variant (緊急作戰) shares its normal file, at FOUR_STAR;
- * `replace<n>` is the node's n-th 替換地圖 (from 1), each its own file.
+ * 集成戰略: a node's emergency variant (緊急作戰) shares its normal file, at FOUR_STAR. A node's
+ * 內容拓展 are no variants: see {@link StageEntry.expansions}.
  */
-export type VariantId = NamedVariantId | ReplaceVariantId;
-export type NamedVariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough" | "emergency";
-export type ReplaceVariantId = `replace${number}`;
+export type VariantId = "normal" | "challenge" | "sixStar" | "easy" | "tough" | "emergency";
 
 export interface Variant {
   /** Used in URLs; unique within its stage. */
@@ -190,6 +188,16 @@ export interface StageEntry {
   variants: Variant[];
   /** 集成戰略 nodes with an emergency variant (緊急作戰): its condition text, "附加條件:…". */
   emergencyCondition?: string;
+  /** 集成戰略 nodes: their 內容拓展, by ascending number; absent when there are none. */
+  expansions?: Expansion[];
+}
+
+/** One 內容拓展 of a 集成戰略 node: its own level file, for every variant of the node. */
+export interface Expansion {
+  /** 拓展編號, from the file name: `_r2` and `_dlc2` are both 2. */
+  number: number;
+  /** Site-relative path of the level JSON. */
+  levelFile: string;
 }
 
 /** A titled run of stages inside an area, e.g. one zone of an activity. */

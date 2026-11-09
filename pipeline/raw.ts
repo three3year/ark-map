@@ -198,7 +198,7 @@ export interface RawRoguelikeStage {
   linkedStageId: string;
   /** Mixed case, e.g. "Obt/Roguelike/RO1/level_rogue1_1-1". */
   levelId: string;
-  /** Alternative maps (替換地圖) of the same node, as level ids. */
+  /** The node's 內容拓展 files, as level ids ending in `_rN` or `_dlcN`. */
   levelReplaceIds: string[];
   code: string;
   name: string;

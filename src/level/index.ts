@@ -2,6 +2,7 @@ import type { Action, Cell, LevelMap, Tile, Vec2 } from "./types.ts";
 
 export type * from "./types.ts";
 export * from "./enums.ts";
+export * from "./expansion.ts";
 export * from "./modifiers.ts";
 export * from "./names.ts";
 

@@ -1,4 +1,4 @@
-// Hash routing. The URL picks which level and variant to show (關卡連結); the level page
+// Hash routing. The URL picks which level, variant and 內容拓展 to show (關卡連結); the level page
 // keeps its own 播放位置 (wave and seconds) and 開關狀態.
 
 export interface LevelRoute {
@@ -6,13 +6,16 @@ export interface LevelRoute {
   stageId: string;
   /** Variant id; null picks the stage's base variant. */
   variant: string | null;
+  /** 內容拓展選擇 `x`: a 拓展編號, or null for 原版. */
+  expansion: number | null;
 }
 
 /** Area list (`#/`), one area's stage list (`#/area/<id>`), or a stage's snapshot page. */
 export type Route = { page: "home" } | { page: "area"; areaId: string } | LevelRoute;
 
 /**
- * `#/level/<stageId>?v=<variant>`, `#/area/<areaId>`; anything else is home.
+ * `#/level/<stageId>?v=<variant>&x=<拓展編號>`, `#/area/<areaId>`; anything else is home. An `x`
+ * that is no positive integer is 原版.
  * Other level parameters, such as the old `w`, `t`, `h`, `r` and `c`, are ignored.
  */
 export function parseHash(hash: string): Route {
@@ -21,7 +24,13 @@ export function parseHash(hash: string): Route {
   const level = /^#\/level\/([^?]+)(?:\?(.*))?$/.exec(hash);
   if (!level) return { page: "home" };
   const params = new URLSearchParams(level[2] ?? "");
-  return { page: "level", stageId: decodeURIComponent(level[1]!), variant: params.get("v") };
+  const x = params.get("x");
+  return {
+    page: "level",
+    stageId: decodeURIComponent(level[1]!),
+    variant: params.get("v"),
+    expansion: x && /^[1-9]\d*$/.test(x) ? Number(x) : null,
+  };
 }
 
 export function formatHash(route: Route): string {
@@ -31,7 +40,10 @@ export function formatHash(route: Route): string {
     case "area":
       return `#/area/${encodeURIComponent(route.areaId)}`;
     case "level": {
-      const query = route.variant ? `?${new URLSearchParams({ v: route.variant })}` : "";
+      const params = new URLSearchParams();
+      if (route.variant) params.set("v", route.variant);
+      if (route.expansion !== null) params.set("x", String(route.expansion));
+      const query = params.size > 0 ? `?${params}` : "";
       return `#/level/${encodeURIComponent(route.stageId)}${query}`;
     }
   }

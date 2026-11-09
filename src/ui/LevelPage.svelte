@@ -49,6 +49,8 @@
     area: Area;
     stage: StageEntry;
     variant: Variant;
+    /** 實際顯示的關卡檔: the variant's own, or a 內容拓展's. `level` is its content. */
+    levelFile: string;
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
@@ -69,6 +71,7 @@
     area,
     stage,
     variant,
+    levelFile,
     level,
     terrain,
     wave,
@@ -143,14 +146,16 @@
     sideColumn.scrollTop += (box.top + box.bottom - top - bottom) / 2;
   }
 
+  /** 收起 holds for one stage, variant and shown level file: any change drops it. */
   interface Stowed {
     stageId: string;
     variant: VariantId;
+    levelFile: string;
     waves: ReadonlyMap<number, ReadonlySet<string>>;
   }
   let stowed = $state.raw<Stowed | null>(null);
   const stowedWaves = $derived(
-    stowed?.stageId === stage.id && stowed.variant === variant.id
+    stowed?.stageId === stage.id && stowed.variant === variant.id && stowed.levelFile === levelFile
       ? stowed.waves
       : new Map<number, ReadonlySet<string>>(),
   );
@@ -167,7 +172,7 @@
 
   function writeStowed(wave: number, ids: Iterable<string>) {
     const waves = new Map([...stowedWaves, [wave, new Set(ids)]]);
-    stowed = { stageId: stage.id, variant: variant.id, waves };
+    stowed = { stageId: stage.id, variant: variant.id, levelFile, waves };
   }
   function stowAndDeselect(wave: number, ids: Iterable<string>) {
     const stowing = new Set(ids);
@@ -208,23 +213,29 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
-  /** The 端點篩選 in one variant's wave. */
+  /** The 端點篩選 in one wave of one stage, variant and shown level file. */
   interface EndpointFilter {
     levelId: string;
     variant: VariantId;
+    levelFile: string;
     wave: number;
     endpoint: EndpointPlace;
   }
   let endpointFilter = $state<EndpointFilter | null>(null);
   const filtered = $derived.by(() => {
     const f = endpointFilter;
-    if (f?.levelId !== level.levelId || f.variant !== variant.id || f.wave !== waveIndex) {
+    if (
+      f?.levelId !== level.levelId ||
+      f.variant !== variant.id ||
+      f.levelFile !== levelFile ||
+      f.wave !== waveIndex
+    ) {
       return null;
     }
     const key = endpointKey(f.endpoint);
     return endpoints.find((e) => endpointKey(e) === key) ?? null;
   });
-  // Another wave, variant or level, or switches that remove the dot, clear the filter for good:
+  // Another wave, variant, level or shown level file, or switches that remove the dot, clear the filter for good:
   // coming back to that wave or dot does not bring it back.
   $effect(() => {
     if (endpointFilter && !filtered) endpointFilter = null;
@@ -254,7 +265,13 @@
       endpointFilter = null;
       return;
     }
-    endpointFilter = { levelId: level.levelId, variant: variant.id, wave: waveIndex, endpoint };
+    endpointFilter = {
+      levelId: level.levelId,
+      variant: variant.id,
+      levelFile,
+      wave: waveIndex,
+      endpoint,
+    };
     if (drawerMode.current) setDrawerOpen(true);
   }
 

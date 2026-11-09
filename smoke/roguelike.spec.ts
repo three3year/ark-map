@@ -104,14 +104,3 @@ test("an old 緊急作戰 link opens its node's 緊急作戰, leaving no history
   await page.goBack();
   await expect(page).toHaveURL(/#\/$/);
 });
-
-test("a theme-4 node switches to its 替換地圖", async ({ page }) => {
-  expect(siteStage("ro4_n_1_1").variants.map((v) => v.id)).toContain("replace1");
-  await page.goto("#/level/ro4_n_1_1");
-
-  await page.locator('button[data-variant="replace1"]').click();
-
-  await expect(page).toHaveURL(/#\/level\/ro4_n_1_1\?v=replace1$/);
-  await expectVariantShown(page, "replace1");
-  await expect(page.locator("svg.map")).toBeVisible();
-});
