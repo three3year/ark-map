@@ -385,4 +385,11 @@ test("a 內容拓展 without the 波次 on screen shows 第 1 波; switching bac
   await expect(slider).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expansion.onField(2, t));
+
+  // The 空波次 took the seconds to 0: back on 原版 they stay there, not at 30 s.
+  await expansionButton("原版").click();
+
+  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(page.locator("svg.map g.enemy")).toHaveCount(original.onField(0, 0));
 });

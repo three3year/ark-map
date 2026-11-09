@@ -104,18 +104,50 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
   await selectWave(page, 1);
   await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
-  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
+  const slider = page.getByRole("slider", { name: "時間軸" });
+  await expect(slider).toBeDisabled();
   const url = page.url();
+  const pickThief = page.locator('tr[data-random="0-1"] button.pick');
+  const pickDefault = page.locator('tr[data-random="0-0"] button.pick');
 
-  await page.locator('tr[data-random="0-1"] button.pick').click();
+  await pickThief.click();
+
+  await expect(slider).toBeEnabled();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
   await seek(page, t);
-
   await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "true");
   expect(page.url()).toBe(url);
   await expect(page.locator('select[data-random-group="0"]')).toHaveValue("1");
   const expected = onField(level, t, { waveIndex: 1, switches: { picks: { 0: 1 } } });
   expect(expected).toBe(1);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
+
+  // Back to the default pick the wave is a 空波次 again; picking the thief again starts at 0 s.
+  await pickDefault.click();
+  await expect(slider).toBeDisabled();
+  await pickThief.click();
+  await expect(slider).toBeEnabled();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+});
+
+test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", async ({ page }) => {
+  const level = siteLevel("ro2_n_2_6");
+  expect(onField(level, 5, { waveIndex: 1 }), "the default pick spawns nothing").toBe(0);
+
+  await page.goto("#/level/ro2_n_2_6?v=normal");
+  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+  await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "false");
+
+  await page.locator('tr[data-random="0-1"] button.enemy').click();
+
+  await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
+  await expect(page.getByRole("slider", { name: "時間軸" })).toBeDisabled();
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
+  // The jump's seconds gave way to 0 s: picking the thief shows them.
+  const thief = spawnTable(level).find((r) => r.random?.group === 0 && r.random.candidate === 1)!;
+  expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
+  await page.locator('tr[data-random="0-1"] button.pick').click();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 
 test("11-7: a 條件出兵 switched on spawns at its second and shows its path", async ({ page }) => {

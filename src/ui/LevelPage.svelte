@@ -96,6 +96,11 @@
     onSwitches(switchPick(level, switches, group, candidate));
   const setConditional = (branch: number, trigger: ConditionalTrigger | null) =>
     onSwitches(switchConditional(switches, branch, trigger));
+  const emptyWave = $derived(timeline.individuals.length === 0);
+  // Whatever made the wave a 空波次, its seconds go to 0 and stay there when it fills again.
+  $effect(() => {
+    if (emptyWave && t !== 0) onSeek(0);
+  });
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
@@ -321,14 +326,7 @@
     {#if level.waves.length > 1}
       <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
     {/if}
-    <TimelineBar
-      {t}
-      {end}
-      {stop}
-      emptyWave={timeline.individuals.length === 0}
-      {onSeek}
-      onReachStop={playbackReachedStop}
-    />
+    <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
     <dl class="counts" aria-live="polite">
       <div>
         <dt>{strings.countPending}</dt>
