@@ -13,7 +13,7 @@ import {
   type StageEntry,
   type StageIndex,
 } from "../src/level/index.ts";
-import { spawnPlan, type EndpointPlace } from "../src/timeline/index.ts";
+import { actionKey, spawnPlan, type EndpointPlace, type SpawnRow } from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 
@@ -56,6 +56,10 @@ export const phoneWindow = { width: 390, height: 844 };
 /** The spawn table, in its column or its drawer. */
 export const spawnTableRegion = (page: Page) => page.getByRole("region", { name: "出兵表" });
 
+/** The spawn table's row for `row`. */
+export const rowOf = (page: Page, row: SpawnRow) =>
+  page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
+
 export const orderCell = (row: Locator) => {
   const heading = 'ancestor::table[1]/thead/tr/th[normalize-space()="次序"]';
   return row.locator(`xpath=*[${heading}][count(${heading}/preceding-sibling::*) + 1]`);
@@ -94,13 +98,15 @@ export async function selectWave(page: Page, wave: number) {
   await page.getByRole("radio", { name: `第 ${wave + 1} 波` }).click();
 }
 
+const switchPanel = (page: Page) => page.getByRole("region", { name: "開關" });
+
 /** The on/off switch of 條件出兵 `branch` (0-based, level-file order). */
 export const conditionalSwitch = (page: Page, branch: number) =>
-  page.locator(`[data-conditional="${branch}"] input[type="checkbox"]`);
+  switchPanel(page).locator(`[data-conditional="${branch}"] input[type="checkbox"]`);
 
 /** Type `seconds` as the trigger second of 條件出兵 `branch`, already switched on. */
 export async function setConditionalSecond(page: Page, branch: number, seconds: number) {
-  const second = page.locator(`[data-conditional="${branch}"] input[type="number"]`);
+  const second = switchPanel(page).locator(`[data-conditional="${branch}"] input[type="number"]`);
   await second.fill(String(seconds));
   await second.press("Enter");
 }
@@ -121,7 +127,9 @@ export async function expectDefaultSwitches(page: Page, level: Level, difficulty
       String(group.defaultPick),
     );
   }
-  await expect(page.locator('[data-conditional] input[type="checkbox"]:checked')).toHaveCount(0);
+  await expect(
+    switchPanel(page).locator('[data-conditional] input[type="checkbox"]:checked'),
+  ).toHaveCount(0);
 }
 
 /** The variant buttons show `variant` as the one on screen. */

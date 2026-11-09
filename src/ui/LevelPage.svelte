@@ -35,7 +35,7 @@
   import { formatHash } from "./route.ts";
   import { tick, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import SpawnTable, { type RowStow } from "./SpawnTable.svelte";
+  import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { strings, variantLabel } from "./strings.ts";
@@ -165,36 +165,48 @@
     ),
   );
 
-  function setStowed(wave: number, ids: Iterable<string>, stow: boolean) {
-    const changed = new Set(ids);
-    const before = [...(stowedWaves.get(wave) ?? [])];
-    const after = stow ? [...before, ...changed] : before.filter((id) => !changed.has(id));
-    const waves = new Map([...stowedWaves, [wave, new Set(after)]]);
+  function writeStowed(wave: number, ids: Iterable<string>) {
+    const waves = new Map([...stowedWaves, [wave, new Set(ids)]]);
     stowed = { stageId: stage.id, variant: variant.id, waves };
+  }
+  function stowAndDeselect(wave: number, ids: Iterable<string>) {
+    const stowing = new Set(ids);
+    writeStowed(wave, [...(stowedWaves.get(wave) ?? []), ...stowing]);
     if (
-      stow &&
       selection?.levelId === level.levelId &&
       selection.wave === wave &&
-      changed.has(selection.individual)
+      stowing.has(selection.individual)
     ) {
       selection = null;
     }
   }
+  function showStowed(wave: number, ids: Iterable<string>) {
+    const showing = new Set(ids);
+    writeStowed(
+      wave,
+      [...(stowedWaves.get(wave) ?? [])].filter((id) => !showing.has(id)),
+    );
+  }
   const rowIndividuals = (row: SpawnRow) =>
     Array.from({ length: row.count }, (_, k) => individualKey({ ...row, spawnIndex: k }));
   function rowStow(row: SpawnRow): RowStow {
-    const here = stowedWaves.get(row.waveIndex);
-    const n = rowIndividuals(row).filter((id) => here?.has(id)).length;
-    return n === 0 ? "shown" : n === row.count ? "stowed" : "mixed";
+    const stowedInWave = stowedWaves.get(row.waveIndex);
+    const individualStows = rowIndividuals(row).map((id) =>
+      stowedInWave?.has(id) ? "stowed" : "shown",
+    );
+    return combinedStow(individualStows) ?? "shown";
   }
   function stowRows(rows: SpawnRow[], stow: boolean) {
     for (const wave of new Set(rows.map((r) => r.waveIndex))) {
       const ids = rows.filter((r) => r.waveIndex === wave).flatMap(rowIndividuals);
-      setStowed(wave, ids, stow);
+      if (stow) stowAndDeselect(wave, ids);
+      else showStowed(wave, ids);
     }
   }
-  const toggleStow = (individual: Individual) =>
-    setStowed(waveIndex, [individual.id], !stowedHere.has(individual.id));
+  function toggleStow(individual: Individual) {
+    if (stowedHere.has(individual.id)) showStowed(waveIndex, [individual.id]);
+    else stowAndDeselect(waveIndex, [individual.id]);
+  }
 
   /** The 端點篩選 in one variant's wave. */
   interface EndpointFilter {
@@ -334,7 +346,7 @@
       {#if stowedCount > 0}
         <p class="stowed" data-stowed-count={stowedCount}>
           <span>{strings.stowedCount(stowedCount)}</span>
-          <button type="button" onclick={() => setStowed(waveIndex, stowedHere, false)}>
+          <button type="button" onclick={() => showStowed(waveIndex, stowedHere)}>
             {strings.showAllStowed}
           </button>
         </p>
@@ -520,24 +532,22 @@
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
-  .selection {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 8px 0 0;
-    font-size: 0.9rem;
-  }
-  .selection-actions {
-    display: flex;
-    gap: 8px;
-  }
+  .selection,
   .stowed {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 8px 0 0;
     font-size: 0.9rem;
+  }
+  .selection {
+    justify-content: space-between;
+  }
+  .selection-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .stowed {
     color: var(--muted);
   }
   .selection button,

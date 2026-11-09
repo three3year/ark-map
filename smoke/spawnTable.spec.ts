@@ -1,16 +1,14 @@
 // Smoke test: a click anywhere on a spawn-table row selects it; 切換 only switches the candidate.
 // Expected seconds come from the level's spawn table on the same data the site ships.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { actionKey, spawnTable, type SpawnRow } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
-import { orderCell, seek, siteLevel, timeDisplay, wideWindow } from "./levelPage.ts";
+import { orderCell, rowOf, seek, siteLevel, timeDisplay, wideWindow } from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
 
 const siteRows = (stageId: string): SpawnRow[] => spawnTable(siteLevel(stageId));
 
-const rowOf = (page: Page, row: SpawnRow) =>
-  page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
 const firstIndividual = (row: SpawnRow) => `${actionKey(row)}-0`;
 
 test("1-7: clicking a row away from the name jumps to its spawn and shows the route", async ({

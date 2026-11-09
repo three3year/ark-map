@@ -1,5 +1,11 @@
 <script lang="ts" module>
   export type RowStow = "shown" | "stowed" | "mixed";
+
+  export function combinedStow(parts: Iterable<RowStow>): RowStow | null {
+    const states = new Set(parts);
+    if (states.size === 0) return null;
+    return states.size === 1 ? [...states][0]! : "mixed";
+  }
 </script>
 
 <script lang="ts">
@@ -54,12 +60,9 @@
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
 
-  const boxed = $derived(shown.filter((r) => r.firstOrder !== null));
-  const listedStow = $derived.by((): RowStow | null => {
-    const states = new Set(boxed.map(rowStow));
-    if (states.size === 0) return null;
-    return states.size === 1 ? [...states][0]! : "mixed";
-  });
+  const hasStowBox = (r: SpawnRow) => r.firstOrder !== null;
+  const listedWithBox = $derived(shown.filter(hasStowBox));
+  const listedStow = $derived(combinedStow(listedWithBox.map(rowStow)));
 
   const isSelected = (r: SpawnRow) =>
     selected !== null && r.waveIndex === wave && sameAction(r, selected);
@@ -97,7 +100,7 @@
                 indeterminate={listedStow === "mixed"}
                 disabled={listedStow === null}
                 aria-label={strings.showListedRows}
-                onchange={() => onStow(boxed, listedStow === "shown")}
+                onchange={() => onStow(listedWithBox, listedStow === "shown")}
               />
             </label>
           </th>
@@ -112,6 +115,7 @@
       </thead>
       <tbody>
         {#each shown as row, i (`${row.waveIndex}-${actionKey(row)}`)}
+          {@const stow = hasStowBox(row) ? rowStow(row) : null}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
               <th colspan="8" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
@@ -119,9 +123,7 @@
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
           <tr
-            onclick={(event) => {
-              if (!(event.target as Element).closest(".stow")) onJump(row);
-            }}
+            onclick={() => onJump(row)}
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
             class:unpicked={row.random && !row.random.picked}
@@ -131,11 +133,10 @@
             data-conditional={row.branchIndex}
             data-random={row.random && `${row.random.group}-${row.random.candidate}`}
             data-picked={row.random?.picked}
-            data-stow={row.firstOrder !== null ? rowStow(row) : undefined}
+            data-stow={stow ?? undefined}
           >
-            {#if row.firstOrder !== null}
-              {@const stow = rowStow(row)}
-              <td class="stow">
+            {#if stow !== null}
+              <td class="stow" onclick={(event) => event.stopPropagation()}>
                 <label>
                   <input
                     type="checkbox"
