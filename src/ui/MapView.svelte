@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import {
     cellKey,
     isWalkable,
@@ -49,9 +50,25 @@
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
   const stayBarWidth = 0.64;
 
-  function toggleSelect(individual: Individual) {
+  /**
+   * Selecting moves a faded enemy to the shown layer, which redraws it; focus follows it there so
+   * the keyboard does not lose its place.
+   */
+  async function toggleSelect(individual: Individual, event: Event) {
+    const hadFocus = document.activeElement === event.currentTarget;
     onSelect(individual.id === selected?.id ? null : individual);
+    if (!hadFocus) return;
+    await tick();
+    svg?.querySelector<SVGElement>(`[data-individual="${individual.id}"]`)?.focus();
   }
+
+  type OnField = Snapshot["onField"][number];
+  /** Outside the 端點篩選, unless selected. */
+  const isFaded = ({ individual }: OnField) =>
+    filter !== null && individual.id !== selected?.id && !matchesEndpoint(individual, filter);
+  const fadedEnemies = $derived(enemies.filter(isFaded));
+  const shownEnemies = $derived(enemies.filter((e) => !isFaded(e)));
+  let svg = $state<SVGSVGElement>();
 
   const points = (ps: Vec2[]) => ps.map((p) => `${p.x},${svgY(p.y)}`).join(" ");
   const tenth = (s: number) => Math.round(s * 10) / 10;
@@ -142,6 +159,66 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
+{#snippet enemyMark({ individual, position, invisible, stay }: OnField, faded: boolean)}
+  <g
+    class="enemy"
+    class:invisible
+    class:harmless={individual.harmless}
+    class:selected={individual.id === selected?.id}
+    transform="translate({position.x} {svgY(position.y)})"
+    data-enemy={individual.enemy.id}
+    data-individual={individual.id}
+    data-filtered-out={faded || undefined}
+    role="button"
+    tabindex="0"
+    aria-label={individual.enemy.name}
+    aria-pressed={individual.id === selected?.id}
+    onclick={(e) => toggleSelect(individual, e)}
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSelect(individual, e);
+      }
+    }}
+  >
+    <g class="billboard">
+      <title>{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title>
+      <circle r="0.36" class="enemy-bg" />
+      {#if individual.enemy.avatar && !brokenAvatars.has(individual.enemy.avatar)}
+        <image
+          href={individual.enemy.avatar}
+          x="-0.34"
+          y="-0.34"
+          width="0.68"
+          height="0.68"
+          clip-path="circle(50%)"
+          onerror={() => markBroken(individual.enemy.avatar!)}
+        />
+      {:else}
+        <text class="enemy-code">{individual.enemy.code ?? individual.enemy.name.slice(0, 1)}</text>
+      {/if}
+      <circle r="0.36" class="enemy-ring" />
+      {#if individual.harmless}
+        <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
+      {/if}
+      {#if stay}
+        {@const remaining = remainingOf(stay)}
+        <!-- Above the 無害敵人 tag when there is one. -->
+        <g
+          class="stay-bar"
+          data-remaining={remaining.toFixed(3)}
+          transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})"
+        >
+          <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
+          <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
+          <!-- Seconds left, over the bar's right end. -->
+          <text class="stay-seconds" x={stayBarWidth} y="-0.02">{(stay.end - t).toFixed(1)}</text>
+        </g>
+      {/if}
+    </g>
+  </g>
+{/snippet}
+
 <div class="map-view">
   <div class="toolbar">
     <button type="button" class="view-toggle" aria-pressed={view === "flat"} onclick={toggleView}>
@@ -151,6 +228,7 @@
 
   <div class="stage" class:tilted={view === "tilted"} style={stageStyle}>
     <svg
+      bind:this={svg}
       class="map"
       viewBox="-0.5 -0.5 {map.width} {map.height}"
       role="img"
@@ -257,73 +335,14 @@
         </g>
       {/if}
 
-      {#each enemies as { individual, position, invisible, stay } (individual.id)}
-        {@const filteredOut =
-          filter !== null && individual.id !== selected?.id && !matchesEndpoint(individual, filter)}
-        <g
-          class="enemy"
-          class:invisible
-          class:filtered-out={filteredOut}
-          class:harmless={individual.harmless}
-          class:selected={individual.id === selected?.id}
-          transform="translate({position.x} {svgY(position.y)})"
-          data-enemy={individual.enemy.id}
-          data-individual={individual.id}
-          data-filtered-out={filteredOut || undefined}
-          role="button"
-          tabindex="0"
-          aria-label={individual.enemy.name}
-          aria-pressed={individual.id === selected?.id}
-          onclick={() => toggleSelect(individual)}
-          onkeydown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              toggleSelect(individual);
-            }
-          }}
-        >
-          <g class="billboard">
-            <title
-              >{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title
-            >
-            <circle r="0.36" class="enemy-bg" />
-            {#if individual.enemy.avatar && !brokenAvatars.has(individual.enemy.avatar)}
-              <image
-                href={individual.enemy.avatar}
-                x="-0.34"
-                y="-0.34"
-                width="0.68"
-                height="0.68"
-                clip-path="circle(50%)"
-                onerror={() => markBroken(individual.enemy.avatar!)}
-              />
-            {:else}
-              <text class="enemy-code"
-                >{individual.enemy.code ?? individual.enemy.name.slice(0, 1)}</text
-              >
-            {/if}
-            <circle r="0.36" class="enemy-ring" />
-            {#if individual.harmless}
-              <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
-            {/if}
-            {#if stay}
-              {@const remaining = remainingOf(stay)}
-              <!-- Above the 無害敵人 tag when there is one. -->
-              <g
-                class="stay-bar"
-                data-remaining={remaining.toFixed(3)}
-                transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})"
-              >
-                <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
-                <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
-                <!-- Seconds left, over the bar's right end. -->
-                <text class="stay-seconds" x={stayBarWidth} y="-0.02"
-                  >{(stay.end - t).toFixed(1)}</text
-                >
-              </g>
-            {/if}
-          </g>
-        </g>
+      <!-- One layer fades them all at once, so enemies stacked on one spot fade no less. -->
+      <g class="faded">
+        {#each fadedEnemies as enemy (enemy.individual.id)}
+          {@render enemyMark(enemy, true)}
+        {/each}
+      </g>
+      {#each shownEnemies as enemy (enemy.individual.id)}
+        {@render enemyMark(enemy, false)}
       {/each}
 
       {#if path.length > 0}
@@ -528,7 +547,7 @@
   .enemy.invisible > .billboard {
     opacity: 0.7;
   }
-  .enemy.filtered-out {
+  .faded {
     opacity: 0.4;
   }
   .enemy.invisible .enemy-ring {
