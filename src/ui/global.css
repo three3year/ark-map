@@ -28,3 +28,41 @@ body {
   margin: 0;
   background: var(--bg);
 }
+
+/*
+ * Segmented Button: a group (role="group" with an aria-label) of joined buttons, the chosen one
+ * aria-pressed="true". Neighbours share one border and only the ends are rounded; the group is as
+ * wide as its buttons, however many there are.
+ */
+.segmented {
+  display: flex;
+  width: fit-content;
+}
+.segmented > button {
+  position: relative;
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+}
+.segmented > button + button {
+  margin-left: -1px;
+}
+.segmented > button:first-child {
+  border-radius: 999px 0 0 999px;
+}
+.segmented > button:last-child {
+  border-radius: 0 999px 999px 0;
+}
+/* Raised so the pressed and the focused button show all four of their borders. */
+.segmented > button[aria-pressed="true"] {
+  z-index: 1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.segmented > button:focus-visible {
+  z-index: 2;
+}

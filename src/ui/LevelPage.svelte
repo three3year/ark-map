@@ -288,7 +288,7 @@
       <p class="condition" data-emergency-condition>{stage.emergencyCondition}</p>
     {/if}
     {#if stage.variants.length > 1}
-      <div class="variants" role="group" aria-label={strings.variantPicker}>
+      <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
           <button
             type="button"
@@ -561,23 +561,7 @@
     cursor: pointer;
   }
   .variants {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     margin-bottom: 12px;
-  }
-  .variants button {
-    padding: 4px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--fg);
-    cursor: pointer;
-  }
-  .variants button[aria-pressed="true"] {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
   }
   .counts {
     display: flex;
