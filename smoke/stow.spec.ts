@@ -16,6 +16,7 @@ import {
 } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
 import {
+  conditionalSwitch,
   drawerButton,
   endpointDot,
   enemyOnMap,
@@ -275,6 +276,46 @@ test("ro2_n_2_6: switching a 隨機出兵組's candidate and back keeps an enemy
 
   await random.selectOption(values.find((v) => v !== pick)!);
   await random.selectOption(pick);
+
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+});
+
+test("15-13: switching a 隱藏組 on and off keeps an enemy stowed", async ({ page }) => {
+  const { t, individual } = aloneOnField(buildTimeline(siteLevel("main_15-12")), () => true);
+  const group1 = page.locator('input[data-hidden-group="group1"]');
+
+  await page.goto("#/level/main_15-12?v=normal");
+  await seek(page, t);
+  await enemyOnMap(page, individual.id).click({ button: "right" });
+  await expect(group1).not.toBeChecked();
+
+  await group1.check();
+
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+
+  await group1.uncheck();
+
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+});
+
+test("11-7: switching a 條件出兵 on and off keeps an enemy stowed", async ({ page }) => {
+  const { t, individual } = aloneOnField(buildTimeline(siteLevel("main_11-06")), () => true);
+  const conditional = conditionalSwitch(page, 0);
+
+  await page.goto("#/level/main_11-06?v=normal");
+  await seek(page, t);
+  await enemyOnMap(page, individual.id).click({ button: "right" });
+
+  await conditional.check();
+
+  await expect(page.locator('tr[data-conditional="0"]')).toHaveCount(1);
+  await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
+  await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
+
+  await conditional.uncheck();
 
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
   await expect(enemyOnMap(page, individual.id)).toHaveCount(0);
