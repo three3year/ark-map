@@ -178,89 +178,130 @@ describe("stage index: 集成戰略", () => {
     return stage;
   }
 
-  it("ro1_n_1_1 points at level_rogue1_1-1", () => {
-    const stage = stageById(build(), "ro1_n_1_1");
-    expect([stage.code, stage.name]).toEqual(["ISW-NO", "與蟲為伴"]);
-    expect(stage.variants).toEqual([
+  it("ro1_e_1_1 is ro1_n_1_1's emergency variant: the node's file at FOUR_STAR", () => {
+    const node = stageById(build(), "ro1_n_1_1");
+    expect([node.code, node.name]).toEqual(["ISW-NO", "與蟲為伴"]);
+    expect(node.variants).toEqual([
       {
         id: "normal",
         sourceStageId: "ro1_n_1_1",
         levelFile: "data/levels/obt/roguelike/ro1/level_rogue1_1-1.json",
         difficulty: "NORMAL",
       },
-    ]);
-  });
-
-  it("ro1_e_1_1 is listed apart from ro1_n_1_1 but shares its level JSON, at FOUR_STAR", () => {
-    const index = build();
-    const normal = stageById(index, "ro1_n_1_1");
-    const emergency = stageById(index, "ro1_e_1_1");
-    expect(emergency.variants).toEqual([
       {
         id: "emergency",
         sourceStageId: "ro1_e_1_1",
-        levelFile: normal.variants[0]!.levelFile,
+        levelFile: "data/levels/obt/roguelike/ro1/level_rogue1_1-1.json",
         difficulty: "FOUR_STAR",
       },
     ]);
-    expect(emergency.emergencyCondition).toBe("附加條件：敵人的攻擊力、防禦力和生命值大幅度提升");
-    expect(normal.emergencyCondition).toBeUndefined();
+    expect(node.emergencyCondition).toBe("附加條件：敵人的攻擊力、防禦力和生命值大幅度提升");
   });
 
-  it("lists each zone's normal nodes, then its emergency operations; zoneless stages last", () => {
-    const area = build().areas.find((a) => a.id === "rogue_1")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
+  it("ro4_e_t_2 is ro4_t_2's emergency variant, its condition on ro4_t_2", () => {
+    const node = stageById(build(), "ro4_t_2");
+    expect([node.code, node.name]).toEqual(["ISW-SP", "訊號燈"]);
+    expect(node.variants.slice(0, 2)).toEqual([
+      {
+        id: "normal",
+        sourceStageId: "ro4_t_2",
+        levelFile: "data/levels/obt/roguelike/ro4/level_rogue4_t-2.json",
+        difficulty: "NORMAL",
+      },
+      {
+        id: "emergency",
+        sourceStageId: "ro4_e_t_2",
+        levelFile: "data/levels/obt/roguelike/ro4/level_rogue4_t-2.json",
+        difficulty: "FOUR_STAR",
+      },
+    ]);
+    expect(node.emergencyCondition).toBe(
+      "敵人的攻擊力、防禦力和生命值提升，出現額外敵人，道路障礙物的生命值大幅提升",
+    );
+  });
+
+  it("ro6_e_3_1_dlc1 is the DLC node ro6_n_3_1_dlc1's emergency variant", () => {
+    const node = stageById(build(), "ro6_n_3_1_dlc1");
+    expect(node.variants).toEqual([
+      {
+        id: "normal",
+        sourceStageId: "ro6_n_3_1_dlc1",
+        levelFile: "data/levels/obt/roguelike/ro6/dlc1/level_rogue6_3-1_dlc1.json",
+        difficulty: "NORMAL",
+      },
+      {
+        id: "emergency",
+        sourceStageId: "ro6_e_3_1_dlc1",
+        levelFile: "data/levels/obt/roguelike/ro6/dlc1/level_rogue6_3-1_dlc1.json",
+        difficulty: "FOUR_STAR",
+      },
+    ]);
+    expect(node.emergencyCondition).toBe("敌人的攻击力、防御力和生命值提升，部分敌人有所不同");
+  });
+
+  it("merges an emergency operation listed before its node in the table", () => {
+    const reordered = rawTables();
+    const detail = reordered.cn.roguelike.details["rogue_1"]!;
+    const { ro1_e_1_1, ...rest } = detail.stages;
+    detail.stages = { ro1_e_1_1: ro1_e_1_1!, ...rest };
+    const index = buildStageIndex(reordered, allFilesPresent()).index;
+    expect(stageById(index, "ro1_n_1_1").variants.map((v) => [v.id, v.sourceStageId])).toEqual([
+      ["normal", "ro1_n_1_1"],
+      ["emergency", "ro1_e_1_1"],
+    ]);
+  });
+
+  it("skips and reports an emergency operation that links to no node", () => {
+    const unlinked = rawTables();
+    unlinked.cn.roguelike.details["rogue_1"]!.stages["ro1_e_1_1"]!.linkedStageId = "ro1_n_9_9";
+    const { index, skipped } = buildStageIndex(unlinked, allFilesPresent());
+    const ids = index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages.map((x) => x.id)));
+    expect(ids).not.toContain("ro1_e_1_1");
+    expect(stageById(index, "ro1_n_1_1").variants.map((v) => v.id)).toEqual(["normal"]);
+    expect(stageById(index, "ro1_n_1_1").emergencyCondition).toBeUndefined();
+    expect(skipped).toContainEqual({
+      stageId: "ro1_e_1_1",
+      levelPath: "obt/roguelike/ro1/level_rogue1_1-1",
+      reason: "unlinkedEmergency",
+    });
+  });
+
+  it("lists each zone's nodes, zoneless stages last; no emergency sections", () => {
+    const sections = (areaId: string) =>
+      build()
+        .areas.find((a) => a.id === areaId)!
+        .sections.map((s) => [s.name, "emergency" in s, s.stages.map((x) => x.id)]);
+    expect(sections("rogue_1")).toEqual([
       ["迷霧歧途", false, ["ro1_n_1_1"]],
-      ["迷霧歧途", true, ["ro1_e_1_1"]],
       ["落陽庭院", false, ["ro1_n_2_1"]],
       [null, false, ["ro1_b_1"]],
     ]);
-  });
-
-  it("files an emergency operation under its linked stage's zone (none for ro4_t_2)", () => {
-    const area = build().areas.find((a) => a.id === "rogue_4")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
+    expect(sections("rogue_4")).toEqual([
       ["熔魂之始", false, ["ro4_n_1_1"]],
-      ["熔魂之始", true, ["ro4_e_1_1"]],
       [null, false, ["ro4_t_2"]],
-      [null, true, ["ro4_e_t_2"]],
     ]);
   });
 
-  it("lists each 替換地圖 of a theme-4 node as a variant on its own file", () => {
+  it("lists each 替換地圖 of a theme-4 node after its emergency variant, each on its own file", () => {
     const index = build();
     const rows = (id: string) =>
       stageById(index, id).variants.map((v) => [v.id, v.difficulty, v.levelFile]);
     expect(rows("ro4_n_1_1")).toEqual([
       ["normal", "NORMAL", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
-      [
-        "replace1",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
-      ],
-      [
-        "replace2",
-        "NORMAL",
-        "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
-      ],
-    ]);
-    expect(rows("ro4_e_1_1")).toEqual([
       ["emergency", "FOUR_STAR", "data/levels/obt/roguelike/ro4/level_rogue4_1-1.json"],
       [
         "replace1",
-        "FOUR_STAR",
+        "NORMAL",
         "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1.json",
       ],
       [
         "replace2",
-        "FOUR_STAR",
+        "NORMAL",
         "data/levels/obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r2.json",
       ],
     ]);
+    const ids = index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages.map((x) => x.id)));
+    expect(ids.filter((id) => /^ro\d+_e_/.test(id))).toEqual([]);
   });
 
   it("fetches every theme's files: DLC stages and 替換地圖 included", () => {
@@ -279,7 +320,11 @@ describe("stage index: 集成戰略", () => {
     const facts = allFilesPresent();
     facts.delete("obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1");
     const { index, skipped } = buildStageIndex(tables, facts);
-    expect(stageById(index, "ro4_n_1_1").variants.map((v) => v.id)).toEqual(["normal", "replace2"]);
+    expect(stageById(index, "ro4_n_1_1").variants.map((v) => v.id)).toEqual([
+      "normal",
+      "emergency",
+      "replace2",
+    ]);
     expect(skipped).toContainEqual({
       stageId: "ro4_n_1_1",
       levelPath: "obt/roguelike/ro4/levelreplacers/level_rogue4_1-1_r1",
@@ -288,15 +333,9 @@ describe("stage index: 集成戰略", () => {
 
   it("names theme 6, which TW lacks, in CN; its DLC nodes join the numbered zone", () => {
     const area = build().areas.find((a) => a.id === "rogue_6")!;
-    expect(
-      area.sections.map((s) => [s.name, s.emergency ?? false, s.stages.map((x) => x.id)]),
-    ).toEqual([
-      ["玻利瓦尔肤层", false, ["ro6_n_1_1"]],
-      ["血色空脉", false, ["ro6_n_3_1_dlc1"]],
-      ["血色空脉", true, ["ro6_e_3_1_dlc1"]],
+    expect(area.sections.map((s) => [s.name, s.stages.map((x) => x.id)])).toEqual([
+      ["玻利瓦尔肤层", ["ro6_n_1_1"]],
+      ["血色空脉", ["ro6_n_3_1_dlc1"]],
     ]);
-    expect(stageById(build(), "ro6_e_3_1_dlc1").emergencyCondition).toBe(
-      "敌人的攻击力、防御力和生命值提升，部分敌人有所不同",
-    );
   });
 });

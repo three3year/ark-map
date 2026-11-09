@@ -15,6 +15,7 @@ import type {
   RawActivityTable,
   RawCampaignTable,
   RawLevel,
+  RawRoguelikeStage,
   RawRoguelikeTopicTable,
   RawStage,
   RawStageTable,
@@ -47,10 +48,14 @@ export function levelFacts(raw: RawLevel): LevelFacts {
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 
-/** A stage left out of the index because its level file is missing upstream. */
+/**
+ * A stage left out of the index: by default because its level file is missing upstream;
+ * `unlinkedEmergency` is a 緊急作戰 whose `linkedStageId` names no node of its theme.
+ */
 export interface SkippedStage {
   stageId: string;
   levelPath: string;
+  reason?: "unlinkedEmergency";
 }
 
 /** Raw paths are case-sensitive and lowercase upstream: "obt/main/level_main_01-07". */
@@ -347,10 +352,16 @@ function roguelikeZone(stageId: string): string | null {
   return zone ? `zone_${zone}` : null;
 }
 
+/** A 集成戰略 stage's own difficulty: 緊急作戰 run at FOUR_STAR. */
+function roguelikeDifficulty(stage: RawRoguelikeStage): Difficulty {
+  return stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
+}
+
 /**
- * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its normal nodes,
- * then its emergency operations (which share the linked node's file and zone); stages with no
- * zone come last. A node's 替換地圖 are further variants of it, each on its own file.
+ * 集成戰略: one area per theme, ordered by the theme's `sort`. Each zone lists its nodes; stages
+ * with no zone come last. A node's 緊急作戰 is its `emergency` variant, on the node's file; its
+ * 替換地圖 are further variants, each on its own file. A 緊急作戰 that links to no node is
+ * skipped and reported.
  */
 function roguelikeAreas(
   { cn, tw }: StageIndexTables,
@@ -360,45 +371,70 @@ function roguelikeAreas(
   return Object.values(cn.roguelike.topics).flatMap((topic) => {
     const detail = cn.roguelike.details[topic.id]!;
     const twDetail = tw.roguelike.details[topic.id];
+    const isNode = (stage: RawRoguelikeStage | undefined) => stage?.linkedStageId === "";
+
+    /** Node id -> its 緊急作戰, wherever either comes in the table. */
+    const emergencies = new Map<string, RawRoguelikeStage>();
+    for (const stage of Object.values(detail.stages)) {
+      if (isNode(stage)) continue;
+      if (isNode(detail.stages[stage.linkedStageId])) {
+        emergencies.set(stage.linkedStageId, stage);
+      } else {
+        skipped.push({
+          stageId: stage.id,
+          levelPath: levelPath(stage.levelId),
+          reason: "unlinkedEmergency",
+        });
+      }
+    }
+
     const sections = new Map<string, Section>();
-    // Keys sort into display order: zone_1|false, zone_1|true, ..., then "~" (no zone).
-    const sectionFor = (zone: string | null, emergency: boolean): Section => {
-      const key = `${zone ?? "~"}|${emergency}`;
+    // Keys sort into display order: zone_1, zone_2, ..., then "~" (no zone).
+    const sectionFor = (zone: string | null): Section => {
+      const key = zone ?? "~";
       let section = sections.get(key);
       if (!section) {
         const name = zone
           ? (twDetail?.zones[zone]?.name ?? detail.zones[zone]?.name ?? zone)
           : null;
-        section = { name, ...(emergency && { emergency }), stages: [] };
+        section = { name, stages: [] };
         sections.set(key, section);
       }
       return section;
     };
 
-    for (const stage of Object.values(detail.stages)) {
-      const emergency = stage.linkedStageId !== "";
-      const difficulty: Difficulty = stage.difficulty === "FOUR_STAR" ? "FOUR_STAR" : "NORMAL";
-      const files = [stage.levelId, ...stage.levelReplaceIds].map(levelPath);
-      const variants = files.flatMap((path, i): Variant[] => {
-        if (!facts.has(path)) {
-          skipped.push({ stageId: stage.id, levelPath: path });
-          return [];
+    for (const stage of Object.values(detail.stages).filter(isNode)) {
+      const emergency = emergencies.get(stage.id);
+      const [basePath, ...replacePaths] = [stage.levelId, ...stage.levelReplaceIds].map(levelPath);
+      if (!facts.has(basePath!)) {
+        for (const s of [stage, ...(emergency ? [emergency] : [])]) {
+          skipped.push({ stageId: s.id, levelPath: basePath! });
         }
-        const id: VariantId = i > 0 ? `replace${i}` : emergency ? "emergency" : "normal";
-        return [{ id, sourceStageId: stage.id, levelFile: siteLevelFile(path), difficulty }];
+        continue;
+      }
+      const variant = (id: VariantId, source: RawRoguelikeStage, path: string): Variant => ({
+        id,
+        sourceStageId: source.id,
+        levelFile: siteLevelFile(path),
+        difficulty: roguelikeDifficulty(source),
       });
-      if (!facts.has(files[0]!)) continue;
+      const variants = [variant("normal", stage, basePath!)];
+      if (emergency) variants.push(variant("emergency", emergency, basePath!));
+      replacePaths.forEach((path, i) => {
+        if (facts.has(path)) variants.push(variant(`replace${i + 1}`, stage, path));
+        else skipped.push({ stageId: stage.id, levelPath: path });
+      });
       const twStage = twDetail?.stages[stage.id];
-      const condition = twStage?.eliteDesc ?? stage.eliteDesc;
+      const condition =
+        emergency && (twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc);
       const entry: StageEntry = {
         id: stage.id,
         code: twStage?.code ?? stage.code,
         name: twStage?.name ?? stage.name,
         variants,
-        ...(emergency && condition ? { emergencyCondition: condition } : {}),
+        ...(condition ? { emergencyCondition: condition } : {}),
       };
-      const zone = roguelikeZone(emergency ? stage.linkedStageId : stage.id);
-      sectionFor(zone, emergency).stages.push(entry);
+      sectionFor(roguelikeZone(stage.id)).stages.push(entry);
     }
     if (sections.size === 0) return [];
 
