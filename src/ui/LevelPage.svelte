@@ -37,6 +37,7 @@
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView, { type DeviceMark } from "./MapView.svelte";
+  import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
@@ -51,8 +52,9 @@
     /**
      * The site's title, drawn atop the left column: the spawn table's column beside it then starts
      * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
+     * Its argument goes at the end of the title's row.
      */
-    siteTitle: Snippet;
+    siteTitle: Snippet<[Snippet]>;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -89,6 +91,12 @@
     onJump,
     onSwitches,
   }: Props = $props();
+
+  let mapView = $state(loadMapView(browserStorage()));
+  function toggleMapView() {
+    mapView = mapView === "tilted" ? "flat" : "tilted";
+    saveMapView(browserStorage(), mapView);
+  }
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
@@ -329,16 +337,24 @@
   }
 </script>
 
+{#snippet viewToggle()}
+  <button
+    type="button"
+    class="view-toggle"
+    aria-pressed={mapView === "flat"}
+    onclick={toggleMapView}
+  >
+    {mapView === "tilted" ? strings.viewFlat : strings.viewTilted}
+  </button>
+{/snippet}
+
 <div class="level-page">
   <div class="main-column">
-    {@render siteTitle()}
+    {@render siteTitle(viewToggle)}
     <nav>
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
     <h2>{stage.code} {stage.name}</h2>
-    {#if variant.emergencyCondition}
-      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
-    {/if}
     {#if stage.variants.length > 1}
       <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
@@ -353,7 +369,17 @@
         {/each}
       </div>
     {/if}
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
+    {/if}
+    <div class="map-controls">
+      {#if level.waves.length > 1}
+        <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+      {/if}
+      <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
+    </div>
     <MapView
+      view={mapView}
       map={level.map}
       {terrain}
       devices={deviceMarks}
@@ -398,24 +424,6 @@
         </span>
       </div>
     {/if}
-    {#if level.waves.length > 1}
-      <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
-    {/if}
-    <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
-    <dl class="counts" aria-live="polite">
-      <div>
-        <dt>{strings.countPending}</dt>
-        <dd data-count="pending">{snapshot.counts.pending}</dd>
-      </div>
-      <div>
-        <dt>{strings.countOnField}</dt>
-        <dd data-count="onField">{snapshot.counts.onField}</dd>
-      </div>
-      <div>
-        <dt>{strings.countLeaked}</dt>
-        <dd data-count="leaked">{snapshot.counts.leaked}</dd>
-      </div>
-    </dl>
     <div aria-live="polite">
       {#if stowedCount > 0}
         <p class="stowed" data-stowed-count={stowedCount}>
@@ -608,7 +616,7 @@
     font-size: 1.4rem;
   }
   .condition {
-    margin: -6px 0 12px;
+    margin: 0 0 12px;
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
@@ -657,26 +665,17 @@
   .variants {
     margin-bottom: 12px;
   }
-  .counts {
-    display: flex;
-    gap: 8px;
-    margin: 12px 0 0;
+  .map-controls {
+    margin-bottom: 12px;
   }
-  .counts div {
-    flex: 1;
-    background: var(--panel);
+  .view-toggle {
+    padding: 4px 10px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    min-width: 0;
-    padding: 8px 12px;
-  }
-  dt {
-    color: var(--muted);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
     font-size: 0.85rem;
-  }
-  dd {
-    margin: 0;
-    font-size: 1.5rem;
-    font-variant-numeric: tabular-nums;
+    cursor: pointer;
   }
 </style>

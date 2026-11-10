@@ -129,7 +129,7 @@ test("4-10: every enemy standing still shows the seconds left above its bar, gon
     expect(Math.abs(secondsBox.right - barBox.right), `${view}: right ends line up`).toBeLessThan(
       2,
     );
-    if (view === "tilted") await page.locator("button.view-toggle").click();
+    if (view === "tilted") await page.getByRole("button", { name: "平面俯視" }).click();
   }
 
   await seek(page, Math.ceil(stay!.end));

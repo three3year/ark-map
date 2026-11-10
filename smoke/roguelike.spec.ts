@@ -65,6 +65,27 @@ test("a node switches between 普通 and 緊急作戰; the condition text shows 
   await expect(conditionText(page)).toHaveCount(0);
 });
 
+test("the variant buttons stay put across 普通 ↔ 緊急作戰, with the condition text below them", async ({
+  page,
+}) => {
+  await page.goto("#/level/ro1_n_1_1?v=normal");
+  const group = page.getByRole("group", { name: "關卡變體" });
+  await expect(page.locator("svg.map")).toBeVisible();
+  const before = (await group.boundingBox())!;
+
+  await page.locator('button[data-variant="emergency"]').click();
+
+  await expect(conditionText(page)).toBeVisible();
+  expect(await group.boundingBox()).toEqual(before);
+  const condition = (await conditionText(page).boundingBox())!;
+  expect(condition.y).toBeGreaterThanOrEqual(before.y + before.height);
+
+  await page.locator('button[data-variant="normal"]').click();
+
+  await expect(conditionText(page)).toHaveCount(0);
+  expect(await group.boundingBox()).toEqual(before);
+});
+
 test("a stage without a 緊急作戰, such as a boss, has no variant buttons", async ({ page }) => {
   expect(siteStage("ro1_b_1").variants).toHaveLength(1);
   await page.goto("#/level/ro1_b_1");
