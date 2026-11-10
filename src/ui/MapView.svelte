@@ -350,27 +350,27 @@
           <g class="billboard">
             <title>{device.name}</title>
             {#if removed}
-              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
             {:else}
-              <rect class="device-bg" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              <rect class="device-bg" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
               {#if shows(device.image)}
                 <image
                   href={device.image}
-                  x="-0.36"
-                  y="-0.36"
-                  width="0.72"
-                  height="0.72"
+                  x="-0.27"
+                  y="-0.27"
+                  width="0.54"
+                  height="0.54"
                   onerror={() => markBroken(device.image!)}
                 />
               {:else}
                 <text class="device-initial">{[...device.name][0]}</text>
               {/if}
-              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
               {#if removal}
-                <g class="removal-clock" transform="translate(-0.3 -0.3)">
+                <g class="removal-clock" transform="translate(-0.225 -0.225)">
                   <title>{strings.removalMoment(removal.wave, removal.t)}</title>
-                  <circle r="0.15" />
-                  <path d="M 0 -0.09 V 0 H 0.07" />
+                  <circle r="0.11" />
+                  <path d="M 0 -0.07 V 0 H 0.05" />
                 </g>
               {/if}
             {/if}
@@ -623,7 +623,8 @@
     stroke-linecap: round;
   }
   .device-initial {
-    font-size: 0.34px;
+    font-size: 0.26px;
+    user-select: none;
     text-anchor: middle;
     dominant-baseline: central;
     fill: #1d1d1f;
