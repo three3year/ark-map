@@ -33,6 +33,16 @@ export interface MovementInput {
   spawnTime: number;
   /** Start of the individual's fragment, for WAIT_CURRENT_FRAGMENT_TIME. */
   fragmentStart: number;
+  /** The wave's nextNode tables by second: ordered by `from`, the first from 0. */
+  nextNode: NextNodeSegment[];
+}
+
+/**
+ * From second `from` of the wave until the next segment's, ground routes look up their nextNode
+ * tables in `nextNode`: the 擋路格 change from one segment to the next.
+ */
+export interface NextNodeSegment {
+  from: number;
   nextNode: NextNodeLookup;
 }
 
@@ -147,6 +157,13 @@ function patrols(route: Route): boolean {
   return route.checkpoints.length > 1 && route.checkpoints.at(-1)!.type === "PATROL_MOVE";
 }
 
+/** The nextNode lookup of the segment second `t` is in. */
+function segmentAt(segments: NextNodeSegment[], t: number): NextNodeLookup {
+  let lookup = segments[0]!.nextNode;
+  for (const segment of segments) if (segment.from <= t) lookup = segment.nextNode;
+  return lookup;
+}
+
 /** Legs in order; returns where the individual rests, or null when it reaches the end point. */
 function* walkRoute({
   route,
@@ -169,10 +186,29 @@ function* walkRoute({
     now = until;
   }
 
-  /** Walks to `point` in `target`; false (and stays put) when no way leads there. */
+  /**
+   * Walks to `point` in `target`; false (and stays put) when no way leads there. The walk follows
+   * the table of the segment it starts in; a ground walk still on its way when the next segment
+   * starts turns there, from where it is, onto that segment's way: still one walk.
+   */
   function* moveTo(target: Cell, point: Vec2): Generator<Step, boolean> {
-    const points = pathPoints(route, nextNode, position, cell, target, point);
+    let points = pathPoints(route, segmentAt(nextNode, now), position, cell, target, point);
     if (!points) return false;
+    if (route.motionMode !== "FLY") {
+      for (const segment of nextNode) {
+        if (segment.from <= now) continue;
+        const walked = (segment.from - now) * speed;
+        if (walked >= polylineLength(points)) break;
+        const [here, ...ahead] = pointsAlong(points, walked);
+        // The corners passed; the last is dropped when it stands right on it.
+        const behind = points.slice(0, points.length - ahead.length);
+        if (distance(behind.at(-1)!, here!) === 0) behind.pop();
+        const from = { row: Math.round(here!.y), col: Math.round(here!.x) };
+        // With no way on from there, it keeps to the way it was on.
+        const turn = pathPoints(route, segment.nextNode, here!, from, target, point);
+        if (turn) points = [...behind, ...turn];
+      }
+    }
     const duration = polylineLength(points) / speed;
     if (duration > 0) {
       const leg: PathLeg = { kind: "move", start: now, end: now + duration, points, invisible };
@@ -280,8 +316,12 @@ function legFrom(leg: PathLeg, t: number, speed: number): PathLeg {
 
 /** The walk's polyline from where the individual is at `t` to its end. */
 function pointsAhead(leg: PathLeg & { kind: "move" }, t: number, speed: number): Vec2[] {
-  let left = (t - leg.start) * speed;
-  const { points } = leg;
+  return pointsAlong(leg.points, (t - leg.start) * speed);
+}
+
+/** The polyline from `along` cells along it to its end: the point there, then the corners after. */
+function pointsAlong(points: Vec2[], along: number): Vec2[] {
+  let left = along;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!;
     const b = points[i]!;

@@ -420,3 +420,81 @@ describe("擋路裝置 change ground routes", () => {
     expect(stones.filter((c) => !walked.has(c))).toEqual([]);
   });
 });
+
+describe("移除時刻: from then on the 擋路裝置 is gone", () => {
+  const level = loadFixtureLevel("level_act10mini_01");
+  const stones = level.devices.flatMap((d, i) => (d.key === "trap_027_stone" ? [i] : []));
+  /** Every 碎石 of TB-1 removed at `t` of `wave`. */
+  const removeStones = (wave: number, t: number) => new Map(stones.map((i) => [i, { wave, t }]));
+  const kept = buildTimeline(level);
+  const bare = buildTimeline({ ...level, devices: [] });
+  // Route 19 runs (3,0) -> (3,10) straight across the 碎石: it goes round them while they stand.
+  const walkerOf = (timeline: ReturnType<typeof buildTimeline>) =>
+    timeline.individuals.find((i) => i.route === level.routes[19])!;
+  const walker = walkerOf(kept);
+  const moment = walker.spawnTime + 1;
+  const removed = buildTimeline(level, { removals: removeStones(0, moment) });
+
+  it("TB-1: until the 移除時刻 everyone is where they would be with the 碎石", () => {
+    for (const [i, individual] of removed.individuals.entries()) {
+      for (const t of [0, moment / 2, moment]) {
+        expect(individual.stateAt(t)).toEqual(kept.individuals[i]!.stateAt(t));
+      }
+    }
+  });
+
+  it("TB-1: one on the field at the 移除時刻 turns from where it is and leaks sooner", () => {
+    const turned = walkerOf(removed);
+    expect(turned.stateAt(moment).kind).toBe("onField");
+    expect(turned.leakTime! < walker.leakTime!).toBe(true);
+    const later = moment + 3;
+    expect(turned.stateAt(later)).not.toEqual(walker.stateAt(later));
+  });
+
+  it("TB-1: those spawning after the 移除時刻 walk as if the 碎石 were never there", () => {
+    const after = removed.individuals.filter((i) => i.spawnTime > moment);
+    expect(after.length).toBeGreaterThan(0);
+    for (const individual of after) {
+      const without = bare.individuals.find((i) => i.id === individual.id)!;
+      expect(individual.leakTime).toBe(without.leakTime);
+      expect(individual.remainingPathAt(individual.spawnTime)).toEqual(
+        without.remainingPathAt(individual.spawnTime),
+      );
+    }
+  });
+
+  it("TB-1: the 碎石 are on the field until the 移除時刻 and removed from then on", () => {
+    const stoneCount = (devices: Device[]) =>
+      devices.filter((d) => d.key === "trap_027_stone").length;
+    expect(stoneCount(removed.devicesAt(moment - 0.1))).toBe(8);
+    expect(stoneCount(removed.removedAt(moment - 0.1))).toBe(0);
+    expect(stoneCount(removed.devicesAt(moment))).toBe(0);
+    expect(stoneCount(removed.removedAt(moment))).toBe(8);
+  });
+
+  describe("ISW-NO: removal holds for later waves and leaves earlier ones be", () => {
+    const iswNo = loadFixtureLevel("level_rogue2_5-5");
+    const rowStones = new Map(
+      iswNo.devices.flatMap((d, i) => (d.blocker ? [[i, { wave: 1, t: 0 }] as const] : [])),
+    );
+    const leakTimes = (timeline: ReturnType<typeof buildTimeline>) =>
+      timeline.individuals.map((i) => i.leakTime);
+
+    it("an earlier wave is as it was", () => {
+      const removedInSecond = buildTimeline(iswNo, { waveIndex: 0, removals: rowStones });
+      const asItWas = buildTimeline(iswNo, { waveIndex: 0 });
+      expect(leakTimes(removedInSecond)).toEqual(leakTimes(asItWas));
+      expect(removedInSecond.devicesAt(0)).toEqual(asItWas.devicesAt(0));
+      expect(removedInSecond.removedAt(0)).toEqual([]);
+    });
+
+    it("a later wave has none of them, all wave long", () => {
+      const removedInFirst = new Map([...rowStones].map(([i]) => [i, { wave: 0, t: 30 }]));
+      const second = buildTimeline(iswNo, { waveIndex: 1, removals: removedInFirst });
+      const bareSecond = buildTimeline({ ...iswNo, devices: [] }, { waveIndex: 1 });
+      expect(leakTimes(second)).toEqual(leakTimes(bareSecond));
+      expect(second.devicesAt(0).filter((d) => d.blocker)).toEqual([]);
+      expect(second.removedAt(0)).toHaveLength(rowStones.size);
+    });
+  });
+});
