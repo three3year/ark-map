@@ -215,6 +215,8 @@ export const strings = {
     token_key: "裝置",
     skill: "技能序號",
   } as Partial<Record<string, string>>,
+  /** 裝置 drawn on the map: 擋路裝置 have the bolder frame. */
+  legendDevice: { device: "裝置", blocker: "擋路裝置" },
   legendPath: "路徑",
   legendTeleport: "傳送",
   waitSeconds: (seconds: number) => `等 ${seconds} 秒`,
