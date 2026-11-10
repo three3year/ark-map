@@ -37,6 +37,9 @@ const BLOCKER_COST = 1_000;
 
 const noBlockers: ReadonlySet<string> = new Set();
 
+export const blockersKey = (blockers: ReadonlySet<string>): string =>
+  [...blockers].sort().join(";");
+
 /** Neighbour scan order: up, right, down, left. */
 const FOUR_WAYS = [
   [1, 0],
@@ -53,7 +56,7 @@ export function createNextNodeLookup(
   return (mode, target, allowDiagonalMove, blockers = noBlockers) => {
     const fly = mode === "FLY";
     const blocked = fly ? noBlockers : blockers;
-    const key = `${mode}|${target.row},${target.col}|${allowDiagonalMove}|${[...blocked].sort().join(";")}`;
+    const key = `${mode}|${target.row},${target.col}|${allowDiagonalMove}|${blockersKey(blocked)}`;
     let table = cache.get(key);
     if (!table) {
       table = buildTable(map, fly ? flyGrid : walkGrid, blocked, target, {

@@ -1,15 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { Cell, Level } from "../src/level/index.ts";
+import { indexedDevices, type Level } from "../src/level/index.ts";
 import {
   buildTimeline,
-  takeSnapshot,
   timelineEnd,
   type Individual,
   type Removals,
-  type Timeline,
 } from "../src/timeline/index.ts";
 import {
-  deviceOnMap,
+  clearAround,
+  deviceByIndex,
+  drawnAt,
   enemyOnMap,
   expectVariantShown,
   seek,
@@ -20,11 +20,6 @@ import {
 } from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
-
-const clearAround = (timeline: Timeline, t: number, { row, col }: Cell) =>
-  takeSnapshot(timeline, t).onField.every(
-    ({ position }) => Math.hypot(position.x - col, position.y - row) > 1,
-  );
 
 const apart = (a: Individual, b: Individual, t: number) => {
   const sa = a.stateAt(t);
@@ -40,7 +35,7 @@ function removalThatTurnsSomeone(level: Level) {
   const kept = buildTimeline(level);
   const end = Math.ceil(timelineEnd(kept));
   for (let moment = 1; moment <= end; moment++) {
-    for (const [index, device] of level.devices.entries()) {
+    for (const { index, device } of indexedDevices(level)) {
       if (device.key !== "trap_027_stone") continue;
       const removals: Removals = new Map([[index, { wave: 0, t: moment }]]);
       const removed = buildTimeline(level, { removals });
@@ -64,14 +59,6 @@ function removalThatTurnsSomeone(level: Level) {
   throw new Error("no 碎石 whose removal turns someone on the field");
 }
 
-async function drawnAt(page: Page, level: Level, id: string) {
-  const [x, svgY] = (await enemyOnMap(page, id).getAttribute("transform"))!
-    .match(/translate\((\S+) (\S+)\)/)!
-    .slice(1)
-    .map(Number);
-  return { x: x!, y: level.map.height - 1 - svgY! };
-}
-
 async function expectDrawnAt(page: Page, level: Level, individual: Individual, t: number) {
   const state = individual.stateAt(t);
   if (state.kind !== "onField") throw new Error("on the field by construction");
@@ -81,8 +68,8 @@ async function expectDrawnAt(page: Page, level: Level, individual: Individual, t
 }
 
 const removedFrame = (page: Page, index: number) =>
-  deviceOnMap(page, index).and(page.locator("[data-removed]"));
-const clock = (page: Page, index: number) => deviceOnMap(page, index).locator(".removal-clock");
+  deviceByIndex(page, index).and(page.locator("[data-removed]"));
+const clock = (page: Page, index: number) => deviceByIndex(page, index).locator(".removal-clock");
 
 test("TB-1: right-click a 碎石 to remove it from the playback position on; enemies turn there", async ({
   page,
@@ -94,7 +81,7 @@ test("TB-1: right-click a 碎石 to remove it from the playback position on; ene
   await seek(page, moment);
   const lastMenuCancelled = await watchMenuCancelled(page);
   const url = page.url();
-  await deviceOnMap(page, index).click({ button: "right" });
+  await deviceByIndex(page, index).click({ button: "right" });
 
   expect(await lastMenuCancelled()).toBe("true");
   await expect(removedFrame(page, index)).toHaveCount(1);
@@ -103,7 +90,7 @@ test("TB-1: right-click a 碎石 to remove it from the playback position on; ene
 
   await seek(page, moment - 1);
   await expect(removedFrame(page, index)).toHaveCount(0);
-  await expect(deviceOnMap(page, index)).toHaveCount(1);
+  await expect(deviceByIndex(page, index)).toHaveCount(1);
   await expect(clock(page, index).locator("title")).toHaveText(`第 1 波 第 ${moment} 秒移除`);
 
   await seek(page, later);
@@ -126,11 +113,11 @@ test("TB-1: a right-click before the 移除時刻 moves it to the playback posit
 
   await page.goto("#/level/act10mini_01?v=normal");
   await seek(page, moment);
-  await deviceOnMap(page, index).click({ button: "right" });
+  await deviceByIndex(page, index).click({ button: "right" });
   await seek(page, moment - 1);
   await expect(clock(page, index)).toHaveCount(1);
 
-  await deviceOnMap(page, index).click({ button: "right" });
+  await deviceByIndex(page, index).click({ button: "right" });
 
   await expect(clock(page, index)).toHaveCount(0);
   await expect(removedFrame(page, index)).toHaveCount(1);
@@ -151,7 +138,7 @@ test("TB-1: a right-click on a 留聲機, not a 擋路裝置, does nothing and o
   await page.goto("#/level/act10mini_01?v=normal");
   await seek(page, t);
   const lastMenuCancelled = await watchMenuCancelled(page);
-  await deviceOnMap(page, tower).click({ button: "right" });
+  await deviceByIndex(page, tower).click({ button: "right" });
 
   expect(await lastMenuCancelled()).toBe("true");
   await expect(removedFrame(page, tower)).toHaveCount(0);
@@ -167,7 +154,7 @@ test("TB-1: another variant, even on the same level file, puts every 碎石 back
 
   await page.goto("#/level/act10mini_01?v=normal");
   await seek(page, moment);
-  await deviceOnMap(page, index).click({ button: "right" });
+  await deviceByIndex(page, index).click({ button: "right" });
   await expect(removedFrame(page, index)).toHaveCount(1);
 
   await page.locator('button[data-variant="challenge"]').click();
@@ -177,7 +164,7 @@ test("TB-1: another variant, even on the same level file, puts every 碎石 back
   await page.locator('button[data-variant="normal"]').click();
   await expectVariantShown(page, "normal");
   await expect(page.locator("svg.map g.device[data-removed]")).toHaveCount(0);
-  await expect(deviceOnMap(page, index)).toHaveCount(1);
+  await expect(deviceByIndex(page, index)).toHaveCount(1);
   await seek(page, moment - 1);
   await expect(page.locator("svg.map .removal-clock")).toHaveCount(0);
 });

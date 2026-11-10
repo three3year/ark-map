@@ -129,6 +129,16 @@ export interface Device {
   image: string | null;
 }
 
+declare const deviceIndexBrand: unique symbol;
+
+/** A device's place in `Level.devices`, which names it within its level. */
+export type DeviceIndex = number & { readonly [deviceIndexBrand]: true };
+
+export interface IndexedDevice {
+  index: DeviceIndex;
+  device: Device;
+}
+
 export interface LevelOptions {
   characterLimit: number;
   maxLifePoint: number;
