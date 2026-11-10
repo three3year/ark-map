@@ -1,9 +1,7 @@
 // The 名稱表's 地形表, from the stage tables' `tileInfo`.
 import type { TerrainTable } from "../src/level/index.ts";
+import { plainText } from "./plainText.ts";
 import type { RawStageTable } from "./raw.ts";
-
-/** The game's rich-text markup, `<@ba.kw>…</>`; plain `<荒季>` brackets are text and stay. */
-const richTextTag = /<[@$][^>]*>|<\/>/g;
 
 /** `tileKey` -> the TW entry, else the CN one; keys neither table has are left out. */
 export function terrainTable(
@@ -17,7 +15,7 @@ export function terrainTable(
     if (!info) continue;
     table[key] = {
       name: info.name,
-      description: info.description.replace(richTextTag, ""),
+      description: plainText(info.description),
       functional: info.isFunctional,
     };
   }

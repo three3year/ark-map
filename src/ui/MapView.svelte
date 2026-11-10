@@ -1,7 +1,21 @@
+<script lang="ts" module>
+  import type { IndexedDevice } from "../level/index.ts";
+  import type { RemovalMoment } from "../timeline/index.ts";
+
+  /** A device drawn on the map at the playback position. */
+  export interface DeviceMark extends IndexedDevice {
+    /** Drawn as removed: a dashed frame. */
+    removed: boolean;
+    /** Its 移除時刻, if it has one. */
+    removal: RemovalMoment | null;
+  }
+</script>
+
 <script lang="ts">
   import {
     cellKey,
     isWalkable,
+    type DeviceIndex,
     type LevelMap,
     type TerrainTable,
     type Tile,
@@ -25,6 +39,12 @@
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
+    devices: DeviceMark[];
+    selectedDevice: DeviceIndex | null;
+    /** Clicking the selected device again passes null. */
+    onSelectDevice: (index: DeviceIndex | null) => void;
+    /** A device was right-clicked. */
+    onToggleRemoval: (device: IndexedDevice) => void;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
@@ -46,6 +66,10 @@
   let {
     map,
     terrain,
+    devices,
+    selectedDevice,
+    onSelectDevice,
+    onToggleRemoval,
     endpoints,
     enemies,
     t,
@@ -62,6 +86,14 @@
 
   const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
+  const toggleSelectDevice = (index: DeviceIndex) =>
+    onSelectDevice(index === selectedDevice ? null : index);
+  function deviceKey(e: KeyboardEvent, index: DeviceIndex) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleSelectDevice(index);
+    }
+  }
 
   type OnField = Snapshot["onField"][number];
   /** Outside the 端點篩選, selected or not. */
@@ -79,11 +111,11 @@
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
-  /** Avatars that failed to load fall back to the enemy's code. */
-  let brokenAvatars = $state(new Set<string>());
-  function markBroken(avatar: string) {
-    brokenAvatars = new Set([...brokenAvatars, avatar]);
+  let brokenImages = $state(new Set<string>());
+  function markBroken(image: string) {
+    brokenImages = new Set([...brokenImages, image]);
   }
+  const shows = (image: string | null): image is string => !!image && !brokenImages.has(image);
 
   let view = $state(loadMapView(browserStorage()));
   function toggleView() {
@@ -136,6 +168,11 @@
     return tileKindOrder.filter((kind) => kinds.has(kind));
   });
   const marks = $derived(legendMarks(map, terrain));
+  const legendDevices = $derived(
+    (["device", "blocker"] as const).filter((kind) =>
+      devices.some((d) => !d.removed && d.device.blocker === (kind === "blocker")),
+    ),
+  );
 
   /**
    * Endpoint dots sit in their cell's top-right corner, clear of the cell centre; a 消失點 on a
@@ -188,7 +225,7 @@
     <g class="billboard">
       <title>{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title>
       <circle r="0.36" class="enemy-bg" />
-      {#if individual.enemy.avatar && !brokenAvatars.has(individual.enemy.avatar)}
+      {#if shows(individual.enemy.avatar)}
         <image
           href={individual.enemy.avatar}
           x="-0.34"
@@ -284,6 +321,61 @@
             <TerrainIcon {mark} />
           </g>
         {/if}
+      {/each}
+
+      {#each devices as { index, device, removed, removal } (index)}
+        <g
+          class="device"
+          class:removed
+          class:blocker={!removed && device.blocker}
+          class:selected={index === selectedDevice}
+          transform="translate({device.cell.col} {svgY(device.cell.row)})"
+          data-device={device.key}
+          data-device-index={index}
+          data-alias={device.alias}
+          data-cell={cellKey(device.cell)}
+          data-blocker={removed ? undefined : device.blocker}
+          data-removed={removed || undefined}
+          role="button"
+          tabindex="0"
+          aria-label={device.name}
+          aria-pressed={index === selectedDevice}
+          onclick={() => toggleSelectDevice(index)}
+          onkeydown={(e) => deviceKey(e, index)}
+          oncontextmenu={(e) => {
+            e.preventDefault();
+            onToggleRemoval({ index, device });
+          }}
+        >
+          <g class="billboard">
+            <title>{device.name}</title>
+            {#if removed}
+              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+            {:else}
+              <rect class="device-bg" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              {#if shows(device.image)}
+                <image
+                  href={device.image}
+                  x="-0.36"
+                  y="-0.36"
+                  width="0.72"
+                  height="0.72"
+                  onerror={() => markBroken(device.image!)}
+                />
+              {:else}
+                <text class="device-initial">{[...device.name][0]}</text>
+              {/if}
+              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              {#if removal}
+                <g class="removal-clock" transform="translate(-0.3 -0.3)">
+                  <title>{strings.removalMoment(removal.wave, removal.t)}</title>
+                  <circle r="0.15" />
+                  <path d="M 0 -0.09 V 0 H 0.07" />
+                </g>
+              {/if}
+            {/if}
+          </g>
+        </g>
       {/each}
 
       {#each endpointDots as { endpoint, x, y } (endpointKey(endpoint))}
@@ -391,6 +483,9 @@
         {/if}
       </li>
     {/each}
+    {#each legendDevices as kind (kind)}
+      <li><span class="swatch device {kind}"></span>{strings.legendDevice[kind]}</li>
+    {/each}
     {#each ["spawn", "exit"] as const as kind (kind)}
       {#if hasEndpoint(kind)}
         <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
@@ -413,6 +508,9 @@
     --highland-corner: #4f5d70;
     --tile-forbidden: #4a4c53;
     --enemy-ring: var(--spawn-red);
+    --device-bg: #f4f2ec;
+    --device-frame: #5d6470;
+    --device-blocker: #7c3aed;
     --path: #f5a524;
   }
   .toolbar {
@@ -478,6 +576,57 @@
   }
   .terrain {
     pointer-events: none;
+  }
+  .device-bg {
+    fill: var(--device-bg);
+  }
+  .device-frame {
+    fill: none;
+    stroke: var(--device-frame);
+    stroke-width: 0.04;
+  }
+  .device.blocker .device-frame {
+    stroke: var(--device-blocker);
+    stroke-width: 0.1;
+  }
+  .device.removed {
+    opacity: 0.3;
+  }
+  .device.removed .device-frame {
+    fill: transparent;
+    stroke: var(--device-blocker);
+    stroke-width: 0.06;
+    stroke-dasharray: 0.12 0.08;
+  }
+  .device {
+    cursor: pointer;
+  }
+  .device:focus {
+    outline: none;
+  }
+  .device.selected .device-frame,
+  .device:focus-visible .device-frame {
+    stroke: var(--path);
+  }
+  .device.selected .device-frame {
+    stroke-width: 0.1;
+  }
+  .removal-clock circle {
+    fill: #fff;
+    stroke: var(--device-blocker);
+    stroke-width: 0.03;
+  }
+  .removal-clock path {
+    fill: none;
+    stroke: #1d1d1f;
+    stroke-width: 0.03;
+    stroke-linecap: round;
+  }
+  .device-initial {
+    font-size: 0.34px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: #1d1d1f;
   }
   .endpoint {
     cursor: pointer;
@@ -685,6 +834,14 @@
   .terrain-item:hover .tip,
   .terrain-item:focus-visible .tip {
     display: block;
+  }
+  .swatch.device {
+    border-radius: 2px;
+    background: var(--device-bg);
+    border: 1.5px solid var(--device-frame);
+  }
+  .swatch.device.blocker {
+    border: 3px solid var(--device-blocker);
   }
   .swatch.dot {
     width: 10px;

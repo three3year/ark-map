@@ -4,6 +4,8 @@ import type {
   Cell,
   Checkpoint,
   CheckpointType,
+  Device,
+  DeviceIndex,
   Level,
   MotionMode,
   Tile,
@@ -15,6 +17,7 @@ import {
   type Individual,
   type IndividualState,
   type Stay,
+  type TimelineOptions,
 } from "./index.ts";
 
 const road: Tile = {
@@ -24,6 +27,24 @@ const road: Tile = {
   buildableType: "MELEE",
 };
 const wall: Tile = { ...road, tileKey: "tile_wall", passableMask: "FLY_ONLY" };
+const hole: Tile = { ...road, tileKey: "tile_hole", buildableType: "NONE" };
+
+const tileOf: Record<string, Tile> = { "#": wall, O: hole, X: wall, Q: hole };
+
+function blocker(cell: Cell): Device {
+  const alias = `trap_027_stone#${cell.row},${cell.col}`;
+  return {
+    alias,
+    key: "trap_027_stone",
+    cell,
+    direction: "UP",
+    hidden: false,
+    blocker: true,
+    name: "碎石",
+    description: null,
+    image: null,
+  };
+}
 
 interface TestRoute {
   motionMode: MotionMode;
@@ -40,9 +61,11 @@ interface TestTiming {
   spawnDelay?: number;
 }
 
-/** One enemy at 1 cell/s on a map drawn top row first ("#" = wall). */
 function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level {
   const bottomUp = [...rows].reverse();
+  const devices = bottomUp.flatMap((line, row) =>
+    [...line].flatMap((ch, col) => ("BXQ".includes(ch) ? [blocker({ row, col })] : [])),
+  );
   return {
     levelId: "test/movement",
     options: {
@@ -56,7 +79,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
     map: {
       width: bottomUp[0]!.length,
       height: bottomUp.length,
-      tiles: bottomUp.flatMap((row) => [...row].map((ch) => (ch === "#" ? wall : road))),
+      tiles: bottomUp.flatMap((row) => [...row].map((ch) => tileOf[ch] ?? road)),
     },
     routes: [
       {
@@ -70,6 +93,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
     ],
     extraRoutes: [],
     branches: [],
+    devices,
     waves: [
       {
         preDelay: 0,
@@ -116,8 +140,8 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
   };
 }
 
-function only(l: Level) {
-  const [individual] = buildTimeline(l).individuals;
+function only(l: Level, options: TimelineOptions = {}) {
+  const [individual] = buildTimeline(l, options).individuals;
   return individual!;
 }
 
@@ -604,5 +628,122 @@ describe("時刻快照: 目前的停留", () => {
     expect(stayAt(patrol, 2.5)).toEqual({ start: 2, end: 3 });
     // Second lap: (3, 0) at 9 s, waits until 10 s.
     expect(stayAt(patrol, 9.5)).toEqual({ start: 9, end: 10 });
+  });
+});
+
+describe("movement model: 擋路裝置", () => {
+  const across = (end: number) => ({ start: { row: 0, col: 0 }, end: { row: 0, col: end } });
+
+  it("crosses a 擋路格 rather than a hole when the way round is longer, at constant speed", () => {
+    const enemy = only(
+      level(["..B..", ".###.", "..O.."], {
+        motionMode: "WALK",
+        ...across(4),
+        allowDiagonalMove: false,
+      }),
+    );
+    expect(enemy.leakTime).toBe(8);
+    expectAt(enemy.stateAt(4), 2, 2);
+  });
+
+  it("a 擋路裝置 in a hole leaves it a hole", () => {
+    const enemy = only(
+      level(["..B..", ".###.", "..Q.."], {
+        motionMode: "WALK",
+        ...across(4),
+        allowDiagonalMove: false,
+      }),
+    );
+    expect(enemy.leakTime).toBe(8);
+  });
+
+  it("a 擋路格 blocks the line of sight that smooths corners", () => {
+    const enemy = only(
+      level(["...", ".B.", "..."], {
+        motionMode: "WALK",
+        start: { row: 0, col: 0 },
+        end: { row: 2, col: 2 },
+        allowDiagonalMove: true,
+      }),
+    );
+    expect(enemy.leakTime).toBe(4);
+  });
+
+  it("a 擋路裝置 on a wall leaves the way as it was: still none", () => {
+    const route = { motionMode: "WALK" as const, ...across(2), allowDiagonalMove: false };
+    const withDevice = only(level([".X."], route));
+    expect(withDevice.leakTime).toBeNull();
+    expect(withDevice.stateAt(100)).toEqual(only(level([".#."], route)).stateAt(100));
+  });
+
+  it("flying routes fly straight over a 擋路格", () => {
+    const enemy = only(
+      level([".B."], { motionMode: "FLY", ...across(2), allowDiagonalMove: false }),
+    );
+    expect(enemy.leakTime).toBe(2);
+    expect(enemy.stateAt(1)).toMatchObject({ position: { x: 1, y: 0 } });
+  });
+});
+
+describe("movement model: 移除時刻 re-routes ground individuals", () => {
+  const ring = [".....", ".###.", ".###.", "..B.."];
+  const across = {
+    motionMode: "WALK",
+    start: { row: 0, col: 0 },
+    end: { row: 0, col: 4 },
+    allowDiagonalMove: false,
+  } as const;
+  const removedAt = (t: number): TimelineOptions => ({
+    removals: new Map([[0 as DeviceIndex, { wave: 0, t }]]),
+  });
+
+  it("keeps the individual where it was until the 移除時刻", () => {
+    const kept = only(level(ring, across));
+    const removed = only(level(ring, across), removedAt(1));
+    expect(kept.leakTime).toBe(10);
+    for (const t of [0, 0.5, 1]) expect(removed.stateAt(t)).toEqual(kept.stateAt(t));
+  });
+
+  it("turns back from where it is at the 移除時刻 and takes the opened way", () => {
+    const enemy = only(level(ring, across), removedAt(1));
+    expectAt(enemy.stateAt(1.5), 0, 0.5);
+    expectAt(enemy.stateAt(3), 1, 0);
+    expect(enemy.leakTime).toBe(6);
+  });
+
+  it("draws the old path up to the 移除時刻 joined to the new one, as one walk", () => {
+    const enemy = only(level(ring, across), removedAt(1));
+    expect(legsAt(enemy, 0)).toEqual([["move", 0, 6, p(0, 0), p(0, 1), p(0, 0), p(4, 0)]]);
+  });
+
+  it("an individual waiting at the 移除時刻 walks the new way once the wait is over", () => {
+    const waiting = { ...across, checkpoints: [cp("WAIT_FOR_SECONDS", across.start, 3)] };
+    expect(only(level(ring, waiting)).leakTime).toBe(13);
+    const enemy = only(level(ring, waiting), removedAt(1));
+    expect(enemy.stateAt(2)).toEqual(at(0, 0, { start: 0, end: 3 }));
+    expectAt(enemy.stateAt(4), 1, 0);
+    expect(enemy.leakTime).toBe(7);
+  });
+
+  it("a patrol takes the new way on the walk after the 移除時刻", () => {
+    const patrol = {
+      ...across,
+      checkpoints: [cp("PATROL_MOVE", { row: 0, col: 4 }), cp("PATROL_MOVE", { row: 0, col: 0 })],
+    };
+    const enemy = only(level(ring, patrol), removedAt(10));
+    expectAt(enemy.stateAt(5), 2, 3);
+    expectAt(enemy.stateAt(12), 2, 0);
+    expectAt(enemy.stateAt(16), 2, 0);
+    expect(legsAt(enemy, 14)).toEqual([
+      ["move", 14, 18, p(0, 0), p(4, 0)],
+      ["move", 18, 22, p(4, 0), p(0, 0)],
+    ]);
+  });
+
+  it("flying routes are as they were", () => {
+    const fly = { ...across, motionMode: "FLY" } as const;
+    expect(only(level(ring, fly), removedAt(1)).remainingPathAt(0)).toEqual(
+      only(level(ring, fly)).remainingPathAt(0),
+    );
   });
 });

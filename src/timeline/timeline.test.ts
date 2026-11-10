@@ -1,8 +1,15 @@
 // Seam 1: level model -> baseline timeline / snapshot.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import type { Difficulty, Level, Modifier } from "../level/index.ts";
-import { buildTimeline, takeSnapshot, type Stay } from "./index.ts";
+import {
+  indexedDevices,
+  type Device,
+  type Difficulty,
+  type IndexedDevice,
+  type Level,
+  type Modifier,
+} from "../level/index.ts";
+import { buildTimeline, takeSnapshot, type Individual, type Stay } from "./index.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
 const prts107 = [
@@ -180,6 +187,7 @@ describe("movement model v0", () => {
       ],
       extraRoutes: [],
       branches: [],
+      devices: [],
       waves: [
         {
           preDelay: 0,
@@ -305,6 +313,192 @@ describe("movement model v0", () => {
         { difficulties: ["NORMAL"], key: "some_new_key", blackboard: [moveSpeed(2)] },
       ]);
       expect(walkTimes(level)).toEqual({ enemy_test: 4, enemy_other: 4 });
+    });
+  });
+});
+
+describe("裝置 on the field", () => {
+  const aliases = (devices: IndexedDevice[]) => devices.map(({ device }) => device.alias);
+
+  it("TB-1: its 8 碎石 and 4 留聲機 are on the field all through the wave", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    const timeline = buildTimeline(level);
+    expect(timeline.devicesAt(0)).toHaveLength(12);
+    expect(timeline.devicesAt(0).filter((d) => d.device.key === "trap_027_stone")).toHaveLength(8);
+    expect(aliases(timeline.devicesAt(60))).toEqual(aliases(indexedDevices(level)));
+  });
+
+  it("WR-EX-6: the 3 hidden 障礙物 stay off in normal; the challenge 難度修正 puts them on", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    expect(buildTimeline(level).devicesAt(0)).toEqual([]);
+    expect(aliases(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0))).toEqual([
+      "trap_001_crate#2",
+      "trap_001_crate#3",
+      "trap_001_crate#4",
+    ]);
+  });
+
+  it("5-10: hidden ballistae that only a 純機關 activates stay off the field", () => {
+    const level = loadFixtureLevel("level_main_05-10");
+    expect(level.devices).toHaveLength(10);
+    expect(buildTimeline(level).devicesAt(0)).toEqual([]);
+  });
+
+  it("a level_predefines_enable entry of value 0 takes a device off in its variant only", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    level.modifiers.push({
+      difficulties: ["FOUR_STAR"],
+      key: "level_predefines_enable",
+      blackboard: [{ key: "trap_027_stone#1", value: 0, valueStr: null }],
+    });
+    expect(buildTimeline(level).devicesAt(0)).toHaveLength(12);
+    const challenge = buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0);
+    expect(aliases(challenge)).not.toContain("trap_027_stone#1");
+    expect(challenge).toHaveLength(11);
+  });
+
+  it("devices sharing an alias go on together", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    level.devices[1]!.alias = "trap_001_crate#2";
+    expect(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0)).toHaveLength(3);
+    level.modifiers = level.modifiers.map((m) =>
+      m.key === "level_predefines_enable"
+        ? { ...m, blackboard: m.blackboard.filter((b) => b.key === "trap_001_crate#2") }
+        : m,
+    );
+    expect(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0)).toHaveLength(2);
+  });
+});
+
+describe("擋路裝置 change ground routes", () => {
+  function cellsWalked(individual: Individual): Set<string> {
+    const cells = new Set<string>();
+    const end = individual.leakTime ?? individual.spawnTime + 300;
+    for (let t = individual.spawnTime; t < end; t += 0.05) {
+      const state = individual.stateAt(t);
+      if (state.kind !== "onField") continue;
+      cells.add(`${Math.round(state.position.y)},${Math.round(state.position.x)}`);
+    }
+    return cells;
+  }
+  const cellsOf = (devices: Device[]) => devices.map((d) => `${d.cell.row},${d.cell.col}`);
+
+  it("TB-1: a route straight through the 碎石 goes round them while they are on the field", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    const route = level.routes[19]!;
+    const walker = (l: Level) => buildTimeline(l).individuals.find((i) => i.route === route)!;
+    const stones = cellsOf(level.devices.filter((d) => d.key === "trap_027_stone"));
+
+    const withStones = cellsWalked(walker(level));
+    expect(stones.filter((c) => withStones.has(c))).toEqual([]);
+    expect(withStones.has("6,4")).toBe(true);
+
+    const withoutStones = cellsWalked(walker({ ...level, devices: [] }));
+    expect(stones.filter((c) => withoutStones.has(c))).not.toEqual([]);
+  });
+
+  it("WR-EX-6: the hidden 障礙物 change routes only in the challenge, which puts them on", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    const leakTimes = (l: Level, difficulty: Difficulty) =>
+      Object.fromEntries(
+        buildTimeline(l, { difficulty }).individuals.map((i) => [i.id, i.leakTime]),
+      );
+    const bare = { ...level, devices: [] };
+    expect(leakTimes(level, "NORMAL")).toEqual(leakTimes(bare, "NORMAL"));
+    const challenge = leakTimes(level, "FOUR_STAR");
+    const bareChallenge = leakTimes(bare, "FOUR_STAR");
+    expect(challenge["0-2-0"]! > bareChallenge["0-2-0"]!).toBe(true);
+  });
+
+  it("ISW-NO: walled in by a full row of 碎石, the individual walks through them and leaks", () => {
+    const level = loadFixtureLevel("level_rogue2_5-5");
+    const route = level.routes[9]!;
+    const [walker] = level.waves.flatMap((_, waveIndex) =>
+      buildTimeline(level, { waveIndex }).individuals.filter((i) => i.route === route),
+    );
+    expect(walker!.leakTime).not.toBeNull();
+    const walked = cellsWalked(walker!);
+    const stones = cellsOf(level.devices.filter((d) => d.key === "trap_027_stone"));
+    expect(stones.filter((c) => !walked.has(c))).toEqual([]);
+  });
+});
+
+describe("移除時刻: from then on the 擋路裝置 is gone", () => {
+  const level = loadFixtureLevel("level_act10mini_01");
+  const stones = indexedDevices(level).flatMap(({ index, device }) =>
+    device.key === "trap_027_stone" ? [index] : [],
+  );
+  const removeStones = (wave: number, t: number) => new Map(stones.map((i) => [i, { wave, t }]));
+  const kept = buildTimeline(level);
+  const bare = buildTimeline({ ...level, devices: [] });
+  const walkerOf = (timeline: ReturnType<typeof buildTimeline>) =>
+    timeline.individuals.find((i) => i.route === level.routes[19])!;
+  const walker = walkerOf(kept);
+  const moment = walker.spawnTime + 1;
+  const removed = buildTimeline(level, { removals: removeStones(0, moment) });
+
+  it("TB-1: until the 移除時刻 everyone is where they would be with the 碎石", () => {
+    for (const [i, individual] of removed.individuals.entries()) {
+      for (const t of [0, moment / 2, moment]) {
+        expect(individual.stateAt(t)).toEqual(kept.individuals[i]!.stateAt(t));
+      }
+    }
+  });
+
+  it("TB-1: one on the field at the 移除時刻 turns from where it is and leaks sooner", () => {
+    const turned = walkerOf(removed);
+    expect(turned.stateAt(moment).kind).toBe("onField");
+    expect(turned.leakTime! < walker.leakTime!).toBe(true);
+    const later = moment + 3;
+    expect(turned.stateAt(later)).not.toEqual(walker.stateAt(later));
+  });
+
+  it("TB-1: those spawning after the 移除時刻 walk as if the 碎石 were never there", () => {
+    const after = removed.individuals.filter((i) => i.spawnTime > moment);
+    expect(after.length).toBeGreaterThan(0);
+    for (const individual of after) {
+      const without = bare.individuals.find((i) => i.id === individual.id)!;
+      expect(individual.leakTime).toBe(without.leakTime);
+      expect(individual.remainingPathAt(individual.spawnTime)).toEqual(
+        without.remainingPathAt(individual.spawnTime),
+      );
+    }
+  });
+
+  it("TB-1: the 碎石 are on the field until the 移除時刻 and removed from then on", () => {
+    const stoneCount = (devices: IndexedDevice[]) =>
+      devices.filter((d) => d.device.key === "trap_027_stone").length;
+    expect(stoneCount(removed.devicesAt(moment - 0.1))).toBe(8);
+    expect(stoneCount(removed.removedAt(moment - 0.1))).toBe(0);
+    expect(stoneCount(removed.devicesAt(moment))).toBe(0);
+    expect(stoneCount(removed.removedAt(moment))).toBe(8);
+  });
+
+  describe("ISW-NO: removal holds for later waves and leaves earlier ones be", () => {
+    const iswNo = loadFixtureLevel("level_rogue2_5-5");
+    const rowStones = new Map(
+      indexedDevices(iswNo).flatMap(({ index, device }) =>
+        device.blocker ? [[index, { wave: 1, t: 0 }] as const] : [],
+      ),
+    );
+    const leakTimes = (timeline: ReturnType<typeof buildTimeline>) =>
+      timeline.individuals.map((i) => i.leakTime);
+
+    it("an earlier wave is as it was", () => {
+      const removedInSecond = buildTimeline(iswNo, { waveIndex: 0, removals: rowStones });
+      const asItWas = buildTimeline(iswNo, { waveIndex: 0 });
+      expect(leakTimes(removedInSecond)).toEqual(leakTimes(asItWas));
+      expect(removedInSecond.devicesAt(0)).toEqual(asItWas.devicesAt(0));
+      expect(removedInSecond.removedAt(0)).toEqual([]);
+    });
+
+    it("a later wave has none of them, all wave long", () => {
+      const removedInFirst = new Map([...rowStones].map(([i]) => [i, { wave: 0, t: 30 }]));
+      const second = buildTimeline(iswNo, { waveIndex: 1, removals: removedInFirst });
+      const bareSecond = buildTimeline({ ...iswNo, devices: [] }, { waveIndex: 1 });
+      expect(leakTimes(second)).toEqual(leakTimes(bareSecond));
+      expect(second.devicesAt(0).filter((d) => d.device.blocker)).toEqual([]);
+      expect(second.removedAt(0)).toHaveLength(rowStones.size);
     });
   });
 });

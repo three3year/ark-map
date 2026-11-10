@@ -1,12 +1,19 @@
 // Loads the raw game-data fixtures (copies of real upstream files, refreshed with
 // `pnpm fixtures`) and runs them through the pipeline's conversion.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEnemyCatalog, convertLevel } from "../pipeline/convertLevel.ts";
+import {
+  buildDeviceCatalog,
+  buildEnemyCatalog,
+  controllerKeys,
+  convertLevel,
+  type DeviceCatalog,
+} from "../pipeline/convertLevel.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
+  RawCharacterTable,
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
@@ -48,8 +55,34 @@ export function rawTables(): StageIndexTables {
   return { cn: tables(""), tw: tables(".tw") };
 }
 
+export function fixtureLevelNames(): string[] {
+  return readdirSync(rawDir)
+    .filter((f) => f.startsWith("level_"))
+    .map((f) => f.replace(/.json$/, ""));
+}
+
+export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterTable } {
+  return {
+    cn: readJson<RawCharacterTable>("character_table.json"),
+    tw: readJson<RawCharacterTable>("character_table.tw.json"),
+  };
+}
+
+let deviceCatalog: DeviceCatalog | undefined;
+
+export function fixtureDeviceCatalog(): DeviceCatalog {
+  const { cn, tw } = rawCharacterTables();
+  return (deviceCatalog ??= buildDeviceCatalog(
+    controllerKeys(fixtureLevelNames().map(rawFixture)),
+    cn,
+    tw,
+  ));
+}
+
 export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {
-  return convertLevel(levelId, raw, buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()));
+  return convertLevel(levelId, raw, buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()), {
+    devices: fixtureDeviceCatalog(),
+  });
 }
 
 export function loadFixtureLevel(name: string): Level {

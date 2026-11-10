@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
+  import {
+    deviceActionKind,
+    isSpawn,
+    type Action,
+    type Branch,
+    type Level,
+  } from "../level/index.ts";
   import {
     actionAt,
     type ConditionalTrigger,
@@ -31,6 +37,10 @@
   const spawning = $derived(branches.filter(({ branch }) => !branch.deviceOnly));
   const deviceOnly = $derived(branches.filter(({ branch }) => branch.deviceOnly));
 
+  function deviceName(alias: string): string {
+    return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
+  }
+
   /**
    * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
    * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
@@ -38,7 +48,10 @@
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {
       if (!isSpawn(action)) {
-        return action.key ? [strings.device(action.key.replace(/#\d+$/, ""))] : [];
+        const kind = deviceActionKind(action);
+        if (kind === null || !action.key) return [];
+        const name = deviceName(action.key);
+        return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
       }
       if (!action.key) return [];
       return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];

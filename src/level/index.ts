@@ -1,4 +1,13 @@
-import type { Action, Cell, LevelMap, Tile, Vec2 } from "./types.ts";
+import type {
+  Action,
+  Cell,
+  DeviceIndex,
+  IndexedDevice,
+  Level,
+  LevelMap,
+  Tile,
+  Vec2,
+} from "./types.ts";
 
 export type * from "./types.ts";
 export * from "./enums.ts";
@@ -10,6 +19,25 @@ export * from "./names.ts";
 export function isSpawn(action: Action): boolean {
   return action.actionType === "SPAWN";
 }
+
+export type DeviceActionKind = "activate" | "withdraw";
+
+/** What a device action does to the devices its key names; null for any other action. */
+export function deviceActionKind(action: Action): DeviceActionKind | null {
+  switch (action.actionType) {
+    case "ACTIVATE_PREDEFINED":
+      return "activate";
+    case "WITHDRAW_PREDEFINED":
+      return "withdraw";
+    default:
+      return null;
+  }
+}
+
+export const isDeviceAction = (action: Action): boolean => deviceActionKind(action) !== null;
+
+export const indexedDevices = ({ devices }: Pick<Level, "devices">): IndexedDevice[] =>
+  devices.map((device, i) => ({ index: i as DeviceIndex, device }));
 
 /** "row,col": unique within one map. */
 export function cellKey({ row, col }: Cell): string {

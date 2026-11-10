@@ -2,16 +2,20 @@
 import {
   actionTypes,
   checkpointTypes,
+  directions,
   isSpawn,
   withoutNames,
   type ActionType,
   type CheckpointType,
+  type DeviceInfo,
+  type Direction,
   type LevelFile,
   type NameTable,
 } from "../src/level/index.ts";
 import type {
   Action,
   Branch,
+  Device,
   Difficulty,
   EnemyRef,
   Fragment,
@@ -21,8 +25,11 @@ import type {
   MotionMode,
   Route,
 } from "../src/level/index.ts";
+import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
+import { plainText } from "./plainText.ts";
 import type {
   RawAction,
+  RawCharacterTable,
   RawEnemyData,
   RawEnemyDatabase,
   RawEnemyDbRef,
@@ -86,17 +93,23 @@ const numericEnums = {
   } satisfies Record<number, ActionType>,
   enemyLevelType: { 0: "NORMAL", 1: "ELITE" },
   enemyMotion: {},
+  // Evidence: the same device at the same cell of a same-sized map in an older and a newer file
+  // reads 0 / UP 33 times, 1 / RIGHT twice and 3 / LEFT once (ballistae aiming along their lane);
+  // 2 is DOWN, the one left in the game's UP, RIGHT, DOWN, LEFT order.
+  direction: { 0: "UP", 1: "RIGHT", 2: "DOWN", 3: "LEFT" },
 } satisfies Record<string, Record<number, string>>;
 
 /** Fields whose names the level model types: any other name is unknown too. */
 const knownNames: { [F in keyof Named]: readonly string[] } = {
   actionType: actionTypes,
   checkpointType: checkpointTypes,
+  direction: directions,
 };
 
 interface Named {
   actionType: ActionType;
   checkpointType: CheckpointType;
+  direction: Direction;
 }
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */
@@ -301,12 +314,92 @@ function convertModifier(raw: RawRune, onUnknown: UnknownEnumHandler): Modifier 
   };
 }
 
+export interface DeviceCatalog {
+  controllers: ReadonlySet<string>;
+  info: Map<string, DeviceInfo>;
+}
+
+const noDevices: DeviceCatalog = { controllers: new Set(), info: new Map() };
+
+export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): Set<string> {
+  const counts = new Map<string, { atOrigin: number; total: number }>();
+  for (const level of levels) {
+    for (const token of level.predefines?.tokenInsts ?? []) {
+      const key = token.inst.characterKey;
+      const count = counts.get(key) ?? { atOrigin: 0, total: 0 };
+      if (token.position.row === 0 && token.position.col === 0) count.atOrigin++;
+      count.total++;
+      counts.set(key, count);
+    }
+  }
+  return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
+}
+
+export function buildDeviceCatalog(
+  controllers: ReadonlySet<string>,
+  cn: RawCharacterTable,
+  tw: RawCharacterTable,
+): DeviceCatalog {
+  const info = new Map<string, DeviceInfo>();
+  for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
+    const { name, description } = tw[key] ?? cn[key]!;
+    info.set(key, { name, description: description && plainText(description) });
+  }
+  return { controllers, info };
+}
+
+export type UnknownDeviceHandler = (key: string) => void;
+
+const warnUnknownDevice: UnknownDeviceHandler = (key) =>
+  console.warn(`裝置 ${key} 不在擋路或不擋路清單(pipeline/deviceKinds.ts),當作不擋路`);
+
+function convertDevices(
+  raw: RawLevel,
+  devices: DeviceCatalog,
+  decode: Decode,
+  onUnknownDevice: UnknownDeviceHandler,
+): Device[] {
+  const tokens = (raw.predefines?.tokenInsts ?? []).filter(
+    (t) => !devices.controllers.has(t.inst.characterKey),
+  );
+  const unknown = new Set<string>();
+  return tokens.map(({ alias, inst: { characterKey: key }, position, direction, hidden }) => {
+    const blocker = blockerKeys.has(key);
+    if (!blocker && !nonBlockerKeys.has(key) && !unknown.has(key)) {
+      unknown.add(key);
+      onUnknownDevice(key);
+    }
+    const info = devices.info.get(key);
+    return {
+      alias,
+      key,
+      cell: { row: position.row, col: position.col },
+      direction: decode("direction", direction),
+      hidden,
+      blocker,
+      name: info?.name ?? key,
+      description: info?.description ?? null,
+      image: null,
+    };
+  });
+}
+
+export interface ConvertOptions {
+  devices?: DeviceCatalog;
+  onUnknownEnum?: UnknownEnumHandler;
+  onUnknownDevice?: UnknownDeviceHandler;
+}
+
 /** Numeric enums come out as names; a number with no known name goes to `onUnknownEnum`. */
 export function convertLevel(
   levelId: string,
   raw: RawLevel,
   catalog: EnemyCatalog,
-  onUnknownEnum: UnknownEnumHandler = warnUnknownEnum,
+  {
+    devices = noDevices,
+    onUnknownEnum = warnUnknownEnum,
+    onUnknownDevice = warnUnknownDevice,
+  }: ConvertOptions = {},
 ): Level {
   const decode = enumDecoder(onUnknownEnum);
   const route = (r: RawRoute | null) => convertRoute(r, decode);
@@ -345,6 +438,7 @@ export function convertLevel(
     enemies: Object.fromEntries(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
+    devices: convertDevices(raw, devices, decode, onUnknownDevice),
   };
 }
 
@@ -353,10 +447,19 @@ export function convertLevel(
  * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
  * enemy (not in the database) gets no entry and keeps its name in the level file.
  */
-export function siteLevelFile(level: Level, catalog: EnemyCatalog, names: NameTable): LevelFile {
+export function siteLevelFile(
+  level: Level,
+  catalog: EnemyCatalog,
+  names: NameTable,
+  devices: DeviceCatalog = noDevices,
+): LevelFile {
   for (const id of Object.keys(level.enemies)) {
     const name = catalog.twNames.get(id) ?? catalog.levels.get(id)?.get(0)?.name?.m_value;
     if (name) names.enemies[id] = name;
+  }
+  for (const { key } of level.devices) {
+    const info = devices.info.get(key);
+    if (info) names.devices[key] = info;
   }
   return withoutNames(level, names);
 }

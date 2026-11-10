@@ -15,6 +15,7 @@ export const sources = {
   tw: { repo: "ArknightsAssets/ArknightsGamedata", branch: "master", root: "tw/gamedata" },
   /** Enemy avatars, `<enemy id>.png`. */
   avatars: { repo: "yuanyan3060/ArknightsGameResource", branch: "main", root: "enemy" },
+  devices: { repo: "yuanyan3060/ArknightsGameResource", branch: "main", root: "avatar" },
 } satisfies Record<string, RepoSource>;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

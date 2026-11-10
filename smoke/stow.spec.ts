@@ -32,8 +32,10 @@ import {
   siteStage,
   spawnTableRegion,
   timeDisplay,
+  watchMenuCancelled,
   wideWindow,
 } from "./levelPage.ts";
+import { thiefGroup } from "../test-fixtures/rogue2_2-6.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -67,15 +69,6 @@ const counts = (page: Page) =>
     ["pending", "onField", "leaked"].map((c) => page.locator(`[data-count="${c}"]`).textContent()),
   );
 const stowedHint = (page: Page) => page.locator("[data-stowed-count]");
-
-async function watchMenuCancelled(page: Page) {
-  await page.evaluate(() => {
-    addEventListener("contextmenu", (e) => {
-      document.body.dataset.menuCancelled = String(e.defaultPrevented);
-    });
-  });
-  return () => page.evaluate(() => document.body.dataset.menuCancelled);
-}
 
 test("1-7: right-clicking an enemy stows that one individual, without the browser menu", async ({
   page,
@@ -268,7 +261,7 @@ test("ro2_n_2_6: switching a 隨機出兵組's candidate and back keeps an enemy
   page,
 }) => {
   const { t, individual } = aloneOnField(buildTimeline(siteLevel("ro2_n_2_6")), () => true);
-  const random = page.locator('select[data-random-group="0"]');
+  const random = page.locator(`select[data-random-group="${thiefGroup}"]`);
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await seek(page, t);

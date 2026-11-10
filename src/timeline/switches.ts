@@ -1,6 +1,5 @@
-// 開關狀態: which spawn actions produce individuals, given the 隱藏組 switched on, each
-// 隨機出兵組's picked candidate and the 條件出兵 switched on. Pure; no DOM or network.
 import {
+  isDeviceAction,
   isSpawn,
   variantModifiers,
   type Action,
@@ -9,7 +8,6 @@ import {
   type Level,
 } from "../level/index.ts";
 
-/** A 隱藏組 with at least one spawn action, in a wave or a 條件出兵. */
 export interface HiddenGroup {
   name: string;
   /** On by default: the variant's 難度修正 enable it (level_hidden_group_enable, then _disable). */
@@ -49,7 +47,6 @@ export type RandomGroup = FragmentRef & {
 /** The switches a level offers, in level-file order: waves first, then 條件出兵. */
 export interface LevelGroups {
   hidden: HiddenGroup[];
-  /** Groups with at least one spawn action; indices into this list key `SpawnSwitches.picks`. */
   random: RandomGroup[];
 }
 
@@ -107,6 +104,12 @@ export function actionAt(level: Level, ref: ActionRef): Action {
   return fragments[ref.fragmentIndex]!.actions[ref.actionIndex]!;
 }
 
+function switchable(level: Level, ref: ActionRef, action: Action): boolean {
+  if (isSpawn(action)) return true;
+  const branch = ref.branchIndex === null ? null : level.branches[ref.branchIndex];
+  return isDeviceAction(action) && !branch?.deviceOnly;
+}
+
 function defaultHiddenOn(level: Level, difficulty: Difficulty): Set<string> {
   const on = new Set<string>();
   for (const m of variantModifiers(level.modifiers, difficulty)) {
@@ -121,8 +124,8 @@ function defaultHiddenOn(level: Level, difficulty: Difficulty): Set<string> {
 function hiddenGroups(level: Level, difficulty: Difficulty): HiddenGroup[] {
   const on = defaultHiddenOn(level, difficulty);
   const names = new Set<string>();
-  for (const { action } of allActions(level)) {
-    if (isSpawn(action) && action.hiddenGroup) names.add(action.hiddenGroup);
+  for (const { ref, action } of allActions(level)) {
+    if (switchable(level, ref, action) && action.hiddenGroup) names.add(action.hiddenGroup);
   }
   return [...names].map((name) => ({ name, defaultOn: on.has(name) }));
 }
@@ -184,7 +187,7 @@ function randomGroups(level: Level): RandomGroup[] {
     group.defaultPick = weights.indexOf(Math.max(...weights));
   }
   return groups.filter((g) =>
-    g.candidates.some((c) => c.actions.some((ref) => isSpawn(actionAt(level, ref)))),
+    g.candidates.some((c) => c.actions.some((ref) => switchable(level, ref, actionAt(level, ref)))),
   );
 }
 
@@ -274,7 +277,7 @@ export interface SpawnPlan {
   hiddenOn: ReadonlySet<string>;
   /** Picked candidate of each random group, by index. */
   picks: readonly number[];
-  /** 條件出兵 switched on, by index into `Level.branches`. */
+  /** 條件出兵 switched on, by index into `Level.branches`; never a 純機關. */
   conditional: Readonly<Record<number, ConditionalTrigger>>;
   /** Whether the action is in no random group, or in a picked candidate of one. */
   picked(ref: ActionRef): boolean;
@@ -309,7 +312,11 @@ export function spawnPlan(
     groups,
     hiddenOn: hiddenOnOf(groups.hidden, switches),
     picks,
-    conditional: switches.conditional ?? {},
+    conditional: Object.fromEntries(
+      Object.entries(switches.conditional ?? {}).filter(
+        ([branch]) => level.branches[Number(branch)]?.deviceOnly === false,
+      ),
+    ),
     memberships,
     picked(ref) {
       const of = memberships(ref);

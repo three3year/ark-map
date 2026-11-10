@@ -29,6 +29,7 @@ import {
   timeSlider,
   wideWindow,
 } from "./levelPage.ts";
+import { thiefGroup } from "../test-fixtures/rogue2_2-6.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -107,23 +108,29 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await selectWave(page, 1);
-  await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
+  await expect(page.locator(`tr[data-random="${thiefGroup}-0"]`)).toHaveAttribute(
+    "data-picked",
+    "true",
+  );
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
   const slider = timeSlider(page);
   await expect(slider).toBeDisabled();
   const url = page.url();
-  const pickThief = page.locator('tr[data-random="0-1"] button.pick');
-  const pickDefault = page.locator('tr[data-random="0-0"] button.pick');
+  const pickThief = page.locator(`tr[data-random="${thiefGroup}-1"] button.pick`);
+  const pickDefault = page.locator(`tr[data-random="${thiefGroup}-0"] button.pick`);
 
   await pickThief.click();
 
   await expect(slider).toBeEnabled();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
   await seek(page, t);
-  await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "true");
+  await expect(page.locator(`tr[data-random="${thiefGroup}-1"]`)).toHaveAttribute(
+    "data-picked",
+    "true",
+  );
   expect(page.url()).toBe(url);
-  await expect(page.locator('select[data-random-group="0"]')).toHaveValue("1");
-  const expected = onField(level, t, { waveIndex: 1, switches: { picks: { 0: 1 } } });
+  await expect(page.locator(`select[data-random-group="${thiefGroup}"]`)).toHaveValue("1");
+  const expected = onField(level, t, { waveIndex: 1, switches: { picks: { [thiefGroup]: 1 } } });
   expect(expected).toBe(1);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
 
@@ -143,16 +150,21 @@ test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", a
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
-  await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "false");
+  await expect(page.locator(`tr[data-random="${thiefGroup}-1"]`)).toHaveAttribute(
+    "data-picked",
+    "false",
+  );
 
-  await page.locator('tr[data-random="0-1"] button.enemy').click();
+  await page.locator(`tr[data-random="${thiefGroup}-1"] button.enemy`).click();
 
   await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
   await expect(timeSlider(page)).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
-  const thief = spawnTable(level).find((r) => r.random?.group === 0 && r.random.candidate === 1)!;
+  const thief = spawnTable(level).find(
+    (r) => r.random?.group === thiefGroup && r.random.candidate === 1,
+  )!;
   expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
-  await page.locator('tr[data-random="0-1"] button.pick').click();
+  await page.locator(`tr[data-random="${thiefGroup}-1"] button.pick`).click();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 

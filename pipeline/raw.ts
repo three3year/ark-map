@@ -98,6 +98,15 @@ export interface RawRune {
   blackboard?: { key: string; value: number; valueStr: string | null }[] | null;
 }
 
+export interface RawTokenInst {
+  position: RawCell;
+  direction: RawEnum;
+  hidden: boolean;
+  /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
+  alias: string | null;
+  inst: { characterKey: string };
+}
+
 export interface RawLevel {
   options: {
     characterLimit: number;
@@ -116,6 +125,7 @@ export interface RawLevel {
   branches?: Record<string, { phases: { preDelay: number; actions: RawAction[] }[] | null }> | null;
   /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
   runes?: RawRune[] | null;
+  predefines?: { tokenInsts: RawTokenInst[] | null } | null;
 }
 
 export interface RawEnemyDatabase {
@@ -126,6 +136,8 @@ export interface RawEnemyHandbookTable {
   /** `enemyIndex` is the handbook code shown in game, e.g. "B1". */
   enemyData: Record<string, { enemyId: string; name: string; enemyIndex: string }>;
 }
+
+export type RawCharacterTable = Record<string, { name: string; description: string | null }>;
 
 export interface RawStage {
   stageId: string;
