@@ -87,11 +87,23 @@
   input {
     display: block;
     width: 100%;
+    height: 16px;
     margin: 0;
   }
+  /* 空波次: no seconds to seek, so the slider becomes a striped band with no thumb. */
   input:disabled {
-    opacity: var(--dimmed);
+    appearance: none;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: repeating-linear-gradient(-45deg, var(--muted) 0 6px, transparent 6px 12px);
     cursor: not-allowed;
+  }
+  input:disabled::-webkit-slider-thumb {
+    appearance: none;
+    width: 0;
+  }
+  input:disabled::-moz-range-thumb {
+    visibility: hidden;
   }
   .controls {
     display: flex;
