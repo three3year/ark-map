@@ -223,6 +223,7 @@ export const strings = {
   jumpToSpawn: "跳到出生時刻並選取",
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
+  selectedDevice: (name: string) => `已選取:${name}`,
   deselect: "取消選取",
   stow: "收起",
   show: "顯示",
@@ -230,6 +231,10 @@ export const strings = {
   showAllStowed: "全部顯示",
   /** A 擋路裝置's 移除時刻, `wave` 0-based. */
   removalMoment: (wave: number, t: number) => `第 ${wave + 1} 波 第 ${t} 秒移除`,
+  remove: "移除",
+  restore: "恢復",
+  removedCount: (n: number) => `已移除 ${n} 個裝置`,
+  restoreAll: "全部恢復",
   showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
   showListedRows: "顯示列出的所有列",
 } as const;
