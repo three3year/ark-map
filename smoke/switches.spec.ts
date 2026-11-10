@@ -19,6 +19,7 @@ import {
   enemyOnMap,
   filterCaption,
   openLink,
+  pickButton,
   seek,
   selectWave,
   setConditionalSecond,
@@ -116,8 +117,8 @@ test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page })
   const slider = timeSlider(page);
   await expect(slider).toBeDisabled();
   const url = page.url();
-  const pickThief = page.locator(`tr[data-random="${thiefGroup}-1"] button.pick`);
-  const pickDefault = page.locator(`tr[data-random="${thiefGroup}-0"] button.pick`);
+  const pickThief = pickButton(page.locator(`tr[data-random="${thiefGroup}-1"]`));
+  const pickDefault = pickButton(page.locator(`tr[data-random="${thiefGroup}-0"]`));
 
   await pickThief.click();
 
@@ -164,7 +165,7 @@ test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", a
     (r) => r.random?.group === thiefGroup && r.random.candidate === 1,
   )!;
   expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
-  await page.locator(`tr[data-random="${thiefGroup}-1"] button.pick`).click();
+  await pickButton(page.locator(`tr[data-random="${thiefGroup}-1"]`)).click();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 
