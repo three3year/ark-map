@@ -6,12 +6,14 @@ import {
   withoutNames,
   type ActionType,
   type CheckpointType,
+  type DeviceInfo,
   type LevelFile,
   type NameTable,
 } from "../src/level/index.ts";
 import type {
   Action,
   Branch,
+  Device,
   Difficulty,
   EnemyRef,
   Fragment,
@@ -21,8 +23,10 @@ import type {
   MotionMode,
   Route,
 } from "../src/level/index.ts";
+import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
 import type {
   RawAction,
+  RawCharacterTable,
   RawEnemyData,
   RawEnemyDatabase,
   RawEnemyDbRef,
@@ -33,6 +37,7 @@ import type {
   RawRune,
   Slot,
 } from "./raw.ts";
+import { plainText } from "./terrainTable.ts";
 
 export interface EnemyCatalog {
   /** Enemy id -> enemy data by level. */
@@ -86,6 +91,10 @@ const numericEnums = {
   } satisfies Record<number, ActionType>,
   enemyLevelType: { 0: "NORMAL", 1: "ELITE" },
   enemyMotion: {},
+  // Evidence: the same device at the same cell of a same-sized map in an older and a newer file
+  // reads 0 / UP 33 times, 1 / RIGHT twice and 3 / LEFT once (ballistae aiming along their lane);
+  // 2 is DOWN, the one left in the game's UP, RIGHT, DOWN, LEFT order.
+  direction: { 0: "UP", 1: "RIGHT", 2: "DOWN", 3: "LEFT" },
 } satisfies Record<string, Record<number, string>>;
 
 /** Fields whose names the level model types: any other name is unknown too. */
@@ -301,12 +310,104 @@ function convertModifier(raw: RawRune, onUnknown: UnknownEnumHandler): Modifier 
   };
 }
 
+/** What the pipeline knows of 裝置 across every level it converts. */
+export interface DeviceCatalog {
+  /** 控制器 keys, from {@link controllerKeys}: never output. */
+  controllers: ReadonlySet<string>;
+  /** Device key -> TW name and description, else CN. */
+  info: Map<string, DeviceInfo>;
+}
+
+const noDevices: DeviceCatalog = { controllers: new Set(), info: new Map() };
+
+/**
+ * 控制器: the keys most of whose pre-placed instances, over every level given, sit at (0, 0). The
+ * game draws them nowhere; their cell means nothing.
+ */
+export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): Set<string> {
+  const counts = new Map<string, { atOrigin: number; total: number }>();
+  for (const level of levels) {
+    for (const token of level.predefines?.tokenInsts ?? []) {
+      const key = token.inst.characterKey;
+      const count = counts.get(key) ?? { atOrigin: 0, total: 0 };
+      if (token.position.row === 0 && token.position.col === 0) count.atOrigin++;
+      count.total++;
+      counts.set(key, count);
+    }
+  }
+  return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
+}
+
+/** `controllers`, and each character-table key's TW entry (name and description), else CN. */
+export function buildDeviceCatalog(
+  controllers: ReadonlySet<string>,
+  cn: RawCharacterTable,
+  tw: RawCharacterTable,
+): DeviceCatalog {
+  const info = new Map<string, DeviceInfo>();
+  for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
+    const { name, description } = tw[key] ?? cn[key]!;
+    info.set(key, { name, description: description && plainText(description) });
+  }
+  return { controllers, info };
+}
+
+/** A pre-placed device key in neither blocker list; the device is output as not blocking. */
+export type UnknownDeviceHandler = (key: string) => void;
+
+const warnUnknownDevice: UnknownDeviceHandler = (key) =>
+  console.warn(`裝置 ${key} 不在擋路或不擋路清單(pipeline/deviceKinds.ts),當作不擋路`);
+
+function convertDevices(
+  raw: RawLevel,
+  devices: DeviceCatalog,
+  decode: Decode,
+  onUnknownDevice: UnknownDeviceHandler,
+): Device[] {
+  const tokens = (raw.predefines?.tokenInsts ?? []).filter(
+    (t) => !devices.controllers.has(t.inst.characterKey),
+  );
+  const unknown = new Set<string>();
+  return tokens.map(({ alias, inst: { characterKey: key }, position, direction, hidden }) => {
+    const blocker = blockerKeys.has(key);
+    if (!blocker && !nonBlockerKeys.has(key) && !unknown.has(key)) {
+      unknown.add(key);
+      onUnknownDevice(key);
+    }
+    const info = devices.info.get(key);
+    return {
+      alias,
+      key,
+      cell: { row: position.row, col: position.col },
+      direction: decode("direction", direction),
+      hidden,
+      blocker,
+      name: info?.name ?? key,
+      description: info?.description ?? null,
+      image: null,
+    };
+  });
+}
+
+export interface ConvertOptions {
+  /** Default: no 控制器 and no device names. */
+  devices?: DeviceCatalog;
+  /** Default: a console warning. */
+  onUnknownEnum?: UnknownEnumHandler;
+  /** Default: a console warning. */
+  onUnknownDevice?: UnknownDeviceHandler;
+}
+
 /** Numeric enums come out as names; a number with no known name goes to `onUnknownEnum`. */
 export function convertLevel(
   levelId: string,
   raw: RawLevel,
   catalog: EnemyCatalog,
-  onUnknownEnum: UnknownEnumHandler = warnUnknownEnum,
+  {
+    devices = noDevices,
+    onUnknownEnum = warnUnknownEnum,
+    onUnknownDevice = warnUnknownDevice,
+  }: ConvertOptions = {},
 ): Level {
   const decode = enumDecoder(onUnknownEnum);
   const route = (r: RawRoute | null) => convertRoute(r, decode);
@@ -345,18 +446,29 @@ export function convertLevel(
     enemies: Object.fromEntries(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
+    devices: convertDevices(raw, devices, decode, onUnknownDevice),
   };
 }
 
 /**
  * The level file the site ships: names the 名稱表 gives are left out. Adds the level's enemies to
  * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
- * enemy (not in the database) gets no entry and keeps its name in the level file.
+ * enemy (not in the database) gets no entry and keeps its name in the level file. Likewise adds
+ * the level's device kinds that `devices` names.
  */
-export function siteLevelFile(level: Level, catalog: EnemyCatalog, names: NameTable): LevelFile {
+export function siteLevelFile(
+  level: Level,
+  catalog: EnemyCatalog,
+  names: NameTable,
+  devices: DeviceCatalog = noDevices,
+): LevelFile {
   for (const id of Object.keys(level.enemies)) {
     const name = catalog.twNames.get(id) ?? catalog.levels.get(id)?.get(0)?.name?.m_value;
     if (name) names.enemies[id] = name;
+  }
+  for (const { key } of level.devices) {
+    const info = devices.info.get(key);
+    if (info) names.devices[key] = info;
   }
   return withoutNames(level, names);
 }

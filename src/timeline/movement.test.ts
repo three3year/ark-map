@@ -70,6 +70,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
     ],
     extraRoutes: [],
     branches: [],
+    devices: [],
     waves: [
       {
         preDelay: 0,
