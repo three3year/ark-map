@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { Area, AreaKind, StageIndex } from "../level/index.ts";
+  import type { StageIndex } from "../level/index.ts";
   import { formatHash } from "./route.ts";
+  import { homeGroups } from "./stageSearch.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
@@ -8,12 +9,7 @@
   }
   let { index }: Props = $props();
 
-  const kinds: AreaKind[] = ["ROGUELIKE", "MAINLINE", "ACTIVITY", "CAMPAIGN"];
-  const groups = $derived(
-    kinds
-      .map((kind): [AreaKind, Area[]] => [kind, index.areas.filter((a) => a.kind === kind)])
-      .filter(([, areas]) => areas.length > 0),
-  );
+  const groups = $derived(homeGroups(index));
 </script>
 
 {#each groups as [kind, areas] (kind)}

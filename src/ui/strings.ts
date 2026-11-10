@@ -14,6 +14,9 @@ export const strings = {
   variantNotFound: (id: string) => `這個關卡沒有變體 ${id}`,
   noStages: "沒有可顯示的關卡,請先執行資料管線(pnpm data)",
   backToAreas: "所有區域",
+  stageSearch: "搜尋關卡",
+  stageSearchPlaceholder: "關卡代號或名稱,例如 6-16",
+  noSearchHits: "找不到符合的關卡",
   areaKinds: {
     MAINLINE: "主線",
     ACTIVITY: "活動",
