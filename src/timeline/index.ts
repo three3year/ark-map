@@ -8,6 +8,7 @@ import {
   type Vec2,
 } from "../level/index.ts";
 import { createNextNodeLookup } from "../pathfinding/index.ts";
+import { devicePresence, presentAt } from "./devices.ts";
 import { nextNodeModel, theoreticalSpeed, type MovementModel, type Stay } from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
@@ -59,14 +60,15 @@ export function timelineEnd(timeline: Timeline): number {
 }
 
 /**
- * Every individual of one wave, spawned by {@link waveSpawns}; T = 0 is the wave start and
- * earlier waves count as cleared.
+ * Every individual of one wave, spawned by {@link waveSpawns}, and the 裝置 on the field; T = 0 is
+ * the wave start and earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
   const { waveIndex = 0, difficulty = "NORMAL", switches = {}, movement = nextNodeModel } = options;
-  if (!level.waves[waveIndex]) return { individuals: [] };
+  if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [] };
   const nextNode = createNextNodeLookup(level.map);
   const modifiers = variantModifiers(level.modifiers, difficulty);
+  const devices = devicePresence(level, modifiers);
   const individuals: Individual[] = [];
   for (const { action, ref, fragmentStart, start, picked } of waveSpawns(
     level,
@@ -100,5 +102,8 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
       });
     }
   }
-  return { individuals };
+  return {
+    individuals,
+    devicesAt: (t) => devices.filter((d) => presentAt(d, t)).map((d) => d.device),
+  };
 }
