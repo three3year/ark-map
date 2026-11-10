@@ -142,6 +142,20 @@ test("the spawn table sits right of the map; only the level page is wider than 9
   expect(await pageWidth(page)).toBeLessThanOrEqual(960);
 });
 
+test("ISW-NO ro6_b_1_b_dlc1, the widest spawn table, fits its column without scrolling sideways", async ({
+  page,
+}) => {
+  await page.goto("#/level/ro6_b_1_b_dlc1?v=normal");
+  const table = spawnTableRegion(page).locator("table");
+  await expect(table.locator("tbody tr").first()).toBeVisible();
+
+  const overflow = await table.evaluate(
+    (t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth,
+  );
+
+  expect(overflow).toBe(0);
+});
+
 test.describe("short window", () => {
   test.use({ viewport: shortWideWindow });
 

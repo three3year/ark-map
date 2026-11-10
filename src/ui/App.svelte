@@ -13,7 +13,7 @@
     type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
-  import { adjacentStages, type AdjacentStage, type StageLink } from "./adjacentStages.ts";
+  import { adjacentStages } from "./adjacentStages.ts";
   import ExpansionSwitch from "./ExpansionSwitch.svelte";
   import Home from "./Home.svelte";
   import { legacyRedirect } from "./legacyRedirect.ts";
@@ -171,17 +171,15 @@
       : null,
   );
 
-  const adjacent = $derived.by(() => {
-    if (!index || !levelPage) return { prev: null, next: null };
-    const { route, stage, variant } = levelPage;
-    const link = (to: AdjacentStage | null): StageLink | null =>
-      to && {
-        stage: to.stage,
-        href: formatHash({ ...route, stageId: to.stage.id, variant: to.variant }),
-      };
-    const { prev, next } = adjacentStages(index, stage.id, variant.id);
-    return { prev: link(prev), next: link(next) };
-  });
+  const adjacentLinks = $derived(
+    index && levelPage
+      ? adjacentStages(index, {
+          stageId: levelPage.stage.id,
+          variant: levelPage.variant.id,
+          expansion: levelPage.route.expansion,
+        })
+      : { prev: null, next: null },
+  );
 </script>
 
 {#snippet siteTitle(extra?: Snippet)}
@@ -204,8 +202,8 @@
       view={levelPage.view}
       level={levelPage.level}
       terrain={levelPage.terrain}
-      prev={adjacent.prev}
-      next={adjacent.next}
+      prev={adjacentLinks.prev}
+      next={adjacentLinks.next}
       wave={position.wave}
       t={position.t}
       {switches}
@@ -227,7 +225,7 @@
       <Home {index} expansion={expansionChoice} bind:query={searchQuery} />
     {:else if route.page === "area"}
       {#if area}
-        <StageList {area} expansion={inExpansionTheme ? expansionChoice : null} />
+        <StageList {area} expansion={expansionChoice} />
       {:else}
         <p>{strings.areaNotFound(route.areaId)}</p>
       {/if}

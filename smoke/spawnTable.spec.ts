@@ -5,8 +5,10 @@ import {
   buildTimeline,
   endpointRows,
   routeEndpoints,
+  sameAction,
   spawnTable,
   type SpawnRow,
+  type SwitchMark,
 } from "../src/timeline/index.ts";
 import { ceilTenth } from "../src/ui/playback.ts";
 import {
@@ -17,6 +19,7 @@ import {
   pickButton,
   rowOf,
   seek,
+  shownOpacity,
   siteLevel,
   spawnTableRegion,
   timeDisplay,
@@ -153,4 +156,33 @@ test("ro2_n_2_6: a 端點篩選 listing no 切換 row keeps the column", async (
   const heads = await headings(page);
   const enemy = heads.indexOf("敵人");
   expect(heads.slice(enemy, enemy + 3)).toEqual(["敵人", "", "次序"]);
+});
+
+test("ISW-DF ro5_b_4: an action in two 隨機出兵組 dims each group's badge by that group's pick", async ({
+  page,
+}) => {
+  const level = siteLevel("ro5_b_4");
+  const inTwo = spawnTable(level).find(
+    (r) => r.marks.filter((m) => m.kind === "random").length === 2,
+  )!;
+  const [first, second] = inTwo.marks.filter((m) => m.kind === "random");
+  const otherCandidate = first!.candidate === 0 ? 1 : 0;
+  const switches = { picks: { [first!.group]: otherCandidate } };
+  const after = spawnTable(level, { switches }).find(
+    (r) => r.waveIndex === inTwo.waveIndex && sameAction(r, inTwo),
+  )!;
+  expect(after.picked, "the second group still picks the action: it spawns").toBe(true);
+  const badgeOf = (mark: SwitchMark) =>
+    rowOf(page, inTwo)
+      .locator(`[data-switch-mark="random"][data-switch-mark-number="${mark.number}"]`)
+      .locator("..");
+  await page.goto("#/level/ro5_b_4?v=normal");
+  await page
+    .locator(`select[data-random-group="${first!.group}"]`)
+    .selectOption(String(otherCandidate));
+
+  await expect(orderCell(rowOf(page, inTwo))).toHaveText(`${after.firstOrder}`);
+  expect(await shownOpacity(orderCell(rowOf(page, inTwo)))).toBe(1);
+  expect(await shownOpacity(badgeOf(first!))).toBeLessThan(1);
+  expect(await shownOpacity(badgeOf(second!))).toBe(1);
 });

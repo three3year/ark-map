@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { StageIndex } from "../level/index.ts";
   import { formatHash } from "./route.ts";
-  import { homeGroups } from "./stageSearch.ts";
+  import { homeGroups } from "./homeGroups.ts";
   import { strings } from "./strings.ts";
 
   interface Props {

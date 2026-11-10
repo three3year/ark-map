@@ -15,6 +15,7 @@
     endpointRows,
     sameAction,
     type Individual,
+    type RandomRowInfo,
     type RouteEndpoint,
     type SpawnRow,
     type WaveEnd,
@@ -58,9 +59,13 @@
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
 
-  const hasPick = (r: SpawnRow) => r.random !== null && !r.random.picked;
-  const pickColumn = $derived(rows.some(hasPick));
-  const columns = $derived(pickColumn ? 9 : 8);
+  /** The row has 切換: its first 隨機出兵組 does not pick its candidate. */
+  const showsPick = (r: SpawnRow): r is SpawnRow & { random: RandomRowInfo } =>
+    r.random !== null && !r.random.picked;
+  /** Over every row, filtered out or not, so the 切換 column holds still as the filter changes. */
+  const tableHasPick = $derived(rows.some(showsPick));
+  const columnsBesidePick = 8;
+  const columnCount = $derived(columnsBesidePick + (tableHasPick ? 1 : 0));
 
   const hasStowBox = (r: SpawnRow) => r.firstOrder !== null;
   const listedWithBox = $derived(shown.filter(hasStowBox));
@@ -108,7 +113,7 @@
           </th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
-          {#if pickColumn}
+          {#if tableHasPick}
             <th></th>
           {/if}
           <th>{strings.spawnTableOrder}</th>
@@ -123,7 +128,7 @@
           {@const stow = hasStowBox(row) ? rowStow(row) : null}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
-              <th colspan={columns} scope="rowgroup">{strings.wave(row.waveIndex)}</th>
+              <th colspan={columnCount} scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
@@ -131,7 +136,7 @@
             onclick={() => onJump(row)}
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
-            class:unpicked={row.random && !row.random.picked}
+            class:unpicked={!row.picked}
             data-wave={row.waveIndex}
             data-action={actionKey(row)}
             data-hidden-group={row.hiddenGroup}
@@ -178,9 +183,9 @@
                 {/if}
               </button>
             </td>
-            {#if pickColumn}
+            {#if tableHasPick}
               <td class="pick-cell">
-                {#if row.random && !row.random.picked}
+                {#if showsPick(row)}
                   {@const random = row.random}
                   <button
                     type="button"
@@ -203,7 +208,10 @@
             <td class="markers"
               ><span class="marker-list">
                 {#each row.marks as mark (`${mark.kind}-${mark.number}`)}
-                  <span class="badge {mark.kind}">
+                  <span
+                    class="badge {mark.kind}"
+                    class:unpicked={mark.kind === "random" && !mark.picked}
+                  >
                     <SwitchMark kind={mark.kind} number={mark.number} />
                     {#if mark.kind === "conditional"}
                       {strings.conditionalBadge(mark.key)}
@@ -364,7 +372,7 @@
     color: #2e9e5b;
   }
   tr.unpicked td:not(.markers, .pick-cell),
-  tr.unpicked .badge.random {
+  .badge.unpicked {
     opacity: var(--dimmed);
   }
   .marker-list {

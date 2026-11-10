@@ -6,8 +6,10 @@ import {
   routeEndpoints,
   takeSnapshot,
   type Snapshot,
+  type Stay,
   type Timeline,
 } from "../src/timeline/index.ts";
+import { avatarRadius, stayBarHeight, stayBarTop, stayBarWidth } from "../src/ui/enemyGeometry.ts";
 import { endpointDot, enemyOnMap, seek, shownOpacity, siteLevel, stayBarOf } from "./levelPage.ts";
 
 type OnField = Snapshot["onField"][number];
@@ -19,39 +21,52 @@ interface Point {
 const drawn = (level: Level, { x, y }: Point): Point => ({ x, y: level.map.height - 1 - y });
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
-const clearOfAvatar = 0.46;
-const insideAvatar = 0.28;
+/** How far a point keeps from an avatar's edge to be clearly off it, or clearly on it. */
+const avatarEdgeMargin = 0.08;
+const clearOfAvatar = avatarRadius + avatarEdgeMargin;
+const insideAvatar = avatarRadius - avatarEdgeMargin;
 
-function clearOfOthers(level: Level, timeline: Timeline, p: Point): boolean {
+/** Half a device's frame and then some, in cells. */
+const deviceReach = 0.45;
+/** Where an endpoint dot sits, give or take, from its cell's centre; and its reach. */
+const dotOffset = { x: 0.21, y: -0.32 };
+const dotReach = 0.4;
+
+function clearOfDevicesAndDots(level: Level, timeline: Timeline, p: Point): boolean {
   const nearDevice = level.devices.some(({ cell }) => {
     const d = drawn(level, { x: cell.col, y: cell.row });
-    return Math.abs(d.x - p.x) < 0.45 && Math.abs(d.y - p.y) < 0.45;
+    return Math.abs(d.x - p.x) < deviceReach && Math.abs(d.y - p.y) < deviceReach;
   });
   const nearDot = routeEndpoints(timeline).some(({ cell }) => {
     const d = drawn(level, { x: cell.col, y: cell.row });
-    return distance({ x: d.x + 0.21, y: d.y - 0.32 }, p) < 0.4;
+    return distance({ x: d.x + dotOffset.x, y: d.y + dotOffset.y }, p) < dotReach;
   });
   return !nearDevice && !nearDot;
 }
 
 const alongBar = [0.1, 0.25, 0.5, 0.75, 0.9];
-const stayBarWidth = 0.64;
 
 function onBar(level: Level, e: OnField, along: number): Point {
   const centre = drawn(level, e.position);
-  const top = e.individual.harmless ? -0.74 : -0.52;
-  return { x: centre.x + (along - 0.5) * stayBarWidth, y: centre.y + top + 0.04 };
+  return {
+    x: centre.x + (along - 0.5) * stayBarWidth,
+    y: centre.y + stayBarTop(e.individual.harmless) + stayBarHeight / 2,
+  };
 }
+
+/** The bar stays up a second either side of `t`, so seeking to `t` lands well inside it. */
+const staysAround = (stay: Stay | null, t: number) =>
+  stay !== null && stay.start <= t - 1 && stay.end >= t + 1;
 
 function findStay(level: Level, accepts: (at: Point, others: OnField[]) => boolean) {
   const timeline = buildTimeline(level);
   for (let t = 0; t < 300; t++) {
     const onField = takeSnapshot(timeline, t).onField;
     for (const staying of onField) {
-      if (!staying.stay || staying.stay.start > t - 1 || staying.stay.end < t + 1) continue;
+      if (!staysAround(staying.stay, t)) continue;
       for (const along of alongBar) {
         const at = onBar(level, staying, along);
-        if (!clearOfOthers(level, timeline, at)) continue;
+        if (!clearOfDevicesAndDots(level, timeline, at)) continue;
         if (distance(drawn(level, staying.position), at) < clearOfAvatar) continue;
         const others = onField.filter((e) => e !== staying);
         if (accepts(at, others)) return { t, staying, along, at, others };
@@ -64,7 +79,7 @@ function findStay(level: Level, accepts: (at: Point, others: OnField[]) => boole
 async function clickBar(page: Page, id: string, along: number, button?: "right") {
   const bar = stayBarOf(page, id);
   await bar.scrollIntoViewIfNeeded();
-  const track = (await bar.locator("rect").first().boundingBox())!;
+  const track = (await bar.locator(".stay-track").boundingBox())!;
   await page.mouse.click(track.x + along * track.width, track.y + track.height / 2, { button });
 }
 
@@ -124,16 +139,18 @@ test("1-3: clicking a 停留 bar over bare ground neither selects nor 收起 its
 test("12-14: clicking an enemy's 無害 tag does not select it", async ({ page }) => {
   const level = siteLevel("main_12-14");
   const timeline = buildTimeline(level);
+  const tagCentreAbove = 0.5;
+  const clearOfTag = 0.7;
   let found: { t: number; harmless: OnField } | undefined;
   for (let t = 0; t < 300 && !found; t++) {
     const onField = takeSnapshot(timeline, t).onField;
     const harmless = onField.find((e) => {
       if (!e.individual.harmless) return false;
       const centre = drawn(level, e.position);
-      const tag = { x: centre.x, y: centre.y - 0.5 };
+      const tag = { x: centre.x, y: centre.y - tagCentreAbove };
       return (
-        clearOfOthers(level, timeline, tag) &&
-        onField.every((o) => o === e || distance(drawn(level, o.position), tag) > 0.7)
+        clearOfDevicesAndDots(level, timeline, tag) &&
+        onField.every((o) => o === e || distance(drawn(level, o.position), tag) > clearOfTag)
       );
     });
     if (harmless) found = { t, harmless };
@@ -195,5 +212,5 @@ test("4-10: 停留 bars are drawn over every enemy and 等 N 秒 label, faded wi
   await endpointDot(page, elsewhere).click();
 
   await expect(enemyOnMap(page, individual.id)).toHaveAttribute("data-filtered-out");
-  expect(await shownOpacity(bar.locator("rect").first())).toBeCloseTo(0.4, 2);
+  expect(await shownOpacity(bar.locator(".stay-track"))).toBeCloseTo(0.4, 2);
 });

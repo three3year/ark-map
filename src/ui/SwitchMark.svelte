@@ -13,16 +13,17 @@
 
 <style>
   .switch-mark {
-    font-size: calc(1.45em * var(--switch-mark-font));
-    --side: calc(1em / var(--switch-mark-font));
+    --side-in-text-em: 1.45;
+    font-size: calc(1em * var(--side-in-text-em) * var(--switch-mark-font-ratio));
+    --switch-mark-side: calc(1em / var(--switch-mark-font-ratio));
     display: inline-grid;
     place-items: center;
     flex: none;
-    min-width: var(--side);
-    height: var(--side);
+    min-width: var(--switch-mark-side);
+    height: var(--switch-mark-side);
     padding: 0 0.15em;
     box-sizing: border-box;
-    border-radius: calc(var(--side) * var(--switch-mark-corner));
+    border-radius: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
     background: var(--switch-mark-fill);
     color: #fff;
     font-weight: 700;

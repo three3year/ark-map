@@ -52,6 +52,11 @@ export interface SpawnRow extends WaveActionId {
   hiddenGroup: string | null;
   /** The first 隨機出兵組 candidate the action belongs to: the one its 切換 picks. */
   random: RandomRowInfo | null;
+  /**
+   * The action runs: it is in no 隨機出兵組, or one of its groups picks its candidate. An action in
+   * several groups runs though `random.picked` is false.
+   */
+  picked: boolean;
   /** 開關標記 of the action, one per 開關 it belongs to. */
   marks: SwitchMark[];
   /** Set on the last row of each wave. */
@@ -114,6 +119,7 @@ export function spawnTable(level: Level, options: SpawnTableOptions = {}): Spawn
         harmless: action.harmless,
         hiddenGroup: action.hiddenGroup,
         random,
+        picked,
         marks: switchMarks(level, plan, ref),
         waveEnd: i === spawns.length - 1 ? waveEnd : null,
       });

@@ -8,6 +8,7 @@
   } from "../level/index.ts";
   import {
     actionAt,
+    markedSwitches,
     type ConditionalTrigger,
     type RandomCandidate,
     type RandomGroup,
@@ -34,9 +35,12 @@
   let { level, plan, conditional, wave, t, onHidden, onPick, onConditional }: Props = $props();
 
   const multiWave = $derived(level.waves.length > 1);
-  const branches = $derived(level.branches.map((branch, index) => ({ branch, index })));
-  const spawning = $derived(branches.filter(({ branch }) => !branch.deviceOnly));
-  const deviceOnly = $derived(branches.filter(({ branch }) => branch.deviceOnly));
+  const marked = $derived(markedSwitches(level, plan));
+  const deviceOnly = $derived(
+    level.branches
+      .map((branch, index) => ({ branch, index }))
+      .filter(({ branch }) => branch.deviceOnly),
+  );
 
   function deviceName(alias: string): string {
     return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
@@ -80,13 +84,13 @@
   }
 </script>
 
-{#if plan.groups.hidden.length > 0 || plan.groups.random.length > 0 || branches.length > 0}
+{#if plan.groups.hidden.length > 0 || plan.groups.random.length > 0 || level.branches.length > 0}
   <section class="switches" aria-label={strings.switches}>
     <h3>{strings.switches}</h3>
     {#if plan.groups.hidden.length > 0}
       <fieldset>
         <legend title={strings.hiddenGroupsHint}>{strings.hiddenGroups}</legend>
-        {#each plan.groups.hidden as group, i (group.name)}
+        {#each marked.hidden as { group, number } (group.name)}
           <label>
             <input
               type="checkbox"
@@ -94,7 +98,7 @@
               checked={plan.hiddenOn.has(group.name)}
               onchange={(e) => onHidden(group.name, e.currentTarget.checked)}
             />
-            <SwitchMark kind="hiddenGroup" number={i + 1} />
+            <SwitchMark kind="hiddenGroup" {number} />
             {group.name}
             <span class="muted">{group.defaultOn ? strings.defaultOn : strings.defaultOff}</span>
           </label>
@@ -104,10 +108,10 @@
     {#if plan.groups.random.length > 0}
       <fieldset>
         <legend title={strings.randomGroupsHint}>{strings.randomGroups}</legend>
-        {#each plan.groups.random as group, i (i)}
+        {#each marked.random as { group, index: i, number } (i)}
           <label class="random">
             <span class="name">
-              <SwitchMark kind="random" number={i + 1} />
+              <SwitchMark kind="random" {number} />
               {strings.randomGroup(i)}
               <span class="muted">
                 {strings.randomGroupWhere(groupSource(group), group.fragmentIndex, group.key)}
@@ -131,10 +135,10 @@
         {/each}
       </fieldset>
     {/if}
-    {#if spawning.length > 0}
+    {#if marked.conditional.length > 0}
       <fieldset>
         <legend title={strings.conditionalHint}>{strings.conditional}</legend>
-        {#each spawning as { branch, index }, i (index)}
+        {#each marked.conditional as { branch, branchIndex: index, number } (index)}
           {@const trigger = conditional[index]}
           <div class="conditional" data-conditional={index}>
             <label>
@@ -144,7 +148,7 @@
                 onchange={(e) =>
                   onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
               />
-              <SwitchMark kind="conditional" number={i + 1} />
+              <SwitchMark kind="conditional" {number} />
               {branchLabel(branch)}
               <span class="muted">{branch.key}</span>
             </label>
