@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
+  import { isDeviceAction, isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
   import {
     actionAt,
     type ConditionalTrigger,
@@ -31,14 +31,26 @@
   const spawning = $derived(branches.filter(({ branch }) => !branch.deviceOnly));
   const deviceOnly = $derived(branches.filter(({ branch }) => branch.deviceOnly));
 
+  /** A device action's device, by the 名稱表 name of the devices its alias names. */
+  function deviceName(alias: string): string {
+    return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
+  }
+
   /**
-   * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
-   * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
+   * What actions put on the field: enemies × count, devices activated or withdrawn, or nothing.
+   * Repeated entries show once, so a branch activating ten ballistae (`trap_007_ballis#1` …
+   * `#10`) stays short.
    */
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {
       if (!isSpawn(action)) {
-        return action.key ? [strings.device(action.key.replace(/#\d+$/, ""))] : [];
+        if (!isDeviceAction(action) || !action.key) return [];
+        const name = deviceName(action.key);
+        return [
+          action.actionType === "WITHDRAW_PREDEFINED"
+            ? strings.withdrawDevice(name)
+            : strings.device(name),
+        ];
       }
       if (!action.key) return [];
       return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];

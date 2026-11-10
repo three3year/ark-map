@@ -50,14 +50,14 @@ describe("出生點 and 消失點", () => {
   });
 
   describe("ro2_n_2_6 第 2 波: the 隨機出兵組's pick decides the thief's 出生點", () => {
-    // The default candidate is empty; candidates 1 and 2 come out at (1, 0), 3 and 4 at (1, 7),
-    // all leaving at (7, 4).
+    // Group 2 (after wave 1's two box groups): the default candidate is empty; candidates 1 and
+    // 2 come out at (1, 0), 3 and 4 at (1, 7), all leaving at (7, 4).
     const level = loadFixtureLevel("level_rogue2_2-6");
     const timelineOf = (pick: number) =>
-      buildTimeline(level, { waveIndex: 1, switches: { picks: { 0: pick } } });
+      buildTimeline(level, { waveIndex: 1, switches: { picks: { 2: pick } } });
 
     it("filtering by (1, 0) lists the picked thief's row only, not the other candidate there", () => {
-      const switches = { picks: { 0: 1 } };
+      const switches = { picks: { 2: 1 } };
       const spawn = endpointAt(routeEndpoints(timelineOf(1)), "spawn", "1,0");
       const rows = endpointRows(spawnTable(level, { switches }), 1, spawn);
       expect(rows.map((r) => [r.waveIndex, r.random?.candidate])).toEqual([[1, 1]]);
@@ -97,7 +97,7 @@ describe("出生點 and 消失點", () => {
       ["level_main_04-10", {}],
       ["level_main_15-12", { hiddenOn: ["group1", "group2"] }],
       ["level_main_11-06", { conditional: { 0: { wave: 0, t: 30 } } }],
-      ["level_rogue2_2-6", { picks: { 0: 1 } }],
+      ["level_rogue2_2-6", { picks: { 2: 1 } }],
       ["level_rogue3_5-5", {}],
     ];
     it.each(cases)("%s: every endpoint of every wave", (fixture, switches) => {
