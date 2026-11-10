@@ -3,7 +3,7 @@
 <script lang="ts">
   import type { TerrainMark } from "./terrain.ts";
 
-  /** Drawn around (0, 0) within a 1 × 1 cell; the 侵入點/保護目標 frames fill the cell, the rest stay clear of the corner the endpoint dots use. */
+  /** Drawn around (0, 0) within a 1 × 1 cell; the 侵入點/保護目標 frames and 深水區 fill the cell, the rest stay clear of the corner the endpoint dots use. */
   let { mark }: { mark: TerrainMark } = $props();
 </script>
 
@@ -52,9 +52,9 @@
   <rect class="fence bound" x="-0.44" y="-0.44" width="0.88" height="0.88" />
 {:else if mark.icon === "deepWater"}
   <g class="water">
-    <rect x="-0.34" y="-0.3" width="0.68" height="0.6" rx="0.1" />
+    <rect x="-0.475" y="-0.475" width="0.95" height="0.95" rx="0.1" />
     <path
-      d="M -0.24 -0.08 Q -0.12 -0.18 0 -0.08 T 0.24 -0.08 M -0.24 0.12 Q -0.12 0.02 0 0.12 T 0.24 0.12"
+      d="M -0.33 -0.12 Q -0.165 -0.26 0 -0.12 T 0.33 -0.12 M -0.33 0.16 Q -0.165 0.02 0 0.16 T 0.33 0.16"
     />
   </g>
 {:else if mark.icon === "grass"}
@@ -141,7 +141,7 @@
   }
   .water {
     stroke: #bfe1ff;
-    stroke-width: 0.05;
+    stroke-width: 0.07;
   }
   .water rect {
     fill: #1f5fae;
