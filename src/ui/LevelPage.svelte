@@ -24,6 +24,7 @@
     spawnTable,
     switchConditional,
     switchHidden,
+    switchMarkKinds,
     switchPick,
     takeSnapshot,
     timelineEnd,
@@ -411,6 +412,7 @@
       filter={filtered}
       onFilter={toggleFilter}
       onToggleStow={toggleStow}
+      markKinds={switchMarkKinds(timeline)}
     />
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>

@@ -29,6 +29,8 @@
     type RouteEndpoint,
     type Snapshot,
     type Stay,
+    type SwitchMark,
+    type SwitchMarkKind,
   } from "../timeline/index.ts";
   import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
@@ -64,6 +66,8 @@
     onToggleStow: (individual: Individual) => void;
     /** 傾斜視角 or 平面俯視. */
     view: MapViewMode;
+    /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
+    markKinds: SwitchMarkKind[];
   }
   let {
     map,
@@ -81,11 +85,29 @@
     onFilter,
     onToggleStow,
     view,
+    markKinds,
   }: Props = $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
   const stayBarWidth = 0.64;
+
+  // 開關標記 on an avatar: squares in a row, the first with its bottom-right corner on the outer
+  // edge of the avatar's ring (radius 0.36, stroke 0.05), the rest leftward.
+  const markSide = 0.26;
+  const markGap = 0.03;
+  const ringOuter = 0.385;
+  /** A wider number widens its square, as the HTML square's min-width does. */
+  const markWidth = ({ number }: SwitchMark) =>
+    Math.max(markSide, 0.1 * String(number).length + 0.08);
+  function placedMarks(marks: SwitchMark[]) {
+    let right = ringOuter;
+    return marks.map((mark) => {
+      const width = markWidth(mark);
+      right -= width + markGap;
+      return { mark, width, x: right + markGap };
+    });
+  }
 
   const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
@@ -239,6 +261,17 @@
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
+      {#each placedMarks(individual.marks) as { mark, width, x } (`${mark.kind} ${mark.number}`)}
+        <g
+          class="switch-mark"
+          data-switch-mark={mark.kind}
+          data-switch-mark-number={mark.number}
+          transform="translate({x} {ringOuter - markSide})"
+        >
+          <rect {width} height={markSide} />
+          <text x={width / 2} y={markSide / 2}>{mark.number}</text>
+        </g>
+      {/each}
     </g>
   </g>
 {/snippet}
@@ -502,6 +535,12 @@
         <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
       {/if}
     {/each}
+    {#each markKinds as kind (kind)}
+      <li>
+        <span class="swatch switch-mark" data-switch-mark={kind}></span>
+        <span>{strings.legendSwitchMark[kind]}</span>
+      </li>
+    {/each}
     {#if selected}
       <li><span class="swatch line walk"></span>{strings.legendPath}</li>
       <li><span class="swatch line teleport"></span>{strings.legendTeleport}</li>
@@ -674,6 +713,23 @@
   .stay-bars {
     pointer-events: none;
   }
+  /* The look global.css gives every 開關標記, in map units; a click reaches what lies below. */
+  .switch-mark {
+    pointer-events: none;
+  }
+  .switch-mark rect {
+    fill: var(--switch-mark-fill);
+    rx: calc(0.26px * var(--switch-mark-corner));
+  }
+  .switch-mark text {
+    font-size: calc(0.26px * var(--switch-mark-font));
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: #fff;
+    user-select: none;
+  }
   .stay-track {
     fill: #1d1d1fb3;
   }
@@ -843,6 +899,11 @@
   }
   .swatch.device.blocker {
     border: 3px solid var(--device-blocker);
+  }
+  .swatch.switch-mark {
+    border: none;
+    border-radius: calc(14px * var(--switch-mark-corner));
+    background: var(--switch-mark-fill);
   }
   .swatch.dot {
     width: 10px;

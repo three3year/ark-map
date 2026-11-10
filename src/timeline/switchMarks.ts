@@ -2,6 +2,7 @@
 // numbered from 1 per kind in the order the 開關面板 lists them.
 import type { Level } from "../level/index.ts";
 import { actionAt, type ActionRef, type SpawnPlan } from "./switches.ts";
+import type { Timeline } from "./types.ts";
 
 /** `branchIndex` indexes `Level.branches`; `key` is the branch's. */
 type ConditionalMark = { kind: "conditional"; branchIndex: number; key: string };
@@ -46,4 +47,15 @@ export function switchMarks(level: Level, plan: SpawnPlan, ref: ActionRef): Swit
     marks.push({ kind: "random", number: group + 1, group, candidate, weight, share });
   }
   return marks;
+}
+
+const kindOrder: SwitchMarkKind[] = ["conditional", "hiddenGroup", "random"];
+
+/**
+ * The kinds of 開關標記 the wave's 敵人個體 carry, in mark order: what the legend lists. The whole
+ * 基準時間軸 counts, not the enemies on field, so the list holds still during playback.
+ */
+export function switchMarkKinds(timeline: Timeline): SwitchMarkKind[] {
+  const kinds = new Set(timeline.individuals.flatMap((i) => i.marks.map((m) => m.kind)));
+  return kindOrder.filter((kind) => kinds.has(kind));
 }
