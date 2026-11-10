@@ -48,7 +48,7 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { strings, variantLabel } from "./strings.ts";
+  import { stageLabel, strings, variantLabel } from "./strings.ts";
 
   interface Props {
     /**
@@ -98,8 +98,6 @@
     onJump,
     onSwitches,
   }: Props = $props();
-
-  const stageLabel = ({ code, name }: StageEntry) => (code.trim() ? `${code} ${name}` : name);
 
   let mapView = $state(loadMapView(browserStorage()));
   function toggleMapView() {
@@ -367,7 +365,7 @@
       {#if prev}
         <a href={prev.href} data-adjacent="prev">‹ {stageLabel(prev.stage)}</a>
       {/if}
-      <h2>{stage.code} {stage.name}</h2>
+      <h2>{stageLabel(stage)}</h2>
       {#if next}
         <a href={next.href} data-adjacent="next">{stageLabel(next.stage)} ›</a>
       {/if}

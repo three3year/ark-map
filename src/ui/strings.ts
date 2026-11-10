@@ -1,5 +1,5 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, VariantId } from "../level/index.ts";
+import type { AreaKind, KnownModifierKey, StageEntry, VariantId } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
@@ -247,3 +247,7 @@ export function endpointName({ kind, cell }: EndpointPlace): string {
 export function variantLabel(id: VariantId): string {
   return strings.variants[id];
 }
+
+/** A 關卡 by its code and name, e.g. 6-16 凜冬之心; by its name alone when its code is blank. */
+export const stageLabel = ({ code, name }: StageEntry): string =>
+  code.trim() ? `${code} ${name}` : name;

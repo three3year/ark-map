@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Area, StageEntry, StageIndex, VariantId } from "../level/index.ts";
-import { adjacentStages } from "./adjacentStages.ts";
+import { adjacentStages, type StageLink } from "./adjacentStages.ts";
+import { parseHash } from "./route.ts";
 
 const stage = (id: string, ...variants: VariantId[]): StageEntry => ({
   id,
@@ -38,12 +39,17 @@ const index: StageIndex = {
   ],
 };
 
+/** Where a link leads: the stage it names, and the stage and variant its href opens. */
+function target(link: StageLink | null) {
+  if (!link) return null;
+  const route = parseHash(link.href);
+  expect(route).toMatchObject({ page: "level", stageId: link.stage.id });
+  return { id: link.stage.id, variant: route.page === "level" ? route.variant : null };
+}
+
 const ids = (stageId: string, variant: VariantId) => {
-  const { prev, next } = adjacentStages(index, stageId, variant);
-  return {
-    prev: prev && { id: prev.stage.id, variant: prev.variant },
-    next: next && { id: next.stage.id, variant: next.variant },
-  };
+  const { prev, next } = adjacentStages(index, { stageId, variant, expansion: null });
+  return { prev: target(prev), next: target(next) };
 };
 
 describe("上一關／下一關", () => {
@@ -81,6 +87,11 @@ describe("上一關／下一關", () => {
   it("a neighbour without the variant on screen opens on its base variant", () => {
     expect(ids("a2", "challenge").prev).toEqual({ id: "a1", variant: "normal" });
     expect(ids("t3", "emergency").prev).toEqual({ id: "t2", variant: "normal" });
+  });
+
+  it("keeps the 內容拓展 choice on screen", () => {
+    const { next } = adjacentStages(index, { stageId: "t1", variant: "normal", expansion: 2 });
+    expect(parseHash(next!.href)).toMatchObject({ stageId: "t2", expansion: 2 });
   });
 
   it("a stage no area lists has neither", () => {
