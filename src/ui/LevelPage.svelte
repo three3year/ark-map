@@ -296,8 +296,19 @@
     if (endpointFilter && !filtered) endpointFilter = null;
   });
 
-  /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1552;
+  const widestSpawnTable = 922;
+  const tableBorders = 2;
+  const columnScrollbar = 15;
+  const sideColumnWidth = widestSpawnTable + tableBorders + columnScrollbar;
+  /**
+   * An enemy icon (0.68 cell) on a 13-cell-wide map (95% of levels are no wider) stays at least
+   * as large as the spawn table's 28px avatars.
+   */
+  const narrowestMap = 540;
+  const columnGap = 24;
+  const pageSidePadding = 32;
+  const pageScrollbar = 17;
+  const breakpoint = narrowestMap + columnGap + sideColumnWidth + pageSidePadding + pageScrollbar;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -355,7 +366,12 @@
   </button>
 {/snippet}
 
-<div class="level-page">
+<div
+  class="level-page"
+  class:drawer-mode={drawerMode.current}
+  style:--side-column-width="{sideColumnWidth}px"
+  style:--column-gap="{columnGap}px"
+>
   <div class="main-column">
     {@render siteTitle(viewToggle)}
     <nav>
@@ -510,51 +526,46 @@
    * Wide screens: the map beside a column holding the spawn table.
    * - The column is --side-column-width. A fixed width keeps the map from resizing as a 端點篩選
    *   or a switch changes the rows. Below the breakpoint the drawer is as wide, room allowing.
-   * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
-   *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: CSS cannot put a variable in a media query: keep in step `breakpoint` in the
-   *   script above and the two `@media` rules below.
+   * - The map keeps at least the script's `narrowestMap`.
+   * - Which side of the breakpoint the window is on: `.drawer-mode`, set by the script.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 939px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1552px) {
-    .level-page {
-      max-width: none;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--side-column-width);
-      gap: 24px;
-      align-items: start;
-      /*
-       * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
-       * so with the padding below the row it slid 32px up off screen at the bottom of the page.
-       */
-      margin-bottom: -32px;
-    }
-    .main-column {
-      padding-bottom: 32px;
-    }
+  .level-page:not(.drawer-mode) {
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--side-column-width);
+    gap: var(--column-gap);
+    align-items: start;
     /*
-     * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
-     * page's top edge, the site title being in the left column, so the column, as tall as the
-     * window, lies wholly inside the window at every page scroll.
+     * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
+     * so with the padding below the row it slid 32px up off screen at the bottom of the page.
      */
-    .side {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-    }
-    .side-column {
-      height: 100%;
-      overflow-y: auto;
-    }
-    .drawer-button {
-      display: none;
-    }
+    margin-bottom: -32px;
+  }
+  .level-page:not(.drawer-mode) .main-column {
+    padding-bottom: 32px;
+  }
+  /*
+   * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
+   * page's top edge, the site title being in the left column, so the column, as tall as the
+   * window, lies wholly inside the window at every page scroll.
+   */
+  .level-page:not(.drawer-mode) .side {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .level-page:not(.drawer-mode) .side-column {
+    height: 100%;
+    overflow-y: auto;
+  }
+  .level-page:not(.drawer-mode) .drawer-button {
+    display: none;
   }
   /*
    * Below the breakpoint: a drawer sliding out from the right over the page, so the map keeps its
@@ -562,61 +573,59 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1552px) {
-    .side {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 10;
-      width: min(var(--side-column-width), calc(100% - 48px));
-      transform: translateX(100%);
-      transition: transform 0.2s ease;
-      background: var(--bg);
-      border-left: 1px solid var(--border);
-    }
-    .side.open {
-      transform: none;
-      box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
-    }
-    /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
-    .side-column {
-      box-sizing: border-box;
-      height: 100%;
-      padding: 0 12px 12px;
-      overflow-y: auto;
-      visibility: hidden;
-      transition: visibility 0s 0.2s;
-    }
-    .side.open .side-column {
-      visibility: visible;
-      transition-delay: 0s;
-    }
-    .drawer-button {
-      position: absolute;
-      bottom: 16px;
-      right: 100%;
-      writing-mode: vertical-rl;
-      padding: 12px 6px;
-      border: 1px solid var(--border);
-      border-right: none;
-      border-radius: 8px 0 0 8px;
-      background: var(--panel);
-      color: var(--fg);
-      font: inherit;
-      cursor: pointer;
-      box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
-    }
-    .drawer-button[aria-expanded="true"] {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
+  .level-page.drawer-mode .side {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    width: min(var(--side-column-width), calc(100% - 48px));
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+  }
+  .level-page.drawer-mode .side.open {
+    transform: none;
+    box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
+  }
+  /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
+  .level-page.drawer-mode .side-column {
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 12px 12px;
+    overflow-y: auto;
+    visibility: hidden;
+    transition: visibility 0s 0.2s;
+  }
+  .level-page.drawer-mode .side.open .side-column {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .level-page.drawer-mode .drawer-button {
+    position: absolute;
+    bottom: 16px;
+    right: 100%;
+    writing-mode: vertical-rl;
+    padding: 12px 6px;
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+    box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
+  }
+  .level-page.drawer-mode .drawer-button[aria-expanded="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
   }
   /* Only the drawer has transitions to drop. */
   @media (prefers-reduced-motion: reduce) {
-    .side,
-    .side-column {
+    .level-page.drawer-mode .side,
+    .level-page.drawer-mode .side-column {
       transition: none;
     }
   }
