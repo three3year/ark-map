@@ -44,25 +44,52 @@ describe("隨機出兵組 marks: ro2_n_2_6", () => {
 
   it("marks a candidate that is not picked with its group's number and its weight", () => {
     expect(switchMarks(level, plan, candidateAction(1))).toEqual([
-      { kind: "random", number: 3, group: thiefGroup, candidate: 1, weight: 5, share: 5 / 105 },
+      {
+        kind: "random",
+        number: 3,
+        group: thiefGroup,
+        candidate: 1,
+        weight: 5,
+        share: 5 / 105,
+        picked: false,
+      },
     ]);
   });
 
   it("marks the default pick too", () => {
     expect(switchMarks(level, plan, candidateAction(0))).toEqual([
-      { kind: "random", number: 3, group: thiefGroup, candidate: 0, weight: 85, share: 85 / 105 },
+      {
+        kind: "random",
+        number: 3,
+        group: thiefGroup,
+        candidate: 0,
+        weight: 85,
+        share: 85 / 105,
+        picked: true,
+      },
     ]);
   });
 });
 
-describe("隨機出兵組 marks: an action in two groups (ro3_n_5_5, edited)", () => {
+/**
+ * ro3_n_5_5 with a second group "g2" in fragment 10, beside its "g1": packs s1 (weight 30) and s3
+ * (weight 10) each get a keyed action, so s1's keyless action 3 is in a candidate of both groups.
+ */
+function rogue3_5_5WithSecondGroup(): Level {
   const raw = rawFixture("level_rogue3_5-5");
   const actions = raw.waves[0]!.fragments[10]!.actions;
-  actions.push(
-    { ...actions[0]!, randomSpawnGroupKey: "g2", randomSpawnGroupPackKey: "s1", weight: 30 },
-    { ...actions[0]!, randomSpawnGroupKey: "g2", randomSpawnGroupPackKey: "s3", weight: 10 },
-  );
-  const level = convertFixture(raw);
+  const keyedInG2 = (packKey: string, weight: number) => ({
+    ...actions[0]!,
+    randomSpawnGroupKey: "g2",
+    randomSpawnGroupPackKey: packKey,
+    weight,
+  });
+  actions.push(keyedInG2("s1", 30), keyedInG2("s3", 10));
+  return convertFixture(raw);
+}
+
+describe("隨機出兵組 marks: an action in two groups (ro3_n_5_5, edited)", () => {
+  const level = rogue3_5_5WithSecondGroup();
   const plan = spawnPlan(level, "NORMAL");
   const at = (actionIndex: number): ActionRef => ({
     branchIndex: null,
@@ -70,20 +97,66 @@ describe("隨機出兵組 marks: an action in two groups (ro3_n_5_5, edited)", (
     fragmentIndex: 10,
     actionIndex,
   });
+  const inBothGroups = at(3);
   const g1 = plan.groups.random.findIndex((g) => g.fragmentIndex === 10 && g.key === "g1");
+  const g2 = g1 + 1;
 
   it("gives one mark per group, each with the weight of the action's candidate in it", () => {
-    expect(plan.groups.random[g1 + 1]).toMatchObject({ fragmentIndex: 10, key: "g2" });
-    expect(switchMarks(level, plan, at(3))).toEqual([
-      { kind: "random", number: g1 + 1, group: g1, candidate: 0, weight: 100, share: 0.5 },
-      { kind: "random", number: g1 + 2, group: g1 + 1, candidate: 0, weight: 30, share: 0.75 },
+    expect(plan.groups.random[g2]).toMatchObject({ fragmentIndex: 10, key: "g2" });
+    expect(switchMarks(level, plan, inBothGroups)).toEqual([
+      {
+        kind: "random",
+        number: g1 + 1,
+        group: g1,
+        candidate: 0,
+        weight: 100,
+        share: 0.5,
+        picked: true,
+      },
+      {
+        kind: "random",
+        number: g2 + 1,
+        group: g2,
+        candidate: 0,
+        weight: 30,
+        share: 0.75,
+        picked: true,
+      },
     ]);
   });
 
   it("an action in one group gets one mark", () => {
     expect(switchMarks(level, plan, at(2))).toEqual([
-      { kind: "random", number: g1 + 1, group: g1, candidate: 1, weight: 100, share: 0.5 },
+      {
+        kind: "random",
+        number: g1 + 1,
+        group: g1,
+        candidate: 1,
+        weight: 100,
+        share: 0.5,
+        picked: false,
+      },
     ]);
+  });
+
+  describe("with g1's other candidate picked", () => {
+    const switches = { picks: { [g1]: 1 } };
+
+    it("each mark says whether its own group picks the action's candidate", () => {
+      const marks = switchMarks(level, spawnPlan(level, "NORMAL", switches), inBothGroups);
+      expect(marks.map((m) => m.kind === "random" && [m.number, m.picked])).toEqual([
+        [g1 + 1, false],
+        [g2 + 1, true],
+      ]);
+    });
+
+    it("the action's row still spawns, g2 picking it", () => {
+      const row = spawnTable(level, { switches }).find(
+        (r) => r.fragmentIndex === 10 && r.actionIndex === 3,
+      )!;
+      expect(row.picked).toBe(true);
+      expect(row.firstOrder).not.toBeNull();
+    });
   });
 });
 
@@ -113,7 +186,15 @@ describe("條件出兵 marks", () => {
       ).toEqual([
         { kind: "conditional", number: 1, branchIndex: 1, key: "sequence" },
         { kind: "hiddenGroup", number: 1, name: "random" },
-        { kind: "random", number: 1, group: 0, candidate: 3, weight: 6, share: 6 / 14 },
+        {
+          kind: "random",
+          number: 1,
+          group: 0,
+          candidate: 3,
+          weight: 6,
+          share: 6 / 14,
+          picked: true,
+        },
       ]);
     });
   });
