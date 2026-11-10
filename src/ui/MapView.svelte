@@ -27,19 +27,12 @@
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
-    /** The 裝置 on the field at second `t`, drawn under the enemies. */
     devices: Device[];
-    /** The 裝置 removed (移除) by second `t`, drawn as faint dashed frames. */
     removedDevices: Device[];
-    /** A device's 移除時刻; one on the field that has one gets a clock naming it. */
     removalOf: (device: Device) => RemovalMoment | null;
-    /** A device's place in the level's devices, which tells apart devices sharing an alias. */
     deviceIndex: (device: Device) => number;
-    /** A device was right-clicked. */
     onToggleRemoval: (device: Device) => void;
-    /** The selected device, drawn pressed. */
     selectedDevice: Device | null;
-    /** Clicking the selected device again passes null. */
     onSelectDevice: (device: Device | null) => void;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
@@ -87,7 +80,6 @@
     onSelect(individual.id === selected?.id ? null : individual);
   const toggleSelectDevice = (device: Device) =>
     onSelectDevice(device === selectedDevice ? null : device);
-  /** Enter or Space on a focused device selects it, as a click does. */
   function deviceKey(e: KeyboardEvent, device: Device) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -111,7 +103,6 @@
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
-  /** Images that failed to load: an enemy falls back to its code, a device to its initial. */
   let brokenImages = $state(new Set<string>());
   function markBroken(image: string) {
     brokenImages = new Set([...brokenImages, image]);
@@ -325,7 +316,6 @@
       {/each}
 
       {#each removedDevices as device (device)}
-        <!-- Fainter than an enemy outside the 端點篩選. -->
         <g
           class="device removed"
           class:selected={device === selectedDevice}
@@ -393,7 +383,6 @@
             {/if}
             <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
             {#if removal}
-              <!-- In the top-left corner, clear of the 出生點 and 消失點 dots. -->
               <g class="removal-clock" transform="translate(-0.3 -0.3)">
                 <title>{strings.removalMoment(removal.wave, removal.t)}</title>
                 <circle r="0.15" />
@@ -603,7 +592,6 @@
   .terrain {
     pointer-events: none;
   }
-  /* A square frame, unlike an enemy's round one; a 擋路裝置's is bolder and violet. */
   .device-bg {
     fill: var(--device-bg);
   }
@@ -616,7 +604,6 @@
     stroke: var(--device-blocker);
     stroke-width: 0.1;
   }
-  /* A removed 擋路裝置: only its dashed frame is left, fainter than a .faded enemy. */
   .device.removed {
     opacity: 0.3;
   }

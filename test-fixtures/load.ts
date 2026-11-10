@@ -55,14 +55,12 @@ export function rawTables(): StageIndexTables {
   return { cn: tables(""), tw: tables(".tw") };
 }
 
-/** Every raw level fixture, e.g. "level_main_01-07". */
 export function fixtureLevelNames(): string[] {
   return readdirSync(rawDir)
     .filter((f) => f.startsWith("level_"))
     .map((f) => f.replace(/.json$/, ""));
 }
 
-/** CN and TW character tables, subset to the device keys of the level fixtures. */
 export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterTable } {
   return {
     cn: readJson<RawCharacterTable>("character_table.json"),
@@ -72,7 +70,6 @@ export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterT
 
 let deviceCatalog: DeviceCatalog | undefined;
 
-/** As the pipeline builds it, with 控制器 judged over every level fixture. */
 export function fixtureDeviceCatalog(): DeviceCatalog {
   const { cn, tw } = rawCharacterTables();
   return (deviceCatalog ??= buildDeviceCatalog(

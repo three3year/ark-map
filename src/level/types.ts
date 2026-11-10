@@ -117,27 +117,15 @@ export interface EnemyRef {
   avatar: string | null;
 }
 
-/** 裝置: an object the level file pre-places on a 格, e.g. 碎石. 控制器 are not devices. */
 export interface Device {
-  /**
-   * How wave actions, 條件出兵 and 難度修正 name the device. Not unique: devices sharing an alias
-   * act together.
-   */
   alias: string;
-  /** The device's kind, e.g. "trap_027_stone". */
   key: string;
   cell: Cell;
-  /** "UP" | "RIGHT" | "DOWN" | "LEFT" */
   direction: string;
-  /** Off the field at the start, until something activates it. */
   hidden: boolean;
-  /** 擋路裝置 */
   blocker: boolean;
-  /** TW name, else the CN name, else the key. */
   name: string;
-  /** The game's description, TW else CN; null when neither has one. */
   description: string | null;
-  /** Site-relative image path, or null when no image was found. */
   image: string | null;
 }
 
@@ -179,7 +167,6 @@ export interface Level {
   branches: Branch[];
   /** Keyed by enemy id (`Action.key`). */
   enemies: Record<string, EnemyRef>;
-  /** 裝置, in level-file order. */
   devices: Device[];
 }
 

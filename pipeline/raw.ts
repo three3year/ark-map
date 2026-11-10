@@ -98,12 +98,9 @@ export interface RawRune {
   blackboard?: { key: string; value: number; valueStr: string | null }[] | null;
 }
 
-/** A pre-placed token: a 裝置 or a 控制器 (`predefines.tokenInsts`). */
 export interface RawTokenInst {
   position: RawCell;
-  /** "UP" | "RIGHT" | "DOWN" | "LEFT", or a number in older activity files. */
   direction: RawEnum;
-  /** Not on the field at the start. */
   hidden: boolean;
   /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
   alias: string;
@@ -128,7 +125,6 @@ export interface RawLevel {
   branches?: Record<string, { phases: { preDelay: number; actions: RawAction[] }[] | null }> | null;
   /** 難度修正. Older activity files give the mask as flags: 1 NORMAL, 2 FOUR_STAR. */
   runes?: RawRune[] | null;
-  /** Pre-placed tokens; `characterInsts` (pre-placed operators) is not read. */
   predefines?: { tokenInsts: RawTokenInst[] | null } | null;
 }
 
@@ -141,7 +137,6 @@ export interface RawEnemyHandbookTable {
   enemyData: Record<string, { enemyId: string; name: string; enemyIndex: string }>;
 }
 
-/** `character_table`: operators, tokens and devices by key. */
 export type RawCharacterTable = Record<string, { name: string; description: string | null }>;
 
 export interface RawStage {

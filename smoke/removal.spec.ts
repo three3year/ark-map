@@ -1,4 +1,3 @@
-// 移除: right-clicking a 擋路裝置 removes it from the playback position on; enemies re-route.
 import { expect, test, type Page } from "@playwright/test";
 import type { Cell, Level } from "../src/level/index.ts";
 import {
@@ -22,7 +21,6 @@ import {
 
 test.use({ viewport: wideWindow });
 
-/** No enemy within a cell of `cell` at `t`, so a right-click there lands on the device. */
 const clearAround = (timeline: Timeline, t: number, { row, col }: Cell) =>
   takeSnapshot(timeline, t).onField.every(
     ({ position }) => Math.hypot(position.x - col, position.y - row) > 1,
@@ -38,11 +36,6 @@ const apart = (a: Individual, b: Individual, t: number) => {
   );
 };
 
-/**
- * A 碎石 of TB-1, a whole second `moment` to remove it at and a later whole second `later` at which
- * some individual on the field at `moment` stands elsewhere for it; the 碎石's cell is clear of
- * enemies at `moment - 1`, `moment` and `later`, with and without the removal.
- */
 function removalThatTurnsSomeone(level: Level) {
   const kept = buildTimeline(level);
   const end = Math.ceil(timelineEnd(kept));
@@ -71,7 +64,6 @@ function removalThatTurnsSomeone(level: Level) {
   throw new Error("no 碎石 whose removal turns someone on the field");
 }
 
-/** Where enemy `id` is drawn, in model coordinates. */
 async function drawnAt(page: Page, level: Level, id: string) {
   const [x, svgY] = (await enemyOnMap(page, id).getAttribute("transform"))!
     .match(/translate\((\S+) (\S+)\)/)!
@@ -104,26 +96,22 @@ test("TB-1: right-click a 碎石 to remove it from the playback position on; ene
   const url = page.url();
   await deviceOnMap(page, index).click({ button: "right" });
 
-  // Removed at the playback position: it is gone at once, a faint dashed frame on its cell.
   expect(await lastMenuCancelled()).toBe("true");
   await expect(removedFrame(page, index)).toHaveCount(1);
   expect(await shownOpacity(removedFrame(page, index))).toBeLessThan(0.4);
   expect(page.url()).toBe(url);
 
-  // Earlier, it stands as before, with a clock naming the 移除時刻.
   await seek(page, moment - 1);
   await expect(removedFrame(page, index)).toHaveCount(0);
   await expect(deviceOnMap(page, index)).toHaveCount(1);
   await expect(clock(page, index).locator("title")).toHaveText(`第 1 波 第 ${moment} 秒移除`);
 
-  // Past the 移除時刻 again, removed; the individual it turns is where the timeline puts it.
   await seek(page, later);
   await expect(removedFrame(page, index)).toHaveCount(1);
   await enemyOnMap(page, individual.id).press("Enter");
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual.id);
   await expectDrawnAt(page, level, individual, later);
 
-  // A right-click on the dashed frame puts it back: the individual walks as it did.
   await removedFrame(page, index).click({ button: "right" });
   await expect(removedFrame(page, index)).toHaveCount(0);
   await expect(clock(page, index)).toHaveCount(0);

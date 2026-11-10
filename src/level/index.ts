@@ -11,7 +11,6 @@ export function isSpawn(action: Action): boolean {
   return action.actionType === "SPAWN";
 }
 
-/** An action that activates or withdraws 裝置 (its key is their alias). */
 export function isDeviceAction(action: Action): boolean {
   return action.actionType === "ACTIVATE_PREDEFINED" || action.actionType === "WITHDRAW_PREDEFINED";
 }

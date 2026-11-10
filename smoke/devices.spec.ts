@@ -1,5 +1,3 @@
-// 裝置 on the map: square frames with the game's image, 擋路裝置 framed more boldly; ground
-// enemies go round the 擋路裝置. Hidden devices appear once something activates them.
 import { expect, test, type Page } from "@playwright/test";
 import { cellKey } from "../src/level/index.ts";
 import { buildTimeline } from "../src/timeline/index.ts";
@@ -67,7 +65,6 @@ test("TB-1: a selected enemy going round the 碎石 is where the timeline puts i
   const level = siteLevel("act10mini_01");
   const timeline = buildTimeline(level);
   const bare = buildTimeline({ ...level, devices: [] });
-  // The first whole second at which some individual stands elsewhere than without the 碎石.
   const moved = (t: number) =>
     timeline.individuals.find((individual, i) => {
       const a = individual.stateAt(t);

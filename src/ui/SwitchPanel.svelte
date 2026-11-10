@@ -31,15 +31,13 @@
   const spawning = $derived(branches.filter(({ branch }) => !branch.deviceOnly));
   const deviceOnly = $derived(branches.filter(({ branch }) => branch.deviceOnly));
 
-  /** A device action's device, by the 名稱表 name of the devices its alias names. */
   function deviceName(alias: string): string {
     return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
   }
 
   /**
-   * What actions put on the field: enemies × count, devices activated or withdrawn, or nothing.
-   * Repeated entries show once, so a branch activating ten ballistae (`trap_007_ballis#1` …
-   * `#10`) stays short.
+   * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
+   * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
    */
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {

@@ -90,7 +90,6 @@
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
-  /** 移除時刻 by device index; like 收起, they last while the view does. */
   interface Removed {
     view: LevelView;
     moments: Removals;
@@ -231,15 +230,10 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
-  /** The device's 移除時刻, if it has one. */
   const removalOf = (device: Device): RemovalMoment | null =>
     removals.get(level.devices.indexOf(device)) ?? null;
   const before = (a: RemovalMoment, b: RemovalMoment) =>
     a.wave < b.wave || (a.wave === b.wave && a.t < b.t);
-  /**
-   * 移除 a 擋路裝置 at the playback position; before its 移除時刻, move that to the playback
-   * position; at or past it, put the device back. Any other device stays as it is.
-   */
   function toggleRemoval(device: Device) {
     const index = level.devices.indexOf(device);
     if (!device.blocker || index < 0) return;
@@ -249,7 +243,6 @@
     const putBack = moment !== undefined && !before(now, moment);
     removed = { view, moments: new Map(putBack ? others : [...others, [index, now]]) };
   }
-  /** The panel's button for a 擋路裝置: what {@link toggleRemoval} does to it now. */
   const removalAction = (device: Device) => {
     const moment = removalOf(device);
     return moment === null || before({ wave: waveIndex, t }, moment)
@@ -257,10 +250,6 @@
       : strings.restore;
   };
 
-  /**
-   * The selected device, by its place in `level.devices`, in one view's wave. Only one thing is
-   * selected at a time: selecting a device deselects the individual, and the other way round.
-   */
   interface DeviceSelection {
     view: LevelView;
     wave: number;
@@ -272,10 +261,6 @@
     if (!s || !sameView(s.view, view) || s.wave !== waveIndex) return null;
     return level.devices[s.index] ?? null;
   });
-  /**
-   * On another wave the selection holds while the device is drawn there, on the field or as a
-   * removed frame; another view drops it.
-   */
   $effect(() => {
     const s = deviceSelection;
     if (!s || (sameView(s.view, view) && s.wave === waveIndex)) return;

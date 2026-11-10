@@ -260,7 +260,6 @@ test("ro2_n_2_6: switching a 隨機出兵組's candidate and back keeps an enemy
   page,
 }) => {
   const { t, individual } = aloneOnField(buildTimeline(siteLevel("ro2_n_2_6")), () => true);
-  // Group 2, the thieves: groups 0 and 1 pick wave 1's treasure boxes.
   const random = page.locator('select[data-random-group="2"]');
 
   await page.goto("#/level/ro2_n_2_6?v=normal");

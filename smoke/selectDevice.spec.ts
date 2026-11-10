@@ -1,4 +1,3 @@
-// Selecting a 裝置: its panel names and describes it; a 擋路裝置's has a 移除／恢復 button.
 import { expect, test, type Page } from "@playwright/test";
 import type { Cell, Level } from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, timelineEnd, type Timeline } from "../src/timeline/index.ts";
@@ -6,13 +5,11 @@ import { deviceOnMap, enemyOnMap, seek, selectWave, siteLevel, wideWindow } from
 
 test.use({ viewport: wideWindow });
 
-/** No enemy within a cell of `cell` at `t`, so a click there lands on the device. */
 const clearAround = (timeline: Timeline, t: number, { row, col }: Cell) =>
   takeSnapshot(timeline, t).onField.every(
     ({ position }) => Math.hypot(position.x - col, position.y - row) > 1,
   );
 
-/** The first device of kind `key` and a whole second at which some enemy is on the field and none near it. */
 function deviceClearOfEnemies(level: Level, key: string) {
   const timeline = buildTimeline(level);
   const end = Math.ceil(timelineEnd(timeline));
@@ -60,7 +57,6 @@ test("TB-1: click a 碎石 to select it; 移除 in its panel leaves it selected 
   await expect(panelButton(page, "恢復")).toHaveCount(1);
   await expect(removedHint(page)).toContainText("已移除 1 個裝置");
 
-  // 全部恢復 puts it back; the line goes.
   await removedHint(page).getByRole("button", { name: "全部恢復" }).click();
   await expect(page.locator("svg.map g.device[data-removed]")).toHaveCount(0);
   await expect(deviceOnMap(page, index)).toHaveCount(1);

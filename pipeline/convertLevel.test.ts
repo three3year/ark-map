@@ -564,7 +564,6 @@ describe("key fields of the levels the timeline tests use", () => {
 
 describe("裝置", () => {
   it("TB-1: 8 blocking 碎石 at their cells, by alias; its 4 留聲機 do not block", () => {
-    // predefines.tokenInsts of the raw file: an older activity file, direction 0 = UP.
     const level = loadFixtureLevel("level_act10mini_01");
     const stones = level.devices.filter((d) => d.key === "trap_027_stone");
     expect(stones.map((d) => [d.alias, d.cell])).toEqual([
@@ -665,7 +664,6 @@ describe("裝置", () => {
   it("names a device and gives its description from the TW character table, markup removed", () => {
     const stone = loadFixtureLevel("level_act10mini_01").devices[0]!;
     expect([stone.name, stone.description]).toEqual(["碎石", "改變敵人行進路線"]);
-    // TW: "<@ba.kw>無法</>被友方角色治療".
     const shield = loadFixtureLevel("level_rogue3_5-5").devices.find(
       (d) => d.key === "trap_024_npcsld",
     )!;

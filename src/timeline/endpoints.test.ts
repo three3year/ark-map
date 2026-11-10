@@ -50,8 +50,8 @@ describe("出生點 and 消失點", () => {
   });
 
   describe("ro2_n_2_6 第 2 波: the 隨機出兵組's pick decides the thief's 出生點", () => {
-    // Group 2 (after wave 1's two box groups): the default candidate is empty; candidates 1 and
-    // 2 come out at (1, 0), 3 and 4 at (1, 7), all leaving at (7, 4).
+    // The default candidate is empty; candidates 1 and 2 come out at (1, 0), 3 and 4 at (1, 7),
+    // all leaving at (7, 4).
     const level = loadFixtureLevel("level_rogue2_2-6");
     const timelineOf = (pick: number) =>
       buildTimeline(level, { waveIndex: 1, switches: { picks: { 2: pick } } });

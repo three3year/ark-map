@@ -59,9 +59,6 @@ describe("隱藏組: 15-12 (shown as 15-13)", () => {
 });
 
 describe("隨機出兵組: ro2_n_2_6", () => {
-  // Wave 2 opens with group g1: nothing (an empty spawn, weight 85) or one of four thieves
-  // (weight 5 each), group 2 after wave 1's g1 and g2, which pick treasure boxes to activate
-  // (devices, no spawn). PRTS.Map shows the same: 22@85% "-" plus four 22@5% rows with 切换.
   const level = loadFixtureLevel("level_rogue2_2-6");
   const groups = levelGroups(level, "NORMAL").random;
   const enemiesOf = (picks: Record<number, number>) =>

@@ -45,7 +45,6 @@ export interface TimelineOptions {
   difficulty?: Difficulty;
   /** 開關狀態 (隱藏組, 隨機出兵組, 條件出兵); parts left out take the variant's default. */
   switches?: SpawnSwitches;
-  /** 移除時刻 of the 擋路裝置 the user removed; none by default. */
   removals?: Removals;
   movement?: MovementModel;
 }
@@ -79,8 +78,8 @@ export function timelineEnd(timeline: Timeline): number {
 }
 
 /**
- * Every individual of one wave, spawned by {@link waveSpawns}, and the 裝置 on the field; T = 0 is
- * the wave start and earlier waves count as cleared.
+ * Every individual of one wave, spawned by {@link waveSpawns}; T = 0 is the wave start and
+ * earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
   const {
@@ -131,10 +130,6 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   };
 }
 
-/**
- * The wave's nextNode tables by second: a new segment wherever the 擋路格 change, the cells of
- * the 擋路裝置 on the field. One on ground that cannot be walked changes no way, so is left out.
- */
 function nextNodeSegments(level: Level, devices: DevicePresence[]): NextNodeSegment[] {
   const lookup = createNextNodeLookup(level.map);
   const blocking = devices.filter((d) => {

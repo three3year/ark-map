@@ -28,12 +28,8 @@ const road: Tile = {
 const wall: Tile = { ...road, tileKey: "tile_wall", passableMask: "FLY_ONLY" };
 const hole: Tile = { ...road, tileKey: "tile_hole", buildableType: "NONE" };
 
-/**
- * Map characters: "#" wall, "O" hole; a 擋路裝置 on road "B", on a wall "X", on a hole "Q".
- */
 const tileOf: Record<string, Tile> = { "#": wall, O: hole, X: wall, Q: hole };
 
-/** A 擋路裝置 (碎石) on the field from the start at `cell`. */
 function blocker(cell: Cell): Device {
   const alias = `trap_027_stone#${cell.row},${cell.col}`;
   return {
@@ -64,7 +60,6 @@ interface TestTiming {
   spawnDelay?: number;
 }
 
-/** One enemy at 1 cell/s on a map drawn top row first (characters as in {@link tileOf}). */
 function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level {
   const bottomUp = [...rows].reverse();
   const devices = bottomUp.flatMap((line, row) =>
@@ -639,7 +634,6 @@ describe("movement model: 擋路裝置", () => {
   const across = (end: number) => ({ start: { row: 0, col: 0 }, end: { row: 0, col: end } });
 
   it("crosses a 擋路格 rather than a hole when the way round is longer, at constant speed", () => {
-    // The bottom way is 4 cells but through a hole; the top way is 8 cells through a 擋路格.
     const enemy = only(
       level(["..B..", ".###.", "..O.."], {
         motionMode: "WALK",
@@ -652,7 +646,6 @@ describe("movement model: 擋路裝置", () => {
   });
 
   it("a 擋路裝置 in a hole leaves it a hole", () => {
-    // The map above, with a 擋路裝置 in the hole too: the way through the hole still costs more.
     const enemy = only(
       level(["..B..", ".###.", "..Q.."], {
         motionMode: "WALK",
@@ -664,7 +657,6 @@ describe("movement model: 擋路裝置", () => {
   });
 
   it("a 擋路格 blocks the line of sight that smooths corners", () => {
-    // Open 3 x 3 with a 擋路格 in the middle: the diagonal would cut through it.
     const enemy = only(
       level(["...", ".B.", "..."], {
         motionMode: "WALK",
@@ -693,8 +685,6 @@ describe("movement model: 擋路裝置", () => {
 });
 
 describe("movement model: 移除時刻 re-routes ground individuals", () => {
-  // The bottom row is the short way but a 擋路裝置 sits in it; the way round over the top is
-  // 10 cells. Once the 碎石 is gone the bottom row is open: 4 cells from (0, 0) to (4, 0).
   const ring = [".....", ".###.", ".###.", "..B.."];
   const across = {
     motionMode: "WALK",
@@ -702,7 +692,6 @@ describe("movement model: 移除時刻 re-routes ground individuals", () => {
     end: { row: 0, col: 4 },
     allowDiagonalMove: false,
   } as const;
-  /** The ring's 碎石 is level.devices[0]; removed at `t` of the first wave. */
   const removedAt = (t: number): TimelineOptions => ({
     removals: new Map([[0, { wave: 0, t }]]),
   });
@@ -715,7 +704,6 @@ describe("movement model: 移除時刻 re-routes ground individuals", () => {
   });
 
   it("turns back from where it is at the 移除時刻 and takes the opened way", () => {
-    // At 1 s it is one cell up the left side: back down, then along the bottom row.
     const enemy = only(level(ring, across), removedAt(1));
     expectAt(enemy.stateAt(1.5), 0, 0.5);
     expectAt(enemy.stateAt(3), 1, 0);
@@ -737,7 +725,6 @@ describe("movement model: 移除時刻 re-routes ground individuals", () => {
   });
 
   it("a patrol takes the new way on the walk after the 移除時刻", () => {
-    // Over the top to (4, 0) by 10 s, where the 碎石 goes; then back and forth along the bottom.
     const patrol = {
       ...across,
       checkpoints: [cp("PATROL_MOVE", { row: 0, col: 4 }), cp("PATROL_MOVE", { row: 0, col: 0 })],

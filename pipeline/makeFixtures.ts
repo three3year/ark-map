@@ -7,8 +7,7 @@
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
 // fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
 // keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
-// the fixture table. The CN and TW character tables keep the name and description of the device
-// keys the fixture levels pre-place.
+// the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
 //                      [--rogue <roguelike stage id>...] [--tile <tile key>...]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";

@@ -216,7 +216,6 @@ export const strings = {
     token_key: "裝置",
     skill: "技能序號",
   } as Partial<Record<string, string>>,
-  /** 裝置 drawn on the map: 擋路裝置 have the bolder frame. */
   legendDevice: { device: "裝置", blocker: "擋路裝置" },
   legendPath: "路徑",
   legendTeleport: "傳送",
@@ -230,7 +229,6 @@ export const strings = {
   show: "顯示",
   stowedCount: (n: number) => `已收起 ${n} 隻`,
   showAllStowed: "全部顯示",
-  /** A 擋路裝置's 移除時刻, `wave` 0-based. */
   removalMoment: (wave: number, t: number) => `第 ${wave + 1} 波 第 ${t} 秒移除`,
   remove: "移除",
   restore: "恢復",

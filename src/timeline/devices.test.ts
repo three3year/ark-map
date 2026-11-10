@@ -1,5 +1,3 @@
-// Seam 2: level model -> baseline timeline. When 裝置 come on and go off during the battle:
-// wave and 條件出兵 activation, withdrawal, and the switches they obey.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import type { Action, Device, Level, Tile, Wave } from "../level/index.ts";
@@ -12,7 +10,6 @@ const road: Tile = {
   buildableType: "MELEE",
 };
 
-/** The 擋路裝置 of the test field: a 碎石 at (0, 2), across the straight way. */
 const stone: Device = {
   alias: "stone",
   key: "trap_027_stone",
@@ -45,7 +42,6 @@ const activate = (fields: Partial<Action> = {}) =>
 const withdraw = (fields: Partial<Action> = {}) =>
   action({ actionType: "WITHDRAW_PREDEFINED", key: "stone", ...fields });
 
-/** A wave of one fragment that starts `fragmentDelay` seconds in. */
 const wave = (actions: Action[], fragmentDelay = 0): Wave => ({
   preDelay: 0,
   postDelay: 0,
@@ -53,10 +49,6 @@ const wave = (actions: Action[], fragmentDelay = 0): Wave => ({
   fragments: [{ preDelay: fragmentDelay, actions }],
 });
 
-/**
- * A 5 x 2 open field; one ground route along the bottom row, (0,0) -> (0,4), walked at 1 cell/s.
- * Straight it takes 4 s; round the 碎石 at (0,2), by the top row, 6 s.
- */
 function field(waves: Wave[], device: Partial<Device> = {}): Level {
   return {
     levelId: "test/devices",
@@ -105,13 +97,11 @@ function field(waves: Wave[], device: Partial<Device> = {}): Level {
   };
 }
 
-/** Whether the 碎石 is on the field at second `t` of wave `waveIndex`. */
 function stoneOn(level: Level, waveIndex: number, t: number, options: TimelineOptions = {}) {
   return buildTimeline(level, { ...options, waveIndex }).devicesAt(t).length > 0;
 }
 
 describe("波次啟動: a wave's ACTIVATE_PREDEFINED", () => {
-  // Wave 1's fragment starts 2 s in; the activation waits 1 s more: on from 3 s.
   const level = field([wave([spawn()]), wave([spawn(), activate({ preDelay: 1 })], 2), wave([])]);
 
   it("puts the hidden device on from the second the action runs", () => {
@@ -130,7 +120,6 @@ describe("波次啟動: a wave's ACTIVATE_PREDEFINED", () => {
 });
 
 describe("擋路裝置 activated mid-wave", () => {
-  // The individual spawns at 0 s; the 碎石 comes on at 1 s, when it stands on (0,1).
   const level = field([wave([spawn(), activate({ preDelay: 1 })])]);
   const bare = field([wave([spawn()])]);
   const [walker] = buildTimeline(level).individuals;
@@ -148,7 +137,6 @@ describe("擋路裝置 activated mid-wave", () => {
 });
 
 describe("撤走: a wave's WITHDRAW_PREDEFINED", () => {
-  // On from the start; wave 0 withdraws it 1 s in.
   const level = field([wave([spawn(), withdraw({ preDelay: 1 })]), wave([spawn()])], {
     hidden: false,
   });
@@ -223,7 +211,6 @@ describe("device actions obey the 開關狀態", () => {
   });
 
   describe("隨機出兵組", () => {
-    // Two candidates: activate the 碎石 (weight 1) or do nothing (weight 3).
     const random = (fields: Partial<Action>) => ({ randomSpawnGroupKey: "r", ...fields });
     const level = field([
       wave([

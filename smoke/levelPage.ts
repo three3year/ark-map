@@ -75,14 +75,9 @@ export const filterCaption = (page: Page) => page.locator("[data-endpoint-filter
 export const enemyOnMap = (page: Page, id: string) =>
   page.locator(`svg.map g.enemy[data-individual="${id}"]`);
 
-/** 裝置 `index` (its place in `level.devices`) on the map, on the field or removed. */
 export const deviceOnMap = (page: Page, index: number) =>
   page.locator(`svg.map g.device[data-device-index="${index}"]`);
 
-/**
- * From now on, record whether each right-click's browser menu was cancelled; the function returned
- * reads the last one's: "true", "false", or undefined before any.
- */
 export async function watchMenuCancelled(page: Page) {
   await page.evaluate(() => {
     addEventListener("contextmenu", (e) => {

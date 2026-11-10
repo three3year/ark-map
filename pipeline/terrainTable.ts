@@ -5,7 +5,6 @@ import type { RawStageTable } from "./raw.ts";
 /** The game's rich-text markup, `<@ba.kw>…</>`; plain `<荒季>` brackets are text and stay. */
 const richTextTag = /<[@$][^>]*>|<\/>/g;
 
-/** `text` without the game's rich-text markup. */
 export const plainText = (text: string): string => text.replace(richTextTag, "");
 
 /** `tileKey` -> the TW entry, else the CN one; keys neither table has are left out. */

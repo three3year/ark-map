@@ -1,5 +1,3 @@
-// 開關狀態: which spawn and device actions take effect, given the 隱藏組 switched on, each
-// 隨機出兵組's picked candidate and the 條件出兵 switched on. Pure; no DOM or network.
 import {
   isDeviceAction,
   isSpawn,
@@ -10,7 +8,6 @@ import {
   type Level,
 } from "../level/index.ts";
 
-/** A 隱藏組 with at least one action the switches act on (see `switchable`). */
 export interface HiddenGroup {
   name: string;
   /** On by default: the variant's 難度修正 enable it (level_hidden_group_enable, then _disable). */
@@ -50,10 +47,6 @@ export type RandomGroup = FragmentRef & {
 /** The switches a level offers, in level-file order: waves first, then 條件出兵. */
 export interface LevelGroups {
   hidden: HiddenGroup[];
-  /**
-   * Groups with at least one action the switches act on (see `switchable`); indices into this
-   * list key `SpawnSwitches.picks`.
-   */
   random: RandomGroup[];
 }
 
@@ -111,10 +104,6 @@ export function actionAt(level: Level, ref: ActionRef): Action {
   return fragments[ref.fragmentIndex]!.actions[ref.actionIndex]!;
 }
 
-/**
- * Whether the switches act on the action: a spawn action, or one that activates or withdraws 裝置
- * outside a 純機關 (which never runs, so its device actions never take effect).
- */
 function switchable(level: Level, ref: ActionRef, action: Action): boolean {
   if (isSpawn(action)) return true;
   const branch = ref.branchIndex === null ? null : level.branches[ref.branchIndex];

@@ -310,20 +310,13 @@ function convertModifier(raw: RawRune, onUnknown: UnknownEnumHandler): Modifier 
   };
 }
 
-/** What the pipeline knows of 裝置 across every level it converts. */
 export interface DeviceCatalog {
-  /** 控制器 keys, from {@link controllerKeys}: never output. */
   controllers: ReadonlySet<string>;
-  /** Device key -> TW name and description, else CN. */
   info: Map<string, DeviceInfo>;
 }
 
 const noDevices: DeviceCatalog = { controllers: new Set(), info: new Map() };
 
-/**
- * 控制器: the keys most of whose pre-placed instances, over every level given, sit at (0, 0). The
- * game draws them nowhere; their cell means nothing.
- */
 export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): Set<string> {
   const counts = new Map<string, { atOrigin: number; total: number }>();
   for (const level of levels) {
@@ -338,7 +331,6 @@ export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): 
   return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
 }
 
-/** `controllers`, and each character-table key's TW entry (name and description), else CN. */
 export function buildDeviceCatalog(
   controllers: ReadonlySet<string>,
   cn: RawCharacterTable,
@@ -352,7 +344,6 @@ export function buildDeviceCatalog(
   return { controllers, info };
 }
 
-/** A pre-placed device key in neither blocker list; the device is output as not blocking. */
 export type UnknownDeviceHandler = (key: string) => void;
 
 const warnUnknownDevice: UnknownDeviceHandler = (key) =>
@@ -390,11 +381,8 @@ function convertDevices(
 }
 
 export interface ConvertOptions {
-  /** Default: no 控制器 and no device names. */
   devices?: DeviceCatalog;
-  /** Default: a console warning. */
   onUnknownEnum?: UnknownEnumHandler;
-  /** Default: a console warning. */
   onUnknownDevice?: UnknownDeviceHandler;
 }
 
@@ -453,8 +441,7 @@ export function convertLevel(
 /**
  * The level file the site ships: names the 名稱表 gives are left out. Adds the level's enemies to
  * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
- * enemy (not in the database) gets no entry and keeps its name in the level file. Likewise adds
- * the level's device kinds that `devices` names.
+ * enemy (not in the database) gets no entry and keeps its name in the level file.
  */
 export function siteLevelFile(
   level: Level,

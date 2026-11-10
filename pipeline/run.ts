@@ -1,6 +1,6 @@
 // Data pipeline entry point: fetch raw game data (cached by blob sha), trim every level the
 // stage index covers into the site's JSON under public/data/, write the stage index and the
-// 名稱表, and copy the enemy avatars and 裝置 images those levels use.
+// 名稱表, and copy the avatars those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
@@ -103,10 +103,8 @@ const catalog = buildEnemyCatalog(
 
 await rm(outDir, { recursive: true, force: true });
 
-/** One source's `<key>.png` images, each copied into the site's `dir` the first time a level uses it. */
 function siteImages(source: RepoSource, listing: TreeListing | null, dir: string) {
   const images = new Map<string, Promise<string | null>>();
-  /** The image's site-relative path, or null when the source has none. */
   function imageFor(key: string): Promise<string | null> {
     let image = images.get(key);
     if (!image) {
@@ -155,14 +153,12 @@ if (cnLevels) {
 // Files the listing does not have are left out up front; the index reports their stages.
 const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has(`${p}.json`));
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
-/** Raw level files by level path; files the source does not have are left out. */
 const bodies = new Map<string, Buffer>();
 await forEachLimit(wanted, 8, async (levelPath) => {
   const file = `${levelPath}.json`;
   const body = await fetchCached(sources.cn, `levels/${file}`, cnLevels?.get(file));
   if (body) bodies.set(levelPath, body);
 });
-// 控制器 are judged over every level to convert, before any is converted.
 const controllers = controllerKeys(
   [...bodies.values()].map((body) => ({
     predefines: (JSON.parse(body.toString("utf8")) as RawLevel).predefines,
@@ -183,9 +179,7 @@ const tileKeys = new Set<string>();
 const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
 const unknownEnums = new Map<string, Set<string>>();
-/** Pre-placed device keys in neither blocker list -> the level files they appear in. */
 const unknownDevices = new Map<string, Set<string>>();
-/** Every device key the converted level files use. */
 const deviceKeys = new Set<string>();
 const record = (seen: Map<string, Set<string>>, key: string, levelPath: string) => {
   if (!seen.has(key)) seen.set(key, new Set());

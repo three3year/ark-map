@@ -1,6 +1,5 @@
 // Which 裝置 keys are 擋路裝置. The game tables have no field for it, so both lists are kept by
-// hand; the pipeline warns about a pre-placed device key in neither list (it is then treated as
-// not blocking).
+// hand.
 
 /**
  * 擋路裝置: every key whose PRTS device page says its cell is rewritten to block routes

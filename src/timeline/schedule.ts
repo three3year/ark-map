@@ -40,21 +40,14 @@ export function scheduleWave(wave: Pick<Wave, "preDelay" | "fragments">): WaveSc
   return { actions, end: previousEnd };
 }
 
-/** An action placed in one wave; times count from the wave start. */
 export interface PlacedAction {
   action: Action;
   ref: ActionRef;
   fragmentStart: number;
   start: number;
-  /** In no 隨機出兵組, or in its picked candidate: the action takes effect. */
   picked: boolean;
 }
 
-/**
- * The actions of wave `waveIndex` whose 隱藏組 is on (or that have none), spawn or not, in
- * level-file order: the wave's own, then those of each 條件出兵 `plan` switches on in this wave.
- * A 條件出兵 runs like a wave whose fragments are its phases, starting at its trigger second.
- */
 export function waveActions(level: Level, plan: SpawnPlan, waveIndex: number): PlacedAction[] {
   const wave = level.waves[waveIndex];
   if (!wave) return [];
@@ -93,6 +86,5 @@ export function waveActions(level: Level, plan: SpawnPlan, waveIndex: number): P
   return placed;
 }
 
-/** The spawn actions of {@link waveActions}. */
 export const waveSpawns = (level: Level, plan: SpawnPlan, waveIndex: number): PlacedAction[] =>
   waveActions(level, plan, waveIndex).filter((a) => isSpawn(a.action));

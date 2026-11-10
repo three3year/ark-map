@@ -13,10 +13,7 @@ import {
 /** For each cell, the cell an enemy there heads for next on its way to the target. */
 export type NextNodeTable = (cell: Cell) => Cell;
 
-/**
- * Looks up (and caches) the nextNode table for a motion mode, target cell and diagonal flag.
- * `blockers` are the 擋路格, as {@link cellKey}s; flying ignores them.
- */
+/** Looks up (and caches) the nextNode table for a motion mode, target cell and diagonal flag. */
 export type NextNodeLookup = (
   mode: MotionMode,
   target: Cell,
@@ -36,7 +33,6 @@ export interface PathfindingOptions {
 /** SPFA edge cost of stepping onto a `tile_hole` (an obstacle, not impassable). */
 const HOLE_COST = 1_000_000;
 
-/** SPFA edge cost of stepping onto a 擋路格: crossed only when no way round is cheaper. */
 const BLOCKER_COST = 1_000;
 
 const noBlockers: ReadonlySet<string> = new Set();
@@ -98,13 +94,12 @@ function buildTable(
   const inside = (row: number, col: number) => row >= 0 && row < height && col >= 0 && col < width;
   if (!inside(target.row, target.col)) return (cell) => cell;
   const n = width * height;
-  // A 擋路格 only raises the cost of a cell the ground could walk anyway; a hole stays a hole.
   const cost = map.tiles.map((t, i) => {
     if (!grid.passable(t)) return Infinity;
     const blocked = blockers.has(cellKey({ row: Math.floor(i / width), col: i % width }));
     return blocked ? Math.max(grid.cost(t), BLOCKER_COST) : grid.cost(t);
   });
-  /** Passable and not an obstacle (hole, 擋路格): what a line of sight may cross. */
+  /** Passable and not an obstacle: what a line of sight may cross. */
   const clear = (row: number, col: number) => inside(row, col) && cost[row * width + col] === 1;
 
   // SPFA from the target: FIFO, no duplicates in the queue, strict improvement only.
