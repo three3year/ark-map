@@ -336,9 +336,6 @@
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
     <h2>{stage.code} {stage.name}</h2>
-    {#if variant.emergencyCondition}
-      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
-    {/if}
     {#if stage.variants.length > 1}
       <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
@@ -352,6 +349,9 @@
           </button>
         {/each}
       </div>
+    {/if}
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
     {/if}
     <MapView
       map={level.map}
@@ -608,7 +608,7 @@
     font-size: 1.4rem;
   }
   .condition {
-    margin: -6px 0 12px;
+    margin: 0 0 12px;
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
