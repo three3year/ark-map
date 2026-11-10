@@ -47,6 +47,20 @@ export type TerrainMark = { name: string; description: string | null } & (
   { kind: "icon"; icon: TerrainIcon } | { kind: "glyph"; glyph: string }
 );
 
+/** Icons whose 地形 is never deployable, so a 不可放置 cell under one needs no stripes to say so. */
+const undeployableIcons: ReadonlySet<TerrainIcon> = new Set([
+  "incursion",
+  "airIncursion",
+  "protectTarget",
+  "tunnelIn",
+  "tunnelOut",
+  "hole",
+]);
+
+/** Whether a 不可放置 cell showing `mark` keeps its hazard stripes. */
+export const keepsFloorStripes = (mark: TerrainMark | null) =>
+  !(mark?.kind === "icon" && undeployableIcons.has(mark.icon));
+
 /** The first letter of `name`, skipping the quotes some 地形表 names open with. */
 const firstLetter = (name: string) => name.match(/[\p{L}\p{N}]/u)?.[0] ?? name.slice(0, 1);
 
