@@ -30,7 +30,7 @@
     type Snapshot,
     type Stay,
   } from "../timeline/index.ts";
-  import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
+  import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
   import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
   import TerrainIcon from "./TerrainIcon.svelte";
@@ -62,6 +62,8 @@
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
+    /** 傾斜視角 or 平面俯視. */
+    view: MapViewMode;
   }
   let {
     map,
@@ -78,6 +80,7 @@
     filter,
     onFilter,
     onToggleStow,
+    view,
   }: Props = $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
@@ -116,12 +119,6 @@
     brokenImages = new Set([...brokenImages, image]);
   }
   const shows = (image: string | null): image is string => !!image && !brokenImages.has(image);
-
-  let view = $state(loadMapView(browserStorage()));
-  function toggleView() {
-    view = view === "tilted" ? "flat" : "tilted";
-    saveMapView(browserStorage(), view);
-  }
 
   // The tilted view mimics the game's camera: the flat SVG rotated about its front (bottom)
   // edge, seen from a fixed distance in cells, so every map shares the game's angle.
@@ -261,12 +258,6 @@
 {/snippet}
 
 <div class="map-view">
-  <div class="toolbar">
-    <button type="button" class="view-toggle" aria-pressed={view === "flat"} onclick={toggleView}>
-      {view === "tilted" ? strings.viewFlat : strings.viewTilted}
-    </button>
-  </div>
-
   <div class="stage" class:tilted={view === "tilted"} style={stageStyle}>
     <svg
       class="map"
@@ -513,22 +504,6 @@
     --device-blocker: #7c3aed;
     --path: #f5a524;
   }
-  .toolbar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 6px;
-  }
-  .view-toggle {
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--fg);
-    font: inherit;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-
   .stage {
     container-type: inline-size;
     background: #2a2b30;
