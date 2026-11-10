@@ -26,6 +26,7 @@ import type {
   Route,
 } from "../src/level/index.ts";
 import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
+import { plainText } from "./plainText.ts";
 import type {
   RawAction,
   RawCharacterTable,
@@ -39,7 +40,6 @@ import type {
   RawRune,
   Slot,
 } from "./raw.ts";
-import { plainText } from "./terrainTable.ts";
 
 export interface EnemyCatalog {
   /** Enemy id -> enemy data by level. */
