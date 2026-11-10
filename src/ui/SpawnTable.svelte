@@ -20,6 +20,7 @@
     type WaveEnd,
   } from "../timeline/index.ts";
   import { endpointName, strings } from "./strings.ts";
+  import SwitchMark from "./SwitchMark.svelte";
 
   interface Props {
     rows: SpawnRow[];
@@ -32,8 +33,6 @@
     onJump: (row: SpawnRow) => void;
     /** 切換 on a candidate row that is not picked. */
     onPick: (group: number, candidate: number) => void;
-    /** 條件出兵 keys by branch index, for the rows' markers. */
-    branchKeys: string[];
     /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
     filter: RouteEndpoint | null;
     onClearFilter: () => void;
@@ -47,7 +46,6 @@
     selected,
     onJump,
     onPick,
-    branchKeys,
     filter,
     onClearFilter,
     rowStow,
@@ -208,24 +206,21 @@
             <td class="num">{seconds(row.absoluteTime)} {strings.seconds}</td>
             <td class="markers"
               ><span class="marker-list">
-                {#if row.branchIndex !== null}
-                  <span class="badge conditional"
-                    >{strings.conditionalBadge(branchKeys[row.branchIndex] ?? "")}</span
-                  >
-                {/if}
-                {#if row.hiddenGroup}
-                  <span class="badge hidden-group">{strings.hiddenGroupBadge(row.hiddenGroup)}</span
-                  >
-                {/if}
-                {#if row.random}
-                  {@const random = row.random}
-                  <span class="badge random">
-                    {strings.randomGroup(random.group)} ・ {strings.candidateWeight(
-                      random.weight,
-                      random.share,
-                    )}
+                {#each row.marks as mark (`${mark.kind}-${mark.number}`)}
+                  <span class="badge {mark.kind}">
+                    <SwitchMark kind={mark.kind} number={mark.number} />
+                    {#if mark.kind === "conditional"}
+                      {strings.conditionalBadge(mark.key)}
+                    {:else if mark.kind === "hiddenGroup"}
+                      {strings.hiddenGroupBadge(mark.name)}
+                    {:else}
+                      {strings.randomGroup(mark.group)} ・ {strings.candidateWeight(
+                        mark.weight,
+                        mark.share,
+                      )}
+                    {/if}
                   </span>
-                {/if}
+                {/each}
                 {#if row.waveEnd}
                   <span class="badge wave-end">{waveEndLabel(row.waveEnd)}</span>
                 {/if}
@@ -361,6 +356,9 @@
     color: var(--muted);
   }
   .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 1px 6px;
     border-radius: 4px;
     font-size: 0.8rem;
@@ -379,7 +377,11 @@
     align-items: center;
     gap: 4px;
   }
-  .hidden-group {
+  /* A 開關標記 starts the badge: it needs no more room than it has above and below. */
+  .badge:is(.conditional, .hiddenGroup, .random) {
+    padding-left: 1px;
+  }
+  .hiddenGroup {
     background: color-mix(in srgb, #8e5bd6 18%, transparent);
     color: #8e5bd6;
   }

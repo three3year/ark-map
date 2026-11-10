@@ -39,6 +39,7 @@ export * from "./movement.ts";
 export * from "./spawnTable.ts";
 export type * from "./stepwise.ts";
 export * from "./switches.ts";
+export * from "./switchMarks.ts";
 export type * from "./types.ts";
 
 export interface TimelineOptions {
