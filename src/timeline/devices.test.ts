@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import type { Action, Device, Level, Tile, Wave } from "../level/index.ts";
+import {
+  indexedDevices,
+  type Action,
+  type Device,
+  type Level,
+  type Tile,
+  type Wave,
+} from "../level/index.ts";
 import { buildTimeline, levelGroups, type Timeline, type TimelineOptions } from "./index.ts";
 
 const road: Tile = {
@@ -171,7 +178,7 @@ describe("activating a device that is on the field", () => {
 describe("移除 is final", () => {
   it("a device removed in one wave stays off though a later wave activates it again", () => {
     const level = field([wave([activate()]), wave([spawn(), activate({ preDelay: 1 })])]);
-    const removals = new Map([[0, { wave: 0, t: 5 }]]);
+    const removals = new Map([[indexedDevices(level)[0]!.index, { wave: 0, t: 5 }]]);
     const later = buildTimeline(level, { waveIndex: 1, removals });
     expect(later.devicesAt(2)).toEqual([]);
     expect(later.individuals[0]!.leakTime).toBe(4);
@@ -252,7 +259,8 @@ describe("條件出兵 activation", () => {
   describe("EP-8: HidenCnnon puts the hidden 加農炮 #3 on from its trigger second", () => {
     const level = loadFixtureLevel("level_act39side_08");
     const branch = level.branches.findIndex((b) => b.key === "HidenCnnon");
-    const cannons = (timeline: Timeline, t: number) => timeline.devicesAt(t).map((d) => d.alias);
+    const cannons = (timeline: Timeline, t: number) =>
+      timeline.devicesAt(t).map(({ device }) => device.alias);
     const on = { switches: { conditional: { [branch]: { wave: 0, t: 20 } } } };
 
     it("is off while the 條件出兵 is off", () => {
@@ -296,6 +304,30 @@ describe("條件出兵 activation", () => {
       },
     ];
     expect(levelGroups(level, "NORMAL")).toEqual({ hidden: [], random: [] });
+  });
+});
+
+describe("a device with no alias", () => {
+  it("act1dp_01: its 20 绒绒云团 have a null alias and are on the field from the start", () => {
+    const level = loadFixtureLevel("level_act1dp_01");
+    expect(level.devices.map((d) => d.alias)).toEqual(Array.from({ length: 20 }, () => null));
+    expect(buildTimeline(level).devicesAt(0)).toHaveLength(20);
+  });
+
+  it("no withdrawal or 難度修正, even keyed by an empty alias, reaches it", () => {
+    const level = field([wave([withdraw({ key: "" })]), wave([])], {
+      alias: null,
+      hidden: false,
+    });
+    level.modifiers = [
+      {
+        difficulties: ["NORMAL"],
+        key: "level_predefines_enable",
+        blackboard: [{ key: "", value: 0, valueStr: null }],
+      },
+    ];
+    expect(stoneOn(level, 0, 0)).toBe(true);
+    expect(stoneOn(level, 1, 0)).toBe(true);
   });
 });
 

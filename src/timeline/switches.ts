@@ -277,7 +277,7 @@ export interface SpawnPlan {
   hiddenOn: ReadonlySet<string>;
   /** Picked candidate of each random group, by index. */
   picks: readonly number[];
-  /** 條件出兵 switched on, by index into `Level.branches`. */
+  /** 條件出兵 switched on, by index into `Level.branches`; never a 純機關. */
   conditional: Readonly<Record<number, ConditionalTrigger>>;
   /** Whether the action is in no random group, or in a picked candidate of one. */
   picked(ref: ActionRef): boolean;
@@ -312,7 +312,11 @@ export function spawnPlan(
     groups,
     hiddenOn: hiddenOnOf(groups.hidden, switches),
     picks,
-    conditional: switches.conditional ?? {},
+    conditional: Object.fromEntries(
+      Object.entries(switches.conditional ?? {}).filter(
+        ([branch]) => level.branches[Number(branch)]?.deviceOnly === false,
+      ),
+    ),
     memberships,
     picked(ref) {
       const of = memberships(ref);

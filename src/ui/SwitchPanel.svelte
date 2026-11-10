@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { isDeviceAction, isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
+  import {
+    deviceActionKind,
+    isSpawn,
+    type Action,
+    type Branch,
+    type Level,
+  } from "../level/index.ts";
   import {
     actionAt,
     type ConditionalTrigger,
@@ -42,13 +48,10 @@
   function actionsLabel(actions: Action[]): string {
     const parts = actions.flatMap((action) => {
       if (!isSpawn(action)) {
-        if (!isDeviceAction(action) || !action.key) return [];
+        const kind = deviceActionKind(action);
+        if (kind === null || !action.key) return [];
         const name = deviceName(action.key);
-        return [
-          action.actionType === "WITHDRAW_PREDEFINED"
-            ? strings.withdrawDevice(name)
-            : strings.device(name),
-        ];
+        return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
       }
       if (!action.key) return [];
       return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];

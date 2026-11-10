@@ -1,5 +1,5 @@
 // The 基準時間軸 of one wave and its 敵人個體.
-import type { Device, EnemyRef, Route } from "../level/index.ts";
+import type { EnemyRef, IndexedDevice, Route } from "../level/index.ts";
 import type { IndividualId } from "./identity.ts";
 import type { Trajectory } from "./movement.ts";
 
@@ -16,6 +16,6 @@ export interface Individual extends IndividualId, Trajectory {
 
 export interface Timeline {
   individuals: Individual[];
-  devicesAt(t: number): Device[];
-  removedAt(t: number): Device[];
+  devicesAt(t: number): IndexedDevice[];
+  removedAt(t: number): IndexedDevice[];
 }

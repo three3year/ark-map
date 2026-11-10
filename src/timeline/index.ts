@@ -10,7 +10,7 @@ import {
   type Level,
   type Vec2,
 } from "../level/index.ts";
-import { createNextNodeLookup, type NextNodeLookup } from "../pathfinding/index.ts";
+import { blockersKey, createNextNodeLookup, type NextNodeLookup } from "../pathfinding/index.ts";
 import {
   devicePresence,
   presenceChanges,
@@ -19,23 +19,25 @@ import {
   type DevicePresence,
   type Removals,
 } from "./devices.ts";
-import {
-  nextNodeModel,
-  theoreticalSpeed,
-  type MovementModel,
-  type NextNodeSegment,
-  type Stay,
-} from "./movement.ts";
+import { nextNodeModel, theoreticalSpeed, type MovementModel, type Stay } from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
+import type { Stepwise } from "./stepwise.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 import type { Individual, Timeline } from "./types.ts";
 
-export type { RemovalMoment, Removals } from "./devices.ts";
+export {
+  removalToggle,
+  toggleRemoval,
+  type RemovalMoment,
+  type RemovalToggle,
+  type Removals,
+} from "./devices.ts";
 export * from "./endpoints.ts";
 export * from "./identity.ts";
 export * from "./movement.ts";
 export * from "./spawnTable.ts";
+export type * from "./stepwise.ts";
 export * from "./switches.ts";
 export type * from "./types.ts";
 
@@ -93,7 +95,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   const modifiers = variantModifiers(level.modifiers, difficulty);
   const plan = spawnPlan(level, difficulty, switches);
   const devices = devicePresence(level, modifiers, plan, waveIndex, removals);
-  const nextNode = nextNodeSegments(level, devices);
+  const nextNode = nextNodeOverTime(level, devices);
   const individuals: Individual[] = [];
   for (const { action, ref, fragmentStart, start, picked } of waveSpawns(level, plan, waveIndex)) {
     if (!picked) continue;
@@ -125,26 +127,34 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   }
   return {
     individuals,
-    devicesAt: (t) => devices.filter((d) => presentAt(d, t)).map((d) => d.device),
-    removedAt: (t) => devices.filter((d) => removedAt(d, t)).map((d) => d.device),
+    devicesAt: (t) =>
+      devices.filter((d) => presentAt(d, t)).map(({ index, device }) => ({ index, device })),
+    removedAt: (t) =>
+      devices.filter((d) => removedAt(d, t)).map(({ index, device }) => ({ index, device })),
   };
 }
 
-function nextNodeSegments(level: Level, devices: DevicePresence[]): NextNodeSegment[] {
+function nextNodeOverTime(level: Level, devices: DevicePresence[]): Stepwise<NextNodeLookup> {
   const lookup = createNextNodeLookup(level.map);
   const blocking = devices.filter((d) => {
     const tile = tileAt(level.map, d.device.cell);
     return d.device.blocker && tile !== undefined && isWalkable(tile);
   });
-  const segments: (NextNodeSegment & { key: string })[] = [];
-  for (const from of presenceChanges(blocking)) {
-    const cells = blocking.filter((d) => presentAt(d, from)).map((d) => cellKey(d.device.cell));
-    const blockers = new Set(cells);
-    const key = [...blockers].sort().join(";");
-    if (segments.at(-1)?.key === key) continue;
-    const nextNode: NextNodeLookup = (mode, target, diagonal) =>
+  const blockersAt = (t: number) =>
+    new Set(blocking.filter((d) => presentAt(d, t)).map((d) => cellKey(d.device.cell)));
+  const avoiding =
+    (blockers: ReadonlySet<string>): NextNodeLookup =>
+    (mode, target, diagonal) =>
       lookup(mode, target, diagonal, blockers);
-    segments.push({ from, nextNode, key });
+  const initial = blockersAt(0);
+  const nextNode: Stepwise<NextNodeLookup> = { initial: avoiding(initial), changes: [] };
+  let key = blockersKey(initial);
+  for (const from of presenceChanges(blocking)) {
+    const blockers = blockersAt(from);
+    const changed = blockersKey(blockers);
+    if (changed === key) continue;
+    key = changed;
+    nextNode.changes.push({ from, value: avoiding(blockers) });
   }
-  return segments;
+  return nextNode;
 }

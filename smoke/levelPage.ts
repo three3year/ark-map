@@ -6,14 +6,23 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import {
   cellKey,
   withNames,
+  type Cell,
   type Difficulty,
   type Level,
   type LevelFile,
   type NameTable,
   type StageEntry,
   type StageIndex,
+  type Vec2,
 } from "../src/level/index.ts";
-import { actionKey, spawnPlan, type EndpointPlace, type SpawnRow } from "../src/timeline/index.ts";
+import {
+  actionKey,
+  spawnPlan,
+  takeSnapshot,
+  type EndpointPlace,
+  type SpawnRow,
+  type Timeline,
+} from "../src/timeline/index.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 
@@ -75,8 +84,28 @@ export const filterCaption = (page: Page) => page.locator("[data-endpoint-filter
 export const enemyOnMap = (page: Page, id: string) =>
   page.locator(`svg.map g.enemy[data-individual="${id}"]`);
 
-export const deviceOnMap = (page: Page, index: number) =>
+/** The 座標 enemy individual `id` is drawn at. */
+export async function drawnAt(page: Page, level: Level, id: string): Promise<Vec2> {
+  const [x, svgY] = (await enemyOnMap(page, id).getAttribute("transform"))!
+    .match(/translate\((\S+) (\S+)\)/)!
+    .slice(1)
+    .map(Number);
+  return { x: x!, y: level.map.height - 1 - svgY! };
+}
+
+/** No individual on the field at `t` within a cell of `cell`. */
+export const clearAround = (timeline: Timeline, t: number, { row, col }: Cell) =>
+  takeSnapshot(timeline, t).onField.every(
+    ({ position }) => Math.hypot(position.x - col, position.y - row) > 1,
+  );
+
+/** The device at `index` of `Level.devices` on the map. */
+export const deviceByIndex = (page: Page, index: number) =>
   page.locator(`svg.map g.device[data-device-index="${index}"]`);
+
+/** Every device of kind `key` on the map. */
+export const devicesByKind = (page: Page, key: string) =>
+  page.locator(`svg.map [data-device="${key}"]`);
 
 export async function watchMenuCancelled(page: Page) {
   await page.evaluate(() => {

@@ -1,8 +1,21 @@
+<script lang="ts" module>
+  import type { IndexedDevice } from "../level/index.ts";
+  import type { RemovalMoment } from "../timeline/index.ts";
+
+  /** A device drawn on the map at the playback position. */
+  export interface DeviceMark extends IndexedDevice {
+    /** Drawn as removed: a dashed frame. */
+    removed: boolean;
+    /** Its 移除時刻, if it has one. */
+    removal: RemovalMoment | null;
+  }
+</script>
+
 <script lang="ts">
   import {
     cellKey,
     isWalkable,
-    type Device,
+    type DeviceIndex,
     type LevelMap,
     type TerrainTable,
     type Tile,
@@ -13,7 +26,6 @@
     matchesEndpoint,
     type EndpointPlace,
     type Individual,
-    type RemovalMoment,
     type RouteEndpoint,
     type Snapshot,
     type Stay,
@@ -27,13 +39,12 @@
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
-    devices: Device[];
-    removedDevices: Device[];
-    removalOf: (device: Device) => RemovalMoment | null;
-    deviceIndex: (device: Device) => number;
-    onToggleRemoval: (device: Device) => void;
-    selectedDevice: Device | null;
-    onSelectDevice: (device: Device | null) => void;
+    devices: DeviceMark[];
+    selectedDevice: DeviceIndex | null;
+    /** Clicking the selected device again passes null. */
+    onSelectDevice: (index: DeviceIndex | null) => void;
+    /** A device was right-clicked. */
+    onToggleRemoval: (device: IndexedDevice) => void;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
@@ -56,12 +67,9 @@
     map,
     terrain,
     devices,
-    removedDevices,
-    removalOf,
-    deviceIndex,
-    onToggleRemoval,
     selectedDevice,
     onSelectDevice,
+    onToggleRemoval,
     endpoints,
     enemies,
     t,
@@ -78,12 +86,12 @@
 
   const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
-  const toggleSelectDevice = (device: Device) =>
-    onSelectDevice(device === selectedDevice ? null : device);
-  function deviceKey(e: KeyboardEvent, device: Device) {
+  const toggleSelectDevice = (index: DeviceIndex) =>
+    onSelectDevice(index === selectedDevice ? null : index);
+  function deviceKey(e: KeyboardEvent, index: DeviceIndex) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      toggleSelectDevice(device);
+      toggleSelectDevice(index);
     }
   }
 
@@ -162,7 +170,7 @@
   const marks = $derived(legendMarks(map, terrain));
   const legendDevices = $derived(
     (["device", "blocker"] as const).filter((kind) =>
-      devices.some((d) => d.blocker === (kind === "blocker")),
+      devices.some((d) => !d.removed && d.device.blocker === (kind === "blocker")),
     ),
   );
 
@@ -315,79 +323,56 @@
         {/if}
       {/each}
 
-      {#each removedDevices as device (device)}
-        <g
-          class="device removed"
-          class:selected={device === selectedDevice}
-          transform="translate({device.cell.col} {svgY(device.cell.row)})"
-          data-device={device.key}
-          data-device-index={deviceIndex(device)}
-          data-alias={device.alias}
-          data-cell={cellKey(device.cell)}
-          data-removed
-          role="button"
-          tabindex="0"
-          aria-label={device.name}
-          aria-pressed={device === selectedDevice}
-          onclick={() => toggleSelectDevice(device)}
-          onkeydown={(e) => deviceKey(e, device)}
-          oncontextmenu={(e) => {
-            e.preventDefault();
-            onToggleRemoval(device);
-          }}
-        >
-          <g class="billboard">
-            <title>{device.name}</title>
-            <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
-          </g>
-        </g>
-      {/each}
-
-      {#each devices as device (device)}
-        {@const removal = removalOf(device)}
+      {#each devices as { index, device, removed, removal } (index)}
         <g
           class="device"
-          class:blocker={device.blocker}
-          class:selected={device === selectedDevice}
+          class:removed
+          class:blocker={!removed && device.blocker}
+          class:selected={index === selectedDevice}
           transform="translate({device.cell.col} {svgY(device.cell.row)})"
           data-device={device.key}
-          data-device-index={deviceIndex(device)}
+          data-device-index={index}
           data-alias={device.alias}
           data-cell={cellKey(device.cell)}
-          data-blocker={device.blocker}
+          data-blocker={removed ? undefined : device.blocker}
+          data-removed={removed || undefined}
           role="button"
           tabindex="0"
           aria-label={device.name}
-          aria-pressed={device === selectedDevice}
-          onclick={() => toggleSelectDevice(device)}
-          onkeydown={(e) => deviceKey(e, device)}
+          aria-pressed={index === selectedDevice}
+          onclick={() => toggleSelectDevice(index)}
+          onkeydown={(e) => deviceKey(e, index)}
           oncontextmenu={(e) => {
             e.preventDefault();
-            onToggleRemoval(device);
+            onToggleRemoval({ index, device });
           }}
         >
           <g class="billboard">
             <title>{device.name}</title>
-            <rect class="device-bg" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
-            {#if shows(device.image)}
-              <image
-                href={device.image}
-                x="-0.36"
-                y="-0.36"
-                width="0.72"
-                height="0.72"
-                onerror={() => markBroken(device.image!)}
-              />
+            {#if removed}
+              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
             {:else}
-              <text class="device-initial">{[...device.name][0]}</text>
-            {/if}
-            <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
-            {#if removal}
-              <g class="removal-clock" transform="translate(-0.3 -0.3)">
-                <title>{strings.removalMoment(removal.wave, removal.t)}</title>
-                <circle r="0.15" />
-                <path d="M 0 -0.09 V 0 H 0.07" />
-              </g>
+              <rect class="device-bg" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              {#if shows(device.image)}
+                <image
+                  href={device.image}
+                  x="-0.36"
+                  y="-0.36"
+                  width="0.72"
+                  height="0.72"
+                  onerror={() => markBroken(device.image!)}
+                />
+              {:else}
+                <text class="device-initial">{[...device.name][0]}</text>
+              {/if}
+              <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+              {#if removal}
+                <g class="removal-clock" transform="translate(-0.3 -0.3)">
+                  <title>{strings.removalMoment(removal.wave, removal.t)}</title>
+                  <circle r="0.15" />
+                  <path d="M 0 -0.09 V 0 H 0.07" />
+                </g>
+              {/if}
             {/if}
           </g>
         </g>

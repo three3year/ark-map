@@ -1,7 +1,14 @@
 // Seam 1: level model -> baseline timeline / snapshot.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import type { Device, Difficulty, Level, Modifier } from "../level/index.ts";
+import {
+  indexedDevices,
+  type Device,
+  type Difficulty,
+  type IndexedDevice,
+  type Level,
+  type Modifier,
+} from "../level/index.ts";
 import { buildTimeline, takeSnapshot, type Individual, type Stay } from "./index.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
@@ -311,14 +318,14 @@ describe("movement model v0", () => {
 });
 
 describe("裝置 on the field", () => {
-  const aliases = (devices: Device[]) => devices.map((d) => d.alias);
+  const aliases = (devices: IndexedDevice[]) => devices.map(({ device }) => device.alias);
 
   it("TB-1: its 8 碎石 and 4 留聲機 are on the field all through the wave", () => {
     const level = loadFixtureLevel("level_act10mini_01");
     const timeline = buildTimeline(level);
     expect(timeline.devicesAt(0)).toHaveLength(12);
-    expect(timeline.devicesAt(0).filter((d) => d.key === "trap_027_stone")).toHaveLength(8);
-    expect(aliases(timeline.devicesAt(60))).toEqual(aliases(level.devices));
+    expect(timeline.devicesAt(0).filter((d) => d.device.key === "trap_027_stone")).toHaveLength(8);
+    expect(aliases(timeline.devicesAt(60))).toEqual(aliases(indexedDevices(level)));
   });
 
   it("WR-EX-6: the 3 hidden 障礙物 stay off in normal; the challenge 難度修正 puts them on", () => {
@@ -418,7 +425,9 @@ describe("擋路裝置 change ground routes", () => {
 
 describe("移除時刻: from then on the 擋路裝置 is gone", () => {
   const level = loadFixtureLevel("level_act10mini_01");
-  const stones = level.devices.flatMap((d, i) => (d.key === "trap_027_stone" ? [i] : []));
+  const stones = indexedDevices(level).flatMap(({ index, device }) =>
+    device.key === "trap_027_stone" ? [index] : [],
+  );
   const removeStones = (wave: number, t: number) => new Map(stones.map((i) => [i, { wave, t }]));
   const kept = buildTimeline(level);
   const bare = buildTimeline({ ...level, devices: [] });
@@ -457,8 +466,8 @@ describe("移除時刻: from then on the 擋路裝置 is gone", () => {
   });
 
   it("TB-1: the 碎石 are on the field until the 移除時刻 and removed from then on", () => {
-    const stoneCount = (devices: Device[]) =>
-      devices.filter((d) => d.key === "trap_027_stone").length;
+    const stoneCount = (devices: IndexedDevice[]) =>
+      devices.filter((d) => d.device.key === "trap_027_stone").length;
     expect(stoneCount(removed.devicesAt(moment - 0.1))).toBe(8);
     expect(stoneCount(removed.removedAt(moment - 0.1))).toBe(0);
     expect(stoneCount(removed.devicesAt(moment))).toBe(0);
@@ -468,7 +477,9 @@ describe("移除時刻: from then on the 擋路裝置 is gone", () => {
   describe("ISW-NO: removal holds for later waves and leaves earlier ones be", () => {
     const iswNo = loadFixtureLevel("level_rogue2_5-5");
     const rowStones = new Map(
-      iswNo.devices.flatMap((d, i) => (d.blocker ? [[i, { wave: 1, t: 0 }] as const] : [])),
+      indexedDevices(iswNo).flatMap(({ index, device }) =>
+        device.blocker ? [[index, { wave: 1, t: 0 }] as const] : [],
+      ),
     );
     const leakTimes = (timeline: ReturnType<typeof buildTimeline>) =>
       timeline.individuals.map((i) => i.leakTime);
@@ -486,7 +497,7 @@ describe("移除時刻: from then on the 擋路裝置 is gone", () => {
       const second = buildTimeline(iswNo, { waveIndex: 1, removals: removedInFirst });
       const bareSecond = buildTimeline({ ...iswNo, devices: [] }, { waveIndex: 1 });
       expect(leakTimes(second)).toEqual(leakTimes(bareSecond));
-      expect(second.devicesAt(0).filter((d) => d.blocker)).toEqual([]);
+      expect(second.devicesAt(0).filter((d) => d.device.blocker)).toEqual([]);
       expect(second.removedAt(0)).toHaveLength(rowStones.size);
     });
   });

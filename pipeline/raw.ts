@@ -103,7 +103,7 @@ export interface RawTokenInst {
   direction: RawEnum;
   hidden: boolean;
   /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
-  alias: string;
+  alias: string | null;
   inst: { characterKey: string };
 }
 

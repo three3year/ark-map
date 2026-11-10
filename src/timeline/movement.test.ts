@@ -5,6 +5,7 @@ import type {
   Checkpoint,
   CheckpointType,
   Device,
+  DeviceIndex,
   Level,
   MotionMode,
   Tile,
@@ -693,7 +694,7 @@ describe("movement model: 移除時刻 re-routes ground individuals", () => {
     allowDiagonalMove: false,
   } as const;
   const removedAt = (t: number): TimelineOptions => ({
-    removals: new Map([[0, { wave: 0, t }]]),
+    removals: new Map([[0 as DeviceIndex, { wave: 0, t }]]),
   });
 
   it("keeps the individual where it was until the 移除時刻", () => {

@@ -2,11 +2,13 @@
 import {
   actionTypes,
   checkpointTypes,
+  directions,
   isSpawn,
   withoutNames,
   type ActionType,
   type CheckpointType,
   type DeviceInfo,
+  type Direction,
   type LevelFile,
   type NameTable,
 } from "../src/level/index.ts";
@@ -24,6 +26,7 @@ import type {
   Route,
 } from "../src/level/index.ts";
 import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
+import { plainText } from "./plainText.ts";
 import type {
   RawAction,
   RawCharacterTable,
@@ -37,7 +40,6 @@ import type {
   RawRune,
   Slot,
 } from "./raw.ts";
-import { plainText } from "./terrainTable.ts";
 
 export interface EnemyCatalog {
   /** Enemy id -> enemy data by level. */
@@ -101,11 +103,13 @@ const numericEnums = {
 const knownNames: { [F in keyof Named]: readonly string[] } = {
   actionType: actionTypes,
   checkpointType: checkpointTypes,
+  direction: directions,
 };
 
 interface Named {
   actionType: ActionType;
   checkpointType: CheckpointType;
+  direction: Direction;
 }
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */

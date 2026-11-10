@@ -2,7 +2,8 @@
   import {
     variantModifiers,
     type Area,
-    type Device,
+    type DeviceIndex,
+    type IndexedDevice,
     type Level,
     type StageEntry,
     type TerrainTable,
@@ -16,6 +17,7 @@
     endpointKey,
     individualKey,
     isEmptyWave,
+    removalToggle,
     routeEndpoints,
     spawnPlan,
     spawnTable,
@@ -24,17 +26,17 @@
     switchPick,
     takeSnapshot,
     timelineEnd,
+    toggleRemoval,
     type ConditionalTrigger,
     type EndpointPlace,
     type Individual,
-    type RemovalMoment,
     type Removals,
     type RouteEndpoint,
     type SpawnRow,
     type SpawnSwitches,
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
-  import MapView from "./MapView.svelte";
+  import MapView, { type DeviceMark } from "./MapView.svelte";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
@@ -90,16 +92,16 @@
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
-  interface Removed {
+  interface RemovalRecord {
     view: LevelView;
     moments: Removals;
   }
-  let removed = $state.raw<Removed | null>(null);
+  let removalRecord = $state.raw<RemovalRecord | null>(null);
   const removals: Removals = $derived(
-    removed && sameView(removed.view, view) ? removed.moments : new Map(),
+    removalRecord && sameView(removalRecord.view, view) ? removalRecord.moments : new Map(),
   );
   $effect(() => {
-    if (removed && removals !== removed.moments) removed = null;
+    if (removalRecord && removals !== removalRecord.moments) removalRecord = null;
   });
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
@@ -118,20 +120,25 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
-  const devices = $derived(timeline.devicesAt(t));
-  const removedDevices = $derived(timeline.removedAt(t));
+  const deviceMark =
+    (removed: boolean) =>
+    (d: IndexedDevice): DeviceMark => ({ ...d, removed, removal: removals.get(d.index) ?? null });
+  const deviceMarks = $derived([
+    ...timeline.removedAt(t).map(deviceMark(true)),
+    ...timeline.devicesAt(t).map(deviceMark(false)),
+  ]);
   const endpoints = $derived(routeEndpoints(timeline));
 
-  /** The selected individual, by {@link individualKey}, in one level's wave. */
-  interface Selection {
-    levelId: string;
-    wave: number;
-    individual: string;
-  }
-  let selection = $state<Selection | null>(null);
+  /** The one thing selected: an individual (by {@link individualKey}) or a device, in a wave. */
+  type Selection =
+    | { kind: "individual"; levelId: string; wave: number; individual: string }
+    | { kind: "device"; view: LevelView; wave: number; index: DeviceIndex };
+  let selection = $state.raw<Selection | null>(null);
   const selected = $derived.by(() => {
     const s = selection;
-    if (s?.levelId !== level.levelId || s.wave !== waveIndex) return null;
+    if (s?.kind !== "individual" || s.levelId !== level.levelId || s.wave !== waveIndex) {
+      return null;
+    }
     return timeline.individuals.find((i) => i.id === s.individual) ?? null;
   });
   const selectedState = $derived(selected?.stateAt(t).kind);
@@ -139,8 +146,8 @@
   /** A selection on the map: the spawn table, if on screen, scrolls to its row. */
   function select(individual: Individual | null) {
     const changed = individual !== null && individual.id !== selected?.id;
-    if (individual) deviceSelection = null;
     selection = individual && {
+      kind: "individual",
       levelId: level.levelId,
       wave: waveIndex,
       individual: individual.id,
@@ -195,7 +202,8 @@
     const stowing = new Set(ids);
     writeStowed(wave, [...(stowedWaves.get(wave) ?? []), ...stowing]);
     if (
-      selection?.levelId === level.levelId &&
+      selection?.kind === "individual" &&
+      selection.levelId === level.levelId &&
       selection.wave === wave &&
       stowing.has(selection.individual)
     ) {
@@ -230,48 +238,31 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
-  const removalOf = (device: Device): RemovalMoment | null =>
-    removals.get(level.devices.indexOf(device)) ?? null;
-  const before = (a: RemovalMoment, b: RemovalMoment) =>
-    a.wave < b.wave || (a.wave === b.wave && a.t < b.t);
-  function toggleRemoval(device: Device) {
-    const index = level.devices.indexOf(device);
-    if (!device.blocker || index < 0) return;
-    const now = { wave: waveIndex, t };
-    const moment = removals.get(index);
-    const others = [...removals].filter(([i]) => i !== index);
-    const putBack = moment !== undefined && !before(now, moment);
-    removed = { view, moments: new Map(putBack ? others : [...others, [index, now]]) };
+  function toggleDeviceRemoval({ index, device }: IndexedDevice) {
+    if (!device.blocker) return;
+    removalRecord = { view, moments: toggleRemoval(removals, index, { wave: waveIndex, t }) };
   }
-  const removalAction = (device: Device) => {
-    const moment = removalOf(device);
-    return moment === null || before({ wave: waveIndex, t }, moment)
-      ? strings.remove
-      : strings.restore;
-  };
+  const removalLabel = (index: DeviceIndex) =>
+    removalToggle(removals, index, { wave: waveIndex, t }) === "restore"
+      ? strings.restore
+      : strings.remove;
 
-  interface DeviceSelection {
-    view: LevelView;
-    wave: number;
-    index: number;
-  }
-  let deviceSelection = $state.raw<DeviceSelection | null>(null);
-  const selectedDevice = $derived.by(() => {
-    const s = deviceSelection;
-    if (!s || !sameView(s.view, view) || s.wave !== waveIndex) return null;
-    return level.devices[s.index] ?? null;
+  const selectedDevice = $derived.by((): IndexedDevice | null => {
+    const s = selection;
+    if (s?.kind !== "device" || !sameView(s.view, view) || s.wave !== waveIndex) return null;
+    const device = level.devices[s.index];
+    return device ? { index: s.index, device } : null;
   });
+  /** A device selected on another wave of the view stays selected while it is drawn here. */
+  const drawnOnThisWave = (s: Selection & { kind: "device" }) =>
+    sameView(s.view, view) && deviceMarks.some((m) => m.index === s.index);
   $effect(() => {
-    const s = deviceSelection;
-    if (!s || (sameView(s.view, view) && s.wave === waveIndex)) return;
-    const device = sameView(s.view, view) ? level.devices[s.index] : undefined;
-    const drawn = device && (devices.includes(device) || removedDevices.includes(device));
-    deviceSelection = drawn ? { ...s, wave: waveIndex } : null;
+    const s = selection;
+    if (s?.kind !== "device" || (sameView(s.view, view) && s.wave === waveIndex)) return;
+    selection = drawnOnThisWave(s) ? { ...s, wave: waveIndex } : null;
   });
-  function selectDevice(device: Device | null) {
-    const index = device ? level.devices.indexOf(device) : -1;
-    deviceSelection = index < 0 ? null : { view, wave: waveIndex, index };
-    if (deviceSelection) selection = null;
+  function selectDevice(index: DeviceIndex | null) {
+    selection = index === null ? null : { kind: "device", view, wave: waveIndex, index };
   }
 
   interface EndpointFilter {
@@ -328,8 +319,8 @@
 
   /** A spawn-table row: jump to its first individual's spawn and select it. */
   function jumpTo(row: SpawnRow) {
-    deviceSelection = null;
     selection = {
+      kind: "individual",
       levelId: level.levelId,
       wave: row.waveIndex,
       individual: individualKey({ ...row, spawnIndex: 0 }),
@@ -365,13 +356,10 @@
     <MapView
       map={level.map}
       {terrain}
-      {devices}
-      {removedDevices}
-      {removalOf}
-      deviceIndex={(device) => level.devices.indexOf(device)}
-      onToggleRemoval={toggleRemoval}
-      {selectedDevice}
+      devices={deviceMarks}
+      selectedDevice={selectedDevice?.index ?? null}
       onSelectDevice={selectDevice}
+      onToggleRemoval={toggleDeviceRemoval}
       {endpoints}
       enemies={drawn}
       {t}
@@ -392,17 +380,18 @@
         </span>
       </p>
     {:else if selectedDevice}
-      <div class="selection device-selection" data-selected-device={deviceSelection?.index}>
+      {@const { index, device } = selectedDevice}
+      <div class="selection device-selection" data-selected-device={index}>
         <div class="device-about">
-          <span>{strings.selectedDevice(selectedDevice.name)}</span>
-          {#if selectedDevice.description}
-            <span class="device-description">{selectedDevice.description}</span>
+          <span>{strings.selectedDevice(device.name)}</span>
+          {#if device.description}
+            <span class="device-description">{device.description}</span>
           {/if}
         </div>
         <span class="selection-actions">
-          {#if selectedDevice.blocker}
-            <button type="button" onclick={() => toggleRemoval(selectedDevice)}>
-              {removalAction(selectedDevice)}
+          {#if device.blocker}
+            <button type="button" onclick={() => toggleDeviceRemoval({ index, device })}>
+              {removalLabel(index)}
             </button>
           {/if}
           <button type="button" onclick={() => selectDevice(null)}>{strings.deselect}</button>
@@ -437,9 +426,9 @@
         </p>
       {/if}
       {#if removals.size > 0}
-        <p class="stowed" data-removed-count={removals.size}>
+        <p class="removed-count" data-removed-count={removals.size}>
           <span>{strings.removedCount(removals.size)}</span>
-          <button type="button" onclick={() => (removed = null)}>{strings.restoreAll}</button>
+          <button type="button" onclick={() => (removalRecord = null)}>{strings.restoreAll}</button>
         </p>
       {/if}
     </div>
@@ -624,7 +613,8 @@
     border-left: 3px solid var(--accent);
   }
   .selection,
-  .stowed {
+  .stowed,
+  .removed-count {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -649,11 +639,13 @@
     color: var(--muted);
     white-space: pre-line;
   }
-  .stowed {
+  .stowed,
+  .removed-count {
     color: var(--muted);
   }
   .selection button,
-  .stowed button {
+  .stowed button,
+  .removed-count button {
     padding: 2px 10px;
     border-radius: 6px;
     border: 1px solid var(--border);

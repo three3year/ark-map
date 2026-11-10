@@ -28,8 +28,11 @@ export const checkpointTypes = [
   "APPEAR_AT_POS",
 ] as const;
 
+export const directions = ["UP", "RIGHT", "DOWN", "LEFT"] as const;
+
 /** A value with no known name: a number of the older numeric files, or a new name. */
 export type UnknownEnum = `UNKNOWN_${string}`;
 
 export type ActionType = (typeof actionTypes)[number] | UnknownEnum;
 export type CheckpointType = (typeof checkpointTypes)[number] | UnknownEnum;
+export type Direction = (typeof directions)[number] | UnknownEnum;

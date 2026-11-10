@@ -3,7 +3,9 @@ import { cellKey } from "../src/level/index.ts";
 import { buildTimeline } from "../src/timeline/index.ts";
 import {
   conditionalSwitch,
-  deviceOnMap,
+  deviceByIndex,
+  devicesByKind,
+  drawnAt,
   enemyOnMap,
   expectVariantShown,
   seek,
@@ -11,10 +13,8 @@ import {
   siteLevel,
 } from "./levelPage.ts";
 
-const devicesOnMap = (page: Page, key: string) => page.locator(`svg.map [data-device="${key}"]`);
-
 const frameWidth = (page: Page, key: string) =>
-  devicesOnMap(page, key)
+  devicesByKind(page, key)
     .first()
     .locator(".device-frame")
     .evaluate((el) => parseFloat(getComputedStyle(el).strokeWidth));
@@ -29,7 +29,7 @@ test("TB-1 draws its 8 碎石 at their cells, framed more boldly than its 留聲
 
   await page.goto("#/level/act10mini_01?v=normal");
 
-  const drawn = devicesOnMap(page, "trap_027_stone");
+  const drawn = devicesByKind(page, "trap_027_stone");
   await expect(drawn).toHaveCount(8);
   const cells = await drawn.evaluateAll((els) => els.map((e) => e.getAttribute("data-cell")));
   expect(cells.sort()).toEqual(stones.map((d) => cellKey(d.cell)).sort());
@@ -37,7 +37,7 @@ test("TB-1 draws its 8 碎石 at their cells, framed more boldly than its 留聲
   await expect(drawn.first().locator("image")).toHaveAttribute("href", stones[0]!.image!);
   await expect(page.locator('svg.map [data-device][data-blocker="true"]')).toHaveCount(8);
 
-  await expect(devicesOnMap(page, "trap_014_tower")).toHaveCount(towers.length);
+  await expect(devicesByKind(page, "trap_014_tower")).toHaveCount(towers.length);
   expect(await frameWidth(page, "trap_027_stone")).toBeGreaterThan(
     await frameWidth(page, "trap_014_tower"),
   );
@@ -52,11 +52,11 @@ test("WR-EX-6: normal draws none of the 3 hidden 障礙物; challenge, whose 難
   await page.goto("#/level/act16d5_ex06?v=normal");
   await expectVariantShown(page, "normal");
   await expect(page.locator("svg.map .tile").first()).toBeVisible();
-  await expect(devicesOnMap(page, "trap_001_crate")).toHaveCount(0);
+  await expect(devicesByKind(page, "trap_001_crate")).toHaveCount(0);
 
   await page.goto("#/level/act16d5_ex06?v=challenge");
   await expectVariantShown(page, "challenge");
-  await expect(devicesOnMap(page, "trap_001_crate")).toHaveCount(3);
+  await expect(devicesByKind(page, "trap_001_crate")).toHaveCount(3);
 });
 
 test("TB-1: a selected enemy going round the 碎石 is where the timeline puts it", async ({
@@ -87,12 +87,9 @@ test("TB-1: a selected enemy going round the 碎石 is where the timeline puts i
   await mark.press("Enter");
 
   await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual.id);
-  const [x, svgY] = (await mark.getAttribute("transform"))!
-    .match(/translate\((\S+) (\S+)\)/)!
-    .slice(1)
-    .map(Number);
+  const { x, y } = await drawnAt(page, level, individual.id);
   expect(x).toBeCloseTo(state.position.x, 3);
-  expect(level.map.height - 1 - svgY!).toBeCloseTo(state.position.y, 3);
+  expect(y).toBeCloseTo(state.position.y, 3);
 });
 
 test("EP-8: the hidden 加農炮 HidenCnnon activates appears from the 條件出兵's trigger second", async ({
@@ -107,17 +104,17 @@ test("EP-8: the hidden 加農炮 HidenCnnon activates appears from the 條件出
   const on = (t: number) =>
     buildTimeline(level, { switches })
       .devicesAt(t)
-      .some((d) => d === level.devices[cannon]);
+      .some((d) => d.index === cannon);
   expect([on(trigger - 1), on(trigger)]).toEqual([false, true]);
 
   await page.goto("#/level/act39side_08?v=normal");
   await expect(page.locator("svg.map .tile").first()).toBeVisible();
-  await expect(deviceOnMap(page, cannon)).toHaveCount(0);
+  await expect(deviceByIndex(page, cannon)).toHaveCount(0);
   await conditionalSwitch(page, branch).check();
   await setConditionalSecond(page, branch, trigger);
 
   await seek(page, trigger - 1);
-  await expect(deviceOnMap(page, cannon)).toHaveCount(0);
+  await expect(deviceByIndex(page, cannon)).toHaveCount(0);
   await seek(page, trigger);
-  await expect(deviceOnMap(page, cannon)).toHaveCount(1);
+  await expect(deviceByIndex(page, cannon)).toHaveCount(1);
 });

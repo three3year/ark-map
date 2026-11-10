@@ -1,22 +1,27 @@
-import type { Device, Level, Modifier } from "../level/index.ts";
+import {
+  deviceActionKind,
+  indexedDevices,
+  type Device,
+  type DeviceIndex,
+  type Level,
+  type Modifier,
+} from "../level/index.ts";
 import { waveActions } from "./schedule.ts";
+import { valueAt, type Stepwise } from "./stepwise.ts";
 import type { SpawnPlan } from "./switches.ts";
-
-export interface PresenceRun {
-  from: number;
-  present: boolean;
-}
 
 export interface RemovalMoment {
   wave: number;
   t: number;
 }
 
-export type Removals = ReadonlyMap<number, RemovalMoment>;
+export type Removals = ReadonlyMap<DeviceIndex, RemovalMoment>;
 
 export interface DevicePresence {
+  index: DeviceIndex;
   device: Device;
-  runs: PresenceRun[];
+  /** On the field or not, before any 移除. */
+  presence: Stepwise<boolean>;
   removedFrom: number | null;
 }
 
@@ -31,23 +36,21 @@ function startOverrides(modifiers: Modifier[]): Map<string, boolean> {
 
 interface DeviceEvent {
   alias: string;
-  activate: boolean;
+  present: boolean;
+  /** Second of the wave the action runs. */
   at: number;
+  /** An activation shows from `at`; a withdrawal only from the next wave. */
+  shows: "fromAt" | "nextWave";
 }
 
 function deviceEvents(level: Level, plan: SpawnPlan, waveIndex: number): DeviceEvent[] {
   return waveActions(level, plan, waveIndex)
-    .flatMap(({ action, ref, start, picked }): DeviceEvent[] => {
-      if (!picked || (ref.branchIndex !== null && level.branches[ref.branchIndex]!.deviceOnly)) {
-        return [];
-      }
-      if (action.actionType === "ACTIVATE_PREDEFINED") {
-        return [{ alias: action.key, activate: true, at: start }];
-      }
-      if (action.actionType === "WITHDRAW_PREDEFINED") {
-        return [{ alias: action.key, activate: false, at: start }];
-      }
-      return [];
+    .flatMap(({ action, start, picked }): DeviceEvent[] => {
+      const kind = deviceActionKind(action);
+      if (!picked || kind === null) return [];
+      return kind === "activate"
+        ? [{ alias: action.key, present: true, at: start, shows: "fromAt" }]
+        : [{ alias: action.key, present: false, at: start, shows: "nextWave" }];
     })
     .sort((x, y) => x.at - y.at);
 }
@@ -60,52 +63,76 @@ export function devicePresence(
   removals: Removals,
 ): DevicePresence[] {
   const overrides = startOverrides(modifiers);
-  const on = level.devices.map((d) => overrides.get(d.alias) ?? !d.hidden);
+  const on = level.devices.map(
+    (d) => (d.alias === null ? undefined : overrides.get(d.alias)) ?? !d.hidden,
+  );
   const named = (alias: string) => level.devices.flatMap((d, i) => (d.alias === alias ? [i] : []));
   for (let w = 0; w < waveIndex; w++) {
-    for (const { alias, activate } of deviceEvents(level, plan, w)) {
-      for (const i of named(alias)) on[i] = activate;
+    for (const { alias, present } of deviceEvents(level, plan, w)) {
+      for (const i of named(alias)) on[i] = present;
     }
   }
-  const runs = on.map((present): PresenceRun[] => [{ from: 0, present }]);
-  for (const { alias, activate, at } of deviceEvents(level, plan, waveIndex)) {
-    if (!activate) continue;
+  const presence = on.map((initial): Stepwise<boolean> => ({ initial, changes: [] }));
+  for (const { alias, present, at, shows } of deviceEvents(level, plan, waveIndex)) {
+    if (shows === "nextWave") continue;
     for (const i of named(alias)) {
-      if (!runs[i]!.at(-1)!.present) runs[i]!.push({ from: at, present: true });
+      if (valueAt(presence[i]!, at) !== present) {
+        presence[i]!.changes.push({ from: at, value: present });
+      }
     }
   }
-  return level.devices.map((device, i) => {
-    const removal = removals.get(i);
+  return indexedDevices(level).map(({ index, device }) => {
+    const removal = removals.get(index);
     const removedFrom =
       !removal || removal.wave > waveIndex ? null : removal.wave < waveIndex ? 0 : removal.t;
-    return { device, runs: runs[i]!, removedFrom };
+    return { index, device, presence: presence[index]!, removedFrom };
   });
-}
-
-function runsAt({ runs }: DevicePresence, t: number): boolean {
-  let present = false;
-  for (const run of runs) {
-    if (run.from > t) break;
-    present = run.present;
-  }
-  return present;
 }
 
 const removedBy = ({ removedFrom }: DevicePresence, t: number) =>
   removedFrom !== null && t >= removedFrom;
 
-export function presentAt(presence: DevicePresence, t: number): boolean {
-  return runsAt(presence, t) && !removedBy(presence, t);
+export function presentAt(device: DevicePresence, t: number): boolean {
+  return valueAt(device.presence, t) && !removedBy(device, t);
 }
 
-export function removedAt(presence: DevicePresence, t: number): boolean {
-  return runsAt(presence, t) && removedBy(presence, t);
+export function removedAt(device: DevicePresence, t: number): boolean {
+  return valueAt(device.presence, t) && removedBy(device, t);
 }
 
 export function presenceChanges(devices: DevicePresence[]): number[] {
   const seconds = devices.flatMap((d) => [
-    ...d.runs.map((r) => r.from),
+    ...d.presence.changes.map((c) => c.from),
     ...(d.removedFrom === null ? [] : [d.removedFrom]),
   ]);
   return [...new Set([0, ...seconds])].sort((a, b) => a - b);
+}
+
+/**
+ * What toggling a device's 移除 at `now` does: remove it from `now` when it has no 移除時刻, move
+ * its 移除時刻 to `now` when that is earlier, else put it back.
+ */
+export type RemovalToggle = "remove" | "move" | "restore";
+
+const before = (a: RemovalMoment, b: RemovalMoment) =>
+  a.wave < b.wave || (a.wave === b.wave && a.t < b.t);
+
+export function removalToggle(
+  removals: Removals,
+  index: DeviceIndex,
+  now: RemovalMoment,
+): RemovalToggle {
+  const moment = removals.get(index);
+  if (moment === undefined) return "remove";
+  return before(now, moment) ? "move" : "restore";
+}
+
+export function toggleRemoval(
+  removals: Removals,
+  index: DeviceIndex,
+  now: RemovalMoment,
+): Removals {
+  const others = [...removals].filter(([i]) => i !== index);
+  if (removalToggle(removals, index, now) === "restore") return new Map(others);
+  return new Map([...others, [index, now]]);
 }

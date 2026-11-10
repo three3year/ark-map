@@ -35,6 +35,7 @@ import {
   watchMenuCancelled,
   wideWindow,
 } from "./levelPage.ts";
+import { thiefGroup } from "../test-fixtures/rogue2_2-6.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -260,7 +261,7 @@ test("ro2_n_2_6: switching a 隨機出兵組's candidate and back keeps an enemy
   page,
 }) => {
   const { t, individual } = aloneOnField(buildTimeline(siteLevel("ro2_n_2_6")), () => true);
-  const random = page.locator('select[data-random-group="2"]');
+  const random = page.locator(`select[data-random-group="${thiefGroup}"]`);
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await seek(page, t);
