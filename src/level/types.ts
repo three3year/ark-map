@@ -1,6 +1,6 @@
 // The level model: the site's level JSON, written by the data pipeline and read by the
 // browser. Vocabulary follows GLOSSARY.md.
-import type { ActionType, CheckpointType } from "./enums.ts";
+import type { ActionType, CheckpointType, Direction } from "./enums.ts";
 
 /** 格: row 0 is the bottom row, col 0 the left column. */
 export interface Cell {
@@ -121,7 +121,7 @@ export interface Device {
   alias: string | null;
   key: string;
   cell: Cell;
-  direction: string;
+  direction: Direction;
   hidden: boolean;
   blocker: boolean;
   name: string;

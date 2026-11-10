@@ -2,11 +2,13 @@
 import {
   actionTypes,
   checkpointTypes,
+  directions,
   isSpawn,
   withoutNames,
   type ActionType,
   type CheckpointType,
   type DeviceInfo,
+  type Direction,
   type LevelFile,
   type NameTable,
 } from "../src/level/index.ts";
@@ -101,11 +103,13 @@ const numericEnums = {
 const knownNames: { [F in keyof Named]: readonly string[] } = {
   actionType: actionTypes,
   checkpointType: checkpointTypes,
+  direction: directions,
 };
 
 interface Named {
   actionType: ActionType;
   checkpointType: CheckpointType;
+  direction: Direction;
 }
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */
