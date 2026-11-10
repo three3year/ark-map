@@ -49,6 +49,26 @@ export function levelFacts(raw: RawLevel): LevelFacts {
   return { difficulties: [...new Set(masks.filter(Boolean))] };
 }
 
+interface RawLabel {
+  code?: string | null;
+  name?: string | null;
+}
+
+/** A blank code or name (ro4_b_9's are " " in both servers) counts as missing. */
+const present = (text: string | null | undefined): string | null => (text?.trim() ? text : null);
+
+/** TW's code and name, else CN's; a stage named in neither shows its id. */
+function stageLabel(
+  id: string,
+  tw: RawLabel | undefined,
+  cn: RawLabel,
+): { code: string; name: string } {
+  return {
+    code: present(tw?.code) ?? present(cn.code) ?? "",
+    name: present(tw?.name) ?? present(cn.name) ?? id,
+  };
+}
+
 export type SkipReason = "missingFile" | "unlinkedEmergency" | "unnumberedExpansion";
 
 export const skipReasonMessage: Record<SkipReason, string> = {
@@ -320,8 +340,7 @@ export function buildStageIndex(
     const twStage = tw.stage.stages[stage.stageId];
     const entry: StageEntry = {
       id: stage.stageId,
-      code: twStage?.code ?? stage.code ?? "",
-      name: twStage?.name ?? stage.name ?? "",
+      ...stageLabel(stage.stageId, twStage, stage),
       variants,
     };
     let draft = drafts.get(place.areaId);
@@ -447,8 +466,7 @@ function roguelikeAreas(
       const twStage = twDetail?.stages[stage.id];
       const entry: StageEntry = {
         id: stage.id,
-        code: twStage?.code ?? stage.code,
-        name: twStage?.name ?? stage.name,
+        ...stageLabel(stage.id, twStage, stage),
         variants,
         ...(expansions.length > 0 ? { expansions } : {}),
       };

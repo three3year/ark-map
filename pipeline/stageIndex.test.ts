@@ -137,6 +137,13 @@ describe("stage index", () => {
     expect(stageByCode(index, "camp_zone_3", "烏薩斯").name).toBe("切爾諾伯格");
   });
 
+  it("treats a blank TW name as missing and falls back to CN", () => {
+    const blank = rawTables();
+    blank.tw.stage.stages["act7d5_01"]!.name = " ";
+    const index = buildStageIndex(blank, allFilesPresent()).index;
+    expect(stageByCode(index, "main_2", "SA-1").name).toBe("捷径");
+  });
+
   it("splits an activity with several zones into named sections", () => {
     const area = build().areas.find((a) => a.id === "act24sre")!;
     expect(area.sections.map((s) => s.name)).toEqual(["苍暮山地", "艾露猫的委托柜台"]);
@@ -267,6 +274,17 @@ describe("stage index: 集成戰略", () => {
       levelPath: "obt/roguelike/ro1/level_rogue1_1-1",
       reason: "unlinkedEmergency",
     });
+  });
+
+  it('shows a node blank in both servers (ro4_b_9\'s " ") by its id, with no code', () => {
+    const blank = rawTables();
+    for (const t of [blank.cn, blank.tw]) {
+      const s = t.roguelike.details["rogue_1"]!.stages["ro1_n_1_1"]!;
+      s.code = " ";
+      s.name = " ";
+    }
+    const stage = stageById(buildStageIndex(blank, allFilesPresent()).index, "ro1_n_1_1");
+    expect([stage.code, stage.name]).toEqual(["", "ro1_n_1_1"]);
   });
 
   it("lists each zone's nodes, zoneless stages last; no emergency sections", () => {
