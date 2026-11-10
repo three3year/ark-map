@@ -60,6 +60,14 @@
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
 
+  const hasPick = (r: SpawnRow) => r.random !== null && !r.random.picked;
+  /**
+   * The 切換 column is there while any row of the whole table has the button, so neither a
+   * 端點篩選 nor a pick makes it come and go: a pick leaves the group's other candidates unpicked.
+   */
+  const pickColumn = $derived(rows.some(hasPick));
+  const columns = $derived(pickColumn ? 9 : 8);
+
   const hasStowBox = (r: SpawnRow) => r.firstOrder !== null;
   const listedWithBox = $derived(shown.filter(hasStowBox));
   const listedStow = $derived(combinedStow(listedWithBox.map(rowStow)));
@@ -106,6 +114,9 @@
           </th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
+          {#if pickColumn}
+            <th></th>
+          {/if}
           <th>{strings.spawnTableOrder}</th>
           <th>{strings.spawnTableInterval}</th>
           <th>{strings.spawnTableWaveTime}</th>
@@ -118,7 +129,7 @@
           {@const stow = hasStowBox(row) ? rowStow(row) : null}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
-              <th colspan="8" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
+              <th colspan={columns} scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
@@ -173,6 +184,24 @@
                 {/if}
               </button>
             </td>
+            {#if pickColumn}
+              <td class="pick-cell">
+                {#if row.random && !row.random.picked}
+                  {@const random = row.random}
+                  <button
+                    type="button"
+                    class="pick"
+                    title={strings.pickCandidateHint}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      onPick(random.group, random.candidate);
+                    }}
+                  >
+                    {strings.pickCandidate}
+                  </button>
+                {/if}
+              </td>
+            {/if}
             <td class="num">{order(row)}</td>
             <td class="num">{seconds(row.interval)} {strings.seconds}</td>
             <td class="num">{seconds(row.waveTime)} {strings.seconds}</td>
@@ -196,19 +225,6 @@
                       random.share,
                     )}
                   </span>
-                  {#if !random.picked}
-                    <button
-                      type="button"
-                      class="pick"
-                      title={strings.pickCandidateHint}
-                      onclick={(event) => {
-                        event.stopPropagation();
-                        onPick(random.group, random.candidate);
-                      }}
-                    >
-                      {strings.pickCandidate}
-                    </button>
-                  {/if}
                 {/if}
                 {#if row.waveEnd}
                   <span class="badge wave-end">{waveEndLabel(row.waveEnd)}</span>
@@ -353,7 +369,7 @@
     background: color-mix(in srgb, #2e9e5b 18%, transparent);
     color: #2e9e5b;
   }
-  tr.unpicked td:not(.markers),
+  tr.unpicked td:not(.markers, .pick-cell),
   tr.unpicked .badge.random {
     opacity: var(--dimmed);
   }

@@ -22,6 +22,7 @@ import {
   enemyOnMap,
   filterCaption,
   orderCell,
+  pickButton,
   phoneWindow,
   readSiteLevel,
   rowOf,
@@ -495,12 +496,12 @@ test("ro2_n_2_6: only rows that spawn have a box; a stowed row stays stowed acro
     await expect(head).toHaveAttribute("colspan", String(await columns.count()));
   }
 
-  await rowOf(page, row).locator("button.pick").click();
+  await pickButton(rowOf(page, row)).click();
   await rowBox(page, row).click();
   await expect(rowBox(page, row)).not.toBeChecked();
-  await rowOf(page, nothing).locator("button.pick").click();
+  await pickButton(rowOf(page, nothing)).click();
   await expect(rowBox(page, row)).toHaveCount(0);
-  await rowOf(page, row).locator("button.pick").click();
+  await pickButton(rowOf(page, row)).click();
 
   await expect(rowBox(page, row)).not.toBeChecked();
   await expect(rowOf(page, row)).toHaveAttribute("data-stow", "stowed");
