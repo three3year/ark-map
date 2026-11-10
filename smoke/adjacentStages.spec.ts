@@ -1,11 +1,9 @@
-// Smoke test: the 上一關／下一關 links beside the level title, in the built site (dist/).
 import { expect, test, type Page } from "@playwright/test";
 import { expectVariantShown, seek, siteStage, timeDisplay } from "./levelPage.ts";
 
 const prevLink = (page: Page) => page.locator('a[data-adjacent="prev"]');
 const nextLink = (page: Page) => page.locator('a[data-adjacent="next"]');
 
-/** The link text naming stage `id`: its code and name, the code left out when blank. */
 const label = (id: string) => {
   const { code, name } = siteStage(id);
   return code.trim() ? `${code} ${name}` : name;

@@ -1,5 +1,3 @@
-// Smoke test: a click anywhere on a spawn-table row selects it; 切換, in a column of its own, only
-// switches the candidate.
 // Expected seconds come from the level's spawn table on the same data the site ships.
 import { expect, test, type Page } from "@playwright/test";
 import {
@@ -100,7 +98,6 @@ test("ro2_n_2_6: 切換 switches the candidate and keeps the selection and the t
   );
 });
 
-/** The spawn table's column headings, left to right; a blank heading is "". */
 const headings = (page: Page) =>
   spawnTableRegion(page)
     .locator("thead th")

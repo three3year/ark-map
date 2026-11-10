@@ -1,4 +1,3 @@
-// Seam 1: level model + 開關狀態 -> a spawn action's 開關標記 (kind + number, as the 開關面板 lists them).
 import { describe, expect, it } from "vitest";
 import { convertFixture, loadFixtureLevel, rawFixture } from "../../test-fixtures/load.ts";
 import {
@@ -12,7 +11,6 @@ import {
 import type { Level } from "../level/index.ts";
 import { thiefGroup } from "../../test-fixtures/rogue2_2-6.ts";
 
-/** The first wave action tagged with 隱藏組 `name`. */
 function hiddenGroupAction(level: Level, name: string): ActionRef {
   for (const [waveIndex, wave] of level.waves.entries()) {
     for (const [fragmentIndex, fragment] of wave.fragments.entries()) {
@@ -24,7 +22,6 @@ function hiddenGroupAction(level: Level, name: string): ActionRef {
 }
 
 describe("隱藏組 marks: ro3_n_5_5", () => {
-  // The 開關面板 lists its 隱藏組 in level-file order: totem2, totem1, bossrelic, normal, raid.
   const level = loadFixtureLevel("level_rogue3_5-5");
   const plan = spawnPlan(level, "NORMAL");
   const hiddenMarks = (name: string) =>
@@ -40,7 +37,6 @@ describe("隱藏組 marks: ro3_n_5_5", () => {
 });
 
 describe("隨機出兵組 marks: ro2_n_2_6", () => {
-  // The thieves of 第 2 波 are the third 隨機出兵組: weights 85 (nothing, the default) and 4 x 5.
   const level = loadFixtureLevel("level_rogue2_2-6");
   const plan = spawnPlan(level, "NORMAL");
   const candidateAction = (candidate: number) =>
@@ -60,9 +56,6 @@ describe("隨機出兵組 marks: ro2_n_2_6", () => {
 });
 
 describe("隨機出兵組 marks: an action in two groups (ro3_n_5_5, edited)", () => {
-  // Fragment 10's g1 has packs s1 (action 0, plus keyless action 3) and s2 (action 1, plus
-  // keyless action 2), weight 100 each. Add a g2 with a weight-30 pack s1 and a weight-10 pack
-  // s3: keyless action 3 of pack s1 is then a member of both groups.
   const raw = rawFixture("level_rogue3_5-5");
   const actions = raw.waves[0]!.fragments[10]!.actions;
   actions.push(
@@ -104,8 +97,6 @@ describe("條件出兵 marks", () => {
   });
 
   describe("act1dp_01 with its 純機關 listed first", () => {
-    // Branch "fixed" only activates a device; branch "sequence" spawns four enemies, all in 隱藏組
-    // "random" and 隨機出兵組 1 (weights 4 / 2 / 2 / 6). Swapped, "sequence" is branch 1.
     const raw = rawFixture("level_act1dp_01");
     const { fixed, sequence } = raw.branches!;
     raw.branches = { fixed: fixed!, sequence: sequence! };

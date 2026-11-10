@@ -1,5 +1,3 @@
-// Only an enemy's round avatar takes clicks: its 停留 bar, seconds left and 無害 tag let a click
-// through to whatever lies below. Expected moments come from the data the built site ships.
 import { expect, test, type Page } from "@playwright/test";
 import type { Level } from "../src/level/index.ts";
 import {
@@ -18,21 +16,17 @@ interface Point {
   y: number;
 }
 
-/** Map units, SVG y pointing down as drawn, so offsets read like MapView's. */
 const drawn = (level: Level, { x, y }: Point): Point => ({ x, y: level.map.height - 1 - y });
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** An avatar's radius is 0.36; clear of it by a margin, or well inside it. */
 const clearOfAvatar = 0.46;
 const insideAvatar = 0.28;
 
-/** Nothing but enemies takes a click near `p`: no device, no 出生點 or 消失點 dot. */
 function clearOfOthers(level: Level, timeline: Timeline, p: Point): boolean {
   const nearDevice = level.devices.some(({ cell }) => {
     const d = drawn(level, { x: cell.col, y: cell.row });
     return Math.abs(d.x - p.x) < 0.45 && Math.abs(d.y - p.y) < 0.45;
   });
-  // Dots sit in their cell's top-right corner.
   const nearDot = routeEndpoints(timeline).some(({ cell }) => {
     const d = drawn(level, { x: cell.col, y: cell.row });
     return distance({ x: d.x + 0.21, y: d.y - 0.32 }, p) < 0.4;
@@ -40,24 +34,20 @@ function clearOfOthers(level: Level, timeline: Timeline, p: Point): boolean {
   return !nearDevice && !nearDot;
 }
 
-/** Where along the bar's track the click lands: share of the bar's width from its left end. */
 const alongBar = [0.1, 0.25, 0.5, 0.75, 0.9];
 const stayBarWidth = 0.64;
 
-/** The centre line of `e`'s 停留 bar at share `along` of its width, in drawn map units. */
 function onBar(level: Level, e: OnField, along: number): Point {
   const centre = drawn(level, e.position);
   const top = e.individual.harmless ? -0.74 : -0.52;
   return { x: centre.x + (along - 0.5) * stayBarWidth, y: centre.y + top + 0.04 };
 }
 
-/** A whole second at which some enemy stands still, a spot on its bar passing `accepts`. */
 function findStay(level: Level, accepts: (at: Point, others: OnField[]) => boolean) {
   const timeline = buildTimeline(level);
   for (let t = 0; t < 300; t++) {
     const onField = takeSnapshot(timeline, t).onField;
     for (const staying of onField) {
-      // Still standing a second either side, so seeking lands well inside the stay.
       if (!staying.stay || staying.stay.start > t - 1 || staying.stay.end < t + 1) continue;
       for (const along of alongBar) {
         const at = onBar(level, staying, along);
@@ -71,7 +61,6 @@ function findStay(level: Level, accepts: (at: Point, others: OnField[]) => boole
   return undefined;
 }
 
-/** Click the screen point at share `along` of the bar's track, in the flat view. */
 async function clickBar(page: Page, id: string, along: number, button?: "right") {
   const bar = stayBarOf(page, id);
   await bar.scrollIntoViewIfNeeded();
@@ -83,7 +72,6 @@ async function flatView(page: Page) {
   await page.getByRole("button", { name: "平面俯視" }).click();
 }
 
-/** The one enemy whose avatar `at` is well inside, clear of every other avatar. */
 function onlyAvatarUnder(level: Level, at: Point, others: OnField[]): OnField | undefined {
   const near = others.filter((e) => distance(drawn(level, e.position), at) < clearOfAvatar);
   return near.length === 1 && distance(drawn(level, near[0]!.position), at) < insideAvatar
@@ -129,7 +117,6 @@ test("1-3: clicking a 停留 bar over bare ground neither selects nor 收起 its
 
   await clickBar(page, staying.individual.id, along, "right");
 
-  // A 收起 enemy that is not selected is not drawn.
   await expect(enemy).toHaveCount(1);
   await expect(page.getByText(/^已收起/)).toHaveCount(0);
 });
@@ -143,7 +130,6 @@ test("12-14: clicking an enemy's 無害 tag does not select it", async ({ page }
     const harmless = onField.find((e) => {
       if (!e.individual.harmless) return false;
       const centre = drawn(level, e.position);
-      // The tag sits right above the avatar, about 0.4 wide.
       const tag = { x: centre.x, y: centre.y - 0.5 };
       return (
         clearOfOthers(level, timeline, tag) &&
@@ -184,7 +170,6 @@ test("4-10: 停留 bars are drawn over every enemy and 等 N 秒 label, faded wi
 
   await page.goto("#/level/main_04-10?v=normal");
   await seek(page, t!);
-  // Selected, its 路徑 shows the 等 N 秒 label of the stay it is in.
   await enemyOnMap(page, individual.id).press("Enter");
   const waitLabel = page.locator("svg.map text", { hasText: /^等 [\d.]+ 秒$/ }).first();
   await expect(waitLabel).toHaveCount(1);

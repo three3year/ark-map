@@ -1,4 +1,3 @@
-// 上一關／下一關: the stages beside one in its 區域, in the stage list's order.
 import type { StageEntry, StageIndex, VariantId } from "../level/index.ts";
 
 export interface AdjacentStage {
@@ -7,10 +6,8 @@ export interface AdjacentStage {
   variant: VariantId;
 }
 
-/** A link to an adjacent stage. */
 export interface StageLink {
   stage: StageEntry;
-  /** Its 關卡連結. */
   href: string;
 }
 

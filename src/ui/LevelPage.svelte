@@ -99,7 +99,6 @@
     onSwitches,
   }: Props = $props();
 
-  /** A stage's code and name; the name alone when the code is blank. */
   const stageLabel = ({ code, name }: StageEntry) => (code.trim() ? `${code} ${name}` : name);
 
   let mapView = $state(loadMapView(browserStorage()));
@@ -511,15 +510,12 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 939px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (922px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
-   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
-   *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
+   * - The column is --side-column-width. A fixed width keeps the map from resizing as a 端點篩選
+   *   or a switch changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 939 + 32px page padding + 17px page scrollbar = 1552px.
-   *   CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
-   *   above and the two `@media` rules below.
+   * - Breakpoint: CSS cannot put a variable in a media query: keep in step `breakpoint` in the
+   *   script above and the two `@media` rules below.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
@@ -630,7 +626,6 @@
   .title-line a {
     color: var(--accent);
   }
-  /* 上一關, the title, 下一關: wrapping on a narrow screen. */
   .title-line {
     display: flex;
     flex-wrap: wrap;

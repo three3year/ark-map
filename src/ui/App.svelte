@@ -116,7 +116,6 @@
 
   let expansionChoice = $state<ExpansionChoice>(null);
 
-  /** The home page search keyword: kept for the visit, so back from a stage still shows it. */
   let searchQuery = $state("");
 
   $effect(() => {
@@ -172,7 +171,6 @@
       : null,
   );
 
-  /** 上一關／下一關, each with its 關卡連結: the 內容拓展 stays the URL's. */
   const adjacent = $derived.by(() => {
     if (!index || !levelPage) return { prev: null, next: null };
     const { route, stage, variant } = levelPage;

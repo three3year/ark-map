@@ -1,4 +1,3 @@
-// Smoke test: the home page's 關卡 search in the built site (dist/), against the index it ships.
 import { expect, test, type Page } from "@playwright/test";
 import type { StageIndex } from "../src/level/index.ts";
 import { expectVariantShown, readSiteJson, siteStage } from "./levelPage.ts";

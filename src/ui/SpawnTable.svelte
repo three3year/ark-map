@@ -59,10 +59,6 @@
   });
 
   const hasPick = (r: SpawnRow) => r.random !== null && !r.random.picked;
-  /**
-   * The 切換 column is there while any row of the whole table has the button, so neither a
-   * 端點篩選 nor a pick makes it come and go: a pick leaves the group's other candidates unpicked.
-   */
   const pickColumn = $derived(rows.some(hasPick));
   const columns = $derived(pickColumn ? 9 : 8);
 
@@ -377,7 +373,6 @@
     align-items: center;
     gap: 4px;
   }
-  /* A 開關標記 starts the badge: it needs no more room than it has above and below. */
   .badge:is(.conditional, .hiddenGroup, .random) {
     padding-left: 1px;
   }

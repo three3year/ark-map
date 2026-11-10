@@ -64,7 +64,6 @@
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
-    /** 傾斜視角 or 平面俯視. */
     view: MapViewMode;
     /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
     markKinds: SwitchMarkKind[];
@@ -92,12 +91,9 @@
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
   const stayBarWidth = 0.64;
 
-  // 開關標記 on an avatar: squares in a row, the first with its bottom-right corner on the outer
-  // edge of the avatar's ring (radius 0.36, stroke 0.05), the rest leftward.
   const markSide = 0.26;
   const markGap = 0.03;
   const ringOuter = 0.385;
-  /** A wider number widens its square, as the HTML square's min-width does. */
   const markWidth = ({ number }: SwitchMark) =>
     Math.max(markSide, 0.1 * String(number).length + 0.08);
   function placedMarks(marks: SwitchMark[]) {
@@ -286,7 +282,6 @@
       data-remaining={remaining.toFixed(3)}
     >
       <g class="billboard">
-        <!-- Over the avatar, and over the 無害敵人 tag when there is one. -->
         <g transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})">
           <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
           <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
@@ -487,7 +482,6 @@
         </g>
       {/if}
 
-      <!-- 停留 bars sit on top of everything, so crowded enemies never hide a countdown. -->
       <g class="stay-bars">
         <g class="faded">
           {#each fadedEnemies as enemy (enemy.individual.id)}
@@ -702,7 +696,6 @@
     stroke: #2e9e5b;
     stroke-dasharray: 0.12 0.08;
   }
-  /* Only the round avatar takes clicks; a click on the tag reaches what lies below. */
   .harmless-tag {
     pointer-events: none;
     font-size: 0.2px;
@@ -713,7 +706,6 @@
   .stay-bars {
     pointer-events: none;
   }
-  /* The look global.css gives every 開關標記, in map units; a click reaches what lies below. */
   .switch-mark {
     pointer-events: none;
   }

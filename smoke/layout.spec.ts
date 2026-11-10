@@ -18,18 +18,15 @@ test.use({ viewport: wideWindow });
 const map = (page: Page) => page.locator("svg.map");
 const waveSelect = (page: Page) => page.getByRole("radiogroup", { name: "波次" });
 const siteTitle = (page: Page) => page.getByRole("heading", { level: 1 });
-/** The 平面俯視／傾斜視角 button, named after the view it switches to. */
 const viewButton = (page: Page) => page.getByRole("button", { name: /^(平面俯視|傾斜視角)$/ });
 const expansionSwitch = (page: Page) => page.getByRole("group", { name: "內容拓展" });
 
-/** `below` starts at or under the bottom of `above`. */
 async function expectBelow(above: Locator, below: Locator, what: string) {
   const a = (await above.boundingBox())!;
   const b = (await below.boundingBox())!;
   expect(b.y, what).toBeGreaterThanOrEqual(a.y + a.height);
 }
 
-/** `right` sits after `left` on its row. */
 async function expectRightOf(left: Locator, right: Locator, what: string) {
   const l = (await left.boundingBox())!;
   const r = (await right.boundingBox())!;

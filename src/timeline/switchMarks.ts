@@ -1,5 +1,3 @@
-// 開關標記: which 開關 (隱藏組, 條件出兵, 隨機出兵組) put a spawn action on the field, each
-// numbered from 1 per kind in the order the 開關面板 lists them.
 import type { Level } from "../level/index.ts";
 import { actionAt, type ActionRef, type SpawnPlan } from "./switches.ts";
 import type { Timeline } from "./types.ts";

@@ -17,7 +17,6 @@ const area = (id: string, kind: AreaKind, sections: StageEntry[][]): Area => ({
   sections: sections.map((stages) => ({ name: null, stages })),
 });
 
-/** Areas in the index's order, which is not the home page's. */
 const index: StageIndex = {
   areas: [
     area("main_6", "MAINLINE", [
