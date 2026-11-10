@@ -13,8 +13,8 @@
     type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
-  import AreaList from "./AreaList.svelte";
   import ExpansionSwitch from "./ExpansionSwitch.svelte";
+  import Home from "./Home.svelte";
   import { legacyRedirect } from "./legacyRedirect.ts";
   import LevelPage from "./LevelPage.svelte";
   import { levelView, sameView } from "./levelView.ts";
@@ -114,6 +114,9 @@
 
   let expansionChoice = $state<ExpansionChoice>(null);
 
+  /** The home page search keyword: kept for the visit, so back from a stage still shows it. */
+  let searchQuery = $state("");
+
   $effect(() => {
     if (route.page === "level" && inExpansionTheme) expansionChoice = route.expansion;
   });
@@ -205,7 +208,7 @@
     {:else if index.areas.length === 0}
       <p>{strings.noStages}</p>
     {:else if route.page === "home"}
-      <AreaList {index} />
+      <Home {index} expansion={expansionChoice} bind:query={searchQuery} />
     {:else if route.page === "area"}
       {#if area}
         <StageList {area} expansion={inExpansionTheme ? expansionChoice : null} />
