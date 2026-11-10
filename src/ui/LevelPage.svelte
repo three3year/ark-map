@@ -140,6 +140,7 @@
   /** A selection on the map: the spawn table, if on screen, scrolls to its row. */
   function select(individual: Individual | null) {
     const changed = individual !== null && individual.id !== selected?.id;
+    if (individual) deviceSelection = null;
     selection = individual && {
       levelId: level.levelId,
       wave: waveIndex,
@@ -248,6 +249,45 @@
     const putBack = moment !== undefined && !before(now, moment);
     removed = { view, moments: new Map(putBack ? others : [...others, [index, now]]) };
   }
+  /** The panel's button for a 擋路裝置: what {@link toggleRemoval} does to it now. */
+  const removalAction = (device: Device) => {
+    const moment = removalOf(device);
+    return moment === null || before({ wave: waveIndex, t }, moment)
+      ? strings.remove
+      : strings.restore;
+  };
+
+  /**
+   * The selected device, by its place in `level.devices`, in one view's wave. Only one thing is
+   * selected at a time: selecting a device deselects the individual, and the other way round.
+   */
+  interface DeviceSelection {
+    view: LevelView;
+    wave: number;
+    index: number;
+  }
+  let deviceSelection = $state.raw<DeviceSelection | null>(null);
+  const selectedDevice = $derived.by(() => {
+    const s = deviceSelection;
+    if (!s || !sameView(s.view, view) || s.wave !== waveIndex) return null;
+    return level.devices[s.index] ?? null;
+  });
+  /**
+   * On another wave the selection holds while the device is drawn there, on the field or as a
+   * removed frame; another view drops it.
+   */
+  $effect(() => {
+    const s = deviceSelection;
+    if (!s || (sameView(s.view, view) && s.wave === waveIndex)) return;
+    const device = sameView(s.view, view) ? level.devices[s.index] : undefined;
+    const drawn = device && (devices.includes(device) || removedDevices.includes(device));
+    deviceSelection = drawn ? { ...s, wave: waveIndex } : null;
+  });
+  function selectDevice(device: Device | null) {
+    const index = device ? level.devices.indexOf(device) : -1;
+    deviceSelection = index < 0 ? null : { view, wave: waveIndex, index };
+    if (deviceSelection) selection = null;
+  }
 
   interface EndpointFilter {
     view: LevelView;
@@ -303,6 +343,7 @@
 
   /** A spawn-table row: jump to its first individual's spawn and select it. */
   function jumpTo(row: SpawnRow) {
+    deviceSelection = null;
     selection = {
       levelId: level.levelId,
       wave: row.waveIndex,
@@ -344,6 +385,8 @@
       {removalOf}
       deviceIndex={(device) => level.devices.indexOf(device)}
       onToggleRemoval={toggleRemoval}
+      {selectedDevice}
+      onSelectDevice={selectDevice}
       {endpoints}
       enemies={drawn}
       {t}
@@ -363,6 +406,23 @@
           <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
         </span>
       </p>
+    {:else if selectedDevice}
+      <div class="selection device-selection" data-selected-device={deviceSelection?.index}>
+        <div class="device-about">
+          <span>{strings.selectedDevice(selectedDevice.name)}</span>
+          {#if selectedDevice.description}
+            <span class="device-description">{selectedDevice.description}</span>
+          {/if}
+        </div>
+        <span class="selection-actions">
+          {#if selectedDevice.blocker}
+            <button type="button" onclick={() => toggleRemoval(selectedDevice)}>
+              {removalAction(selectedDevice)}
+            </button>
+          {/if}
+          <button type="button" onclick={() => selectDevice(null)}>{strings.deselect}</button>
+        </span>
+      </div>
     {/if}
     {#if level.waves.length > 1}
       <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
@@ -389,6 +449,12 @@
           <button type="button" onclick={() => showStowed(waveIndex, stowedHere)}>
             {strings.showAllStowed}
           </button>
+        </p>
+      {/if}
+      {#if removals.size > 0}
+        <p class="stowed" data-removed-count={removals.size}>
+          <span>{strings.removedCount(removals.size)}</span>
+          <button type="button" onclick={() => (removed = null)}>{strings.restoreAll}</button>
         </p>
       {/if}
     </div>
@@ -585,7 +651,18 @@
   }
   .selection-actions {
     display: flex;
+    flex-shrink: 0;
     gap: 8px;
+  }
+  .device-about {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .device-description {
+    color: var(--muted);
+    white-space: pre-line;
   }
   .stowed {
     color: var(--muted);
