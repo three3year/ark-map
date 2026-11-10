@@ -10,6 +10,7 @@
     type Variant,
     type VariantId,
   } from "../level/index.ts";
+  import type { StageLink } from "./adjacentStages.ts";
   import LevelInfo from "./LevelInfo.svelte";
   import {
     actionKey,
@@ -60,6 +61,9 @@
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
+    /** 上一關 and 下一關 in the area; null at its ends. */
+    prev: StageLink | null;
+    next: StageLink | null;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
@@ -80,6 +84,8 @@
     view,
     level,
     terrain,
+    prev,
+    next,
     wave,
     t,
     switches,
@@ -89,6 +95,9 @@
     onJump,
     onSwitches,
   }: Props = $props();
+
+  /** A stage's code and name; the name alone when the code is blank. */
+  const stageLabel = ({ code, name }: StageEntry) => (code.trim() ? `${code} ${name}` : name);
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
@@ -335,7 +344,15 @@
     <nav>
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
-    <h2>{stage.code} {stage.name}</h2>
+    <div class="title-line">
+      {#if prev}
+        <a href={prev.href} data-adjacent="prev">‹ {stageLabel(prev.stage)}</a>
+      {/if}
+      <h2>{stage.code} {stage.name}</h2>
+      {#if next}
+        <a href={next.href} data-adjacent="next">{stageLabel(next.stage)} ›</a>
+      {/if}
+    </div>
     {#if variant.emergencyCondition}
       <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
     {/if}
@@ -600,11 +617,20 @@
       transition: none;
     }
   }
-  nav a {
+  nav a,
+  .title-line a {
     color: var(--accent);
   }
-  h2 {
+  /* 上一關, the title, 下一關: wrapping on a narrow screen. */
+  .title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
     margin: 8px 0 12px;
+  }
+  h2 {
+    margin: 0;
     font-size: 1.4rem;
   }
   .condition {
