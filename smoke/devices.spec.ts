@@ -1,7 +1,9 @@
-// 裝置 on the map: square frames with the game's image, 擋路裝置 framed more boldly.
+// 裝置 on the map: square frames with the game's image, 擋路裝置 framed more boldly; ground
+// enemies go round the 擋路裝置.
 import { expect, test, type Page } from "@playwright/test";
 import { cellKey } from "../src/level/index.ts";
-import { expectVariantShown, siteLevel } from "./levelPage.ts";
+import { buildTimeline } from "../src/timeline/index.ts";
+import { enemyOnMap, expectVariantShown, seek, siteLevel } from "./levelPage.ts";
 
 const devicesOnMap = (page: Page, key: string) => page.locator(`svg.map [data-device="${key}"]`);
 
@@ -49,4 +51,41 @@ test("WR-EX-6: normal draws none of the 3 hidden 障礙物; challenge, whose 難
   await page.goto("#/level/act16d5_ex06?v=challenge");
   await expectVariantShown(page, "challenge");
   await expect(devicesOnMap(page, "trap_001_crate")).toHaveCount(3);
+});
+
+test("TB-1: a selected enemy going round the 碎石 is where the timeline puts it", async ({
+  page,
+}) => {
+  const level = siteLevel("act10mini_01");
+  const timeline = buildTimeline(level);
+  const bare = buildTimeline({ ...level, devices: [] });
+  // The first whole second at which some individual stands elsewhere than without the 碎石.
+  const moved = (t: number) =>
+    timeline.individuals.find((individual, i) => {
+      const a = individual.stateAt(t);
+      const b = bare.individuals[i]!.stateAt(t);
+      return (
+        a.kind === "onField" &&
+        b.kind === "onField" &&
+        Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y) > 1
+      );
+    });
+  const t = Array.from({ length: 300 }, (_, s) => s).find((s) => moved(s));
+  expect(t, "some TB-1 individual goes round the 碎石").toBeDefined();
+  const individual = moved(t!)!;
+  const state = individual.stateAt(t!);
+  if (state.kind !== "onField") throw new Error("on the field by construction");
+  const mark = enemyOnMap(page, individual.id);
+
+  await page.goto("#/level/act10mini_01?v=normal");
+  await seek(page, t!);
+  await mark.press("Enter");
+
+  await expect(page.locator("p.selection")).toHaveAttribute("data-selected", individual.id);
+  const [x, svgY] = (await mark.getAttribute("transform"))!
+    .match(/translate\((\S+) (\S+)\)/)!
+    .slice(1)
+    .map(Number);
+  expect(x).toBeCloseTo(state.position.x, 3);
+  expect(level.map.height - 1 - svgY!).toBeCloseTo(state.position.y, 3);
 });

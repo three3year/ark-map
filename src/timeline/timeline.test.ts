@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import type { Device, Difficulty, Level, Modifier } from "../level/index.ts";
-import { buildTimeline, takeSnapshot, type Stay } from "./index.ts";
+import { buildTimeline, takeSnapshot, type Individual, type Stay } from "./index.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
 const prts107 = [
@@ -361,5 +361,62 @@ describe("裝置 on the field", () => {
         : m,
     );
     expect(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0)).toHaveLength(2);
+  });
+});
+
+describe("擋路裝置 change ground routes", () => {
+  /** Each cell `individual` stands on, sampled every 0.05 s from its spawn until it leaks. */
+  function cellsWalked(individual: Individual): Set<string> {
+    const cells = new Set<string>();
+    const end = individual.leakTime ?? individual.spawnTime + 300;
+    for (let t = individual.spawnTime; t < end; t += 0.05) {
+      const state = individual.stateAt(t);
+      if (state.kind !== "onField") continue;
+      cells.add(`${Math.round(state.position.y)},${Math.round(state.position.x)}`);
+    }
+    return cells;
+  }
+  const cellsOf = (devices: Device[]) => devices.map((d) => `${d.cell.row},${d.cell.col}`);
+
+  it("TB-1: a route straight through the 碎石 goes round them while they are on the field", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    // Route 19 runs (3,0) -> (3,10) across the band the 碎石 wall off at columns 4-5.
+    const route = level.routes[19]!;
+    const walker = (l: Level) => buildTimeline(l).individuals.find((i) => i.route === route)!;
+    const stones = cellsOf(level.devices.filter((d) => d.key === "trap_027_stone"));
+
+    const withStones = cellsWalked(walker(level));
+    expect(stones.filter((c) => withStones.has(c))).toEqual([]);
+    expect(withStones.has("6,4")).toBe(true); // the top corridor
+
+    const withoutStones = cellsWalked(walker({ ...level, devices: [] }));
+    expect(stones.filter((c) => withoutStones.has(c))).not.toEqual([]);
+  });
+
+  it("WR-EX-6: the hidden 障礙物 change routes only in the challenge, which puts them on", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    const leakTimes = (l: Level, difficulty: Difficulty) =>
+      Object.fromEntries(
+        buildTimeline(l, { difficulty }).individuals.map((i) => [i.id, i.leakTime]),
+      );
+    const bare = { ...level, devices: [] };
+    expect(leakTimes(level, "NORMAL")).toEqual(leakTimes(bare, "NORMAL"));
+    const challenge = leakTimes(level, "FOUR_STAR");
+    const bareChallenge = leakTimes(bare, "FOUR_STAR");
+    // The first wave's route-2 individual goes round them: it leaks later.
+    expect(challenge["0-2-0"]! > bareChallenge["0-2-0"]!).toBe(true);
+  });
+
+  it("ISW-NO: walled in by a full row of 碎石, the individual walks through them and leaks", () => {
+    const level = loadFixtureLevel("level_rogue2_5-5");
+    // Route 9 starts at (6,1) and its checkpoints walk the 碎石 row (7,1)..(7,9) to (7,10).
+    const route = level.routes[9]!;
+    const [walker] = level.waves.flatMap((_, waveIndex) =>
+      buildTimeline(level, { waveIndex }).individuals.filter((i) => i.route === route),
+    );
+    expect(walker!.leakTime).not.toBeNull();
+    const walked = cellsWalked(walker!);
+    const stones = cellsOf(level.devices.filter((d) => d.key === "trap_027_stone"));
+    expect(stones.filter((c) => !walked.has(c))).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ import type {
   Cell,
   Checkpoint,
   CheckpointType,
+  Device,
   Level,
   MotionMode,
   Tile,
@@ -24,6 +25,28 @@ const road: Tile = {
   buildableType: "MELEE",
 };
 const wall: Tile = { ...road, tileKey: "tile_wall", passableMask: "FLY_ONLY" };
+const hole: Tile = { ...road, tileKey: "tile_hole", buildableType: "NONE" };
+
+/**
+ * Map characters: "#" wall, "O" hole; a 擋路裝置 on road "B", on a wall "X", on a hole "Q".
+ */
+const tileOf: Record<string, Tile> = { "#": wall, O: hole, X: wall, Q: hole };
+
+/** A 擋路裝置 (碎石) on the field from the start at `cell`. */
+function blocker(cell: Cell): Device {
+  const alias = `trap_027_stone#${cell.row},${cell.col}`;
+  return {
+    alias,
+    key: "trap_027_stone",
+    cell,
+    direction: "UP",
+    hidden: false,
+    blocker: true,
+    name: "碎石",
+    description: null,
+    image: null,
+  };
+}
 
 interface TestRoute {
   motionMode: MotionMode;
@@ -40,9 +63,12 @@ interface TestTiming {
   spawnDelay?: number;
 }
 
-/** One enemy at 1 cell/s on a map drawn top row first ("#" = wall). */
+/** One enemy at 1 cell/s on a map drawn top row first (characters as in {@link tileOf}). */
 function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level {
   const bottomUp = [...rows].reverse();
+  const devices = bottomUp.flatMap((line, row) =>
+    [...line].flatMap((ch, col) => ("BXQ".includes(ch) ? [blocker({ row, col })] : [])),
+  );
   return {
     levelId: "test/movement",
     options: {
@@ -56,7 +82,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
     map: {
       width: bottomUp[0]!.length,
       height: bottomUp.length,
-      tiles: bottomUp.flatMap((row) => [...row].map((ch) => (ch === "#" ? wall : road))),
+      tiles: bottomUp.flatMap((row) => [...row].map((ch) => tileOf[ch] ?? road)),
     },
     routes: [
       {
@@ -70,7 +96,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
     ],
     extraRoutes: [],
     branches: [],
-    devices: [],
+    devices,
     waves: [
       {
         preDelay: 0,
@@ -605,5 +631,62 @@ describe("時刻快照: 目前的停留", () => {
     expect(stayAt(patrol, 2.5)).toEqual({ start: 2, end: 3 });
     // Second lap: (3, 0) at 9 s, waits until 10 s.
     expect(stayAt(patrol, 9.5)).toEqual({ start: 9, end: 10 });
+  });
+});
+
+describe("movement model: 擋路裝置", () => {
+  const across = (end: number) => ({ start: { row: 0, col: 0 }, end: { row: 0, col: end } });
+
+  it("crosses a 擋路格 rather than a hole when the way round is longer, at constant speed", () => {
+    // The bottom way is 4 cells but through a hole; the top way is 8 cells through a 擋路格.
+    const enemy = only(
+      level(["..B..", ".###.", "..O.."], {
+        motionMode: "WALK",
+        ...across(4),
+        allowDiagonalMove: false,
+      }),
+    );
+    expect(enemy.leakTime).toBe(8);
+    expectAt(enemy.stateAt(4), 2, 2);
+  });
+
+  it("a 擋路裝置 in a hole leaves it a hole", () => {
+    // The map above, with a 擋路裝置 in the hole too: the way through the hole still costs more.
+    const enemy = only(
+      level(["..B..", ".###.", "..Q.."], {
+        motionMode: "WALK",
+        ...across(4),
+        allowDiagonalMove: false,
+      }),
+    );
+    expect(enemy.leakTime).toBe(8);
+  });
+
+  it("a 擋路格 blocks the line of sight that smooths corners", () => {
+    // Open 3 x 3 with a 擋路格 in the middle: the diagonal would cut through it.
+    const enemy = only(
+      level(["...", ".B.", "..."], {
+        motionMode: "WALK",
+        start: { row: 0, col: 0 },
+        end: { row: 2, col: 2 },
+        allowDiagonalMove: true,
+      }),
+    );
+    expect(enemy.leakTime).toBe(4);
+  });
+
+  it("a 擋路裝置 on a wall leaves the way as it was: still none", () => {
+    const route = { motionMode: "WALK" as const, ...across(2), allowDiagonalMove: false };
+    const withDevice = only(level([".X."], route));
+    expect(withDevice.leakTime).toBeNull();
+    expect(withDevice.stateAt(100)).toEqual(only(level([".#."], route)).stateAt(100));
+  });
+
+  it("flying routes fly straight over a 擋路格", () => {
+    const enemy = only(
+      level([".B."], { motionMode: "FLY", ...across(2), allowDiagonalMove: false }),
+    );
+    expect(enemy.leakTime).toBe(2);
+    expect(enemy.stateAt(1)).toMatchObject({ position: { x: 1, y: 0 } });
   });
 });
