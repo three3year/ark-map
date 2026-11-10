@@ -2,20 +2,36 @@
 // Pure; no DOM or network.
 import {
   cellKey,
+  isWalkable,
   moveSpeedFactor,
+  tileAt,
   variantModifiers,
   type Difficulty,
   type Level,
   type Vec2,
 } from "../level/index.ts";
 import { createNextNodeLookup, type NextNodeLookup } from "../pathfinding/index.ts";
-import { devicePresence, presentAt } from "./devices.ts";
-import { nextNodeModel, theoreticalSpeed, type MovementModel, type Stay } from "./movement.ts";
+import {
+  devicePresence,
+  presenceChanges,
+  presentAt,
+  removedAt,
+  type DevicePresence,
+  type Removals,
+} from "./devices.ts";
+import {
+  nextNodeModel,
+  theoreticalSpeed,
+  type MovementModel,
+  type NextNodeSegment,
+  type Stay,
+} from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 import type { Individual, Timeline } from "./types.ts";
 
+export type { RemovalMoment, Removals } from "./devices.ts";
 export * from "./endpoints.ts";
 export * from "./identity.ts";
 export * from "./movement.ts";
@@ -29,6 +45,8 @@ export interface TimelineOptions {
   difficulty?: Difficulty;
   /** 開關狀態 (隱藏組, 隨機出兵組, 條件出兵); parts left out take the variant's default. */
   switches?: SpawnSwitches;
+  /** 移除時刻 of the 擋路裝置 the user removed; none by default. */
+  removals?: Removals;
   movement?: MovementModel;
 }
 
@@ -65,17 +83,17 @@ export function timelineEnd(timeline: Timeline): number {
  * the wave start and earlier waves count as cleared.
  */
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
-  const { waveIndex = 0, difficulty = "NORMAL", switches = {}, movement = nextNodeModel } = options;
-  if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [] };
-  const lookup = createNextNodeLookup(level.map);
+  const {
+    waveIndex = 0,
+    difficulty = "NORMAL",
+    switches = {},
+    removals = new Map(),
+    movement = nextNodeModel,
+  } = options;
+  if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [], removedAt: () => [] };
   const modifiers = variantModifiers(level.modifiers, difficulty);
-  const devices = devicePresence(level, modifiers);
-  // 擋路格: where the 擋路裝置 on the field at the wave start stand; they stay all wave.
-  const blockers = new Set(
-    devices.filter((d) => d.device.blocker && presentAt(d, 0)).map((d) => cellKey(d.device.cell)),
-  );
-  const nextNode: NextNodeLookup = (mode, target, diagonal) =>
-    lookup(mode, target, diagonal, blockers);
+  const devices = devicePresence(level, modifiers, waveIndex, removals);
+  const nextNode = nextNodeSegments(level, devices);
   const individuals: Individual[] = [];
   for (const { action, ref, fragmentStart, start, picked } of waveSpawns(
     level,
@@ -112,5 +130,29 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   return {
     individuals,
     devicesAt: (t) => devices.filter((d) => presentAt(d, t)).map((d) => d.device),
+    removedAt: (t) => devices.filter((d) => removedAt(d, t)).map((d) => d.device),
   };
+}
+
+/**
+ * The wave's nextNode tables by second: a new segment wherever the 擋路格 change, the cells of
+ * the 擋路裝置 on the field. One on ground that cannot be walked changes no way, so is left out.
+ */
+function nextNodeSegments(level: Level, devices: DevicePresence[]): NextNodeSegment[] {
+  const lookup = createNextNodeLookup(level.map);
+  const blocking = devices.filter((d) => {
+    const tile = tileAt(level.map, d.device.cell);
+    return d.device.blocker && tile !== undefined && isWalkable(tile);
+  });
+  const segments: (NextNodeSegment & { key: string })[] = [];
+  for (const from of presenceChanges(blocking)) {
+    const cells = blocking.filter((d) => presentAt(d, from)).map((d) => cellKey(d.device.cell));
+    const blockers = new Set(cells);
+    const key = [...blockers].sort().join(";");
+    if (segments.at(-1)?.key === key) continue;
+    const nextNode: NextNodeLookup = (mode, target, diagonal) =>
+      lookup(mode, target, diagonal, blockers);
+    segments.push({ from, nextNode, key });
+  }
+  return segments;
 }

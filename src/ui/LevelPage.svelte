@@ -2,6 +2,7 @@
   import {
     variantModifiers,
     type Area,
+    type Device,
     type Level,
     type StageEntry,
     type TerrainTable,
@@ -26,6 +27,8 @@
     type ConditionalTrigger,
     type EndpointPlace,
     type Individual,
+    type RemovalMoment,
+    type Removals,
     type RouteEndpoint,
     type SpawnRow,
     type SpawnSwitches,
@@ -87,8 +90,20 @@
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
+  /** 移除時刻 by device index; like 收起, they last while the view does. */
+  interface Removed {
+    view: LevelView;
+    moments: Removals;
+  }
+  let removed = $state.raw<Removed | null>(null);
+  const removals: Removals = $derived(
+    removed && sameView(removed.view, view) ? removed.moments : new Map(),
+  );
+  $effect(() => {
+    if (removed && removals !== removed.moments) removed = null;
+  });
   const plan = $derived(spawnPlan(level, difficulty, switches));
-  const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches }));
+  const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
@@ -105,6 +120,7 @@
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
   const devices = $derived(timeline.devicesAt(t));
+  const removedDevices = $derived(timeline.removedAt(t));
   const endpoints = $derived(routeEndpoints(timeline));
 
   /** The selected individual, by {@link individualKey}, in one level's wave. */
@@ -214,6 +230,25 @@
     else stowAndDeselect(waveIndex, [individual.id]);
   }
 
+  /** The device's 移除時刻, if it has one. */
+  const removalOf = (device: Device): RemovalMoment | null =>
+    removals.get(level.devices.indexOf(device)) ?? null;
+  const before = (a: RemovalMoment, b: RemovalMoment) =>
+    a.wave < b.wave || (a.wave === b.wave && a.t < b.t);
+  /**
+   * 移除 a 擋路裝置 at the playback position; before its 移除時刻, move that to the playback
+   * position; at or past it, put the device back. Any other device stays as it is.
+   */
+  function toggleRemoval(device: Device) {
+    const index = level.devices.indexOf(device);
+    if (!device.blocker || index < 0) return;
+    const now = { wave: waveIndex, t };
+    const moment = removals.get(index);
+    const others = [...removals].filter(([i]) => i !== index);
+    const putBack = moment !== undefined && !before(now, moment);
+    removed = { view, moments: new Map(putBack ? others : [...others, [index, now]]) };
+  }
+
   interface EndpointFilter {
     view: LevelView;
     wave: number;
@@ -305,6 +340,10 @@
       map={level.map}
       {terrain}
       {devices}
+      {removedDevices}
+      {removalOf}
+      deviceIndex={(device) => level.devices.indexOf(device)}
+      onToggleRemoval={toggleRemoval}
       {endpoints}
       enemies={drawn}
       {t}

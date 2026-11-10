@@ -13,6 +13,7 @@
     matchesEndpoint,
     type EndpointPlace,
     type Individual,
+    type RemovalMoment,
     type RouteEndpoint,
     type Snapshot,
     type Stay,
@@ -28,6 +29,14 @@
     terrain: TerrainTable;
     /** The 裝置 on the field at second `t`, drawn under the enemies. */
     devices: Device[];
+    /** The 裝置 removed (移除) by second `t`, drawn as faint dashed frames. */
+    removedDevices: Device[];
+    /** A device's 移除時刻; one on the field that has one gets a clock naming it. */
+    removalOf: (device: Device) => RemovalMoment | null;
+    /** A device's place in the level's devices, which tells apart devices sharing an alias. */
+    deviceIndex: (device: Device) => number;
+    /** A device was right-clicked. */
+    onToggleRemoval: (device: Device) => void;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
@@ -50,6 +59,10 @@
     map,
     terrain,
     devices,
+    removedDevices,
+    removalOf,
+    deviceIndex,
+    onToggleRemoval,
     endpoints,
     enemies,
     t,
@@ -296,17 +309,47 @@
         {/if}
       {/each}
 
+      {#each removedDevices as device (device)}
+        <!-- Fainter than an enemy outside the 端點篩選. -->
+        <g
+          class="device removed"
+          transform="translate({device.cell.col} {svgY(device.cell.row)})"
+          data-device={device.key}
+          data-device-index={deviceIndex(device)}
+          data-alias={device.alias}
+          data-cell={cellKey(device.cell)}
+          data-removed
+          role="img"
+          aria-label={device.name}
+          oncontextmenu={(e) => {
+            e.preventDefault();
+            onToggleRemoval(device);
+          }}
+        >
+          <g class="billboard">
+            <title>{device.name}</title>
+            <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+          </g>
+        </g>
+      {/each}
+
       {#each devices as device (device)}
+        {@const removal = removalOf(device)}
         <g
           class="device"
           class:blocker={device.blocker}
           transform="translate({device.cell.col} {svgY(device.cell.row)})"
           data-device={device.key}
+          data-device-index={deviceIndex(device)}
           data-alias={device.alias}
           data-cell={cellKey(device.cell)}
           data-blocker={device.blocker}
           role="img"
           aria-label={device.name}
+          oncontextmenu={(e) => {
+            e.preventDefault();
+            onToggleRemoval(device);
+          }}
         >
           <g class="billboard">
             <title>{device.name}</title>
@@ -324,6 +367,14 @@
               <text class="device-initial">{[...device.name][0]}</text>
             {/if}
             <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+            {#if removal}
+              <!-- In the top-left corner, clear of the 出生點 and 消失點 dots. -->
+              <g class="removal-clock" transform="translate(-0.3 -0.3)">
+                <title>{strings.removalMoment(removal.wave, removal.t)}</title>
+                <circle r="0.15" />
+                <path d="M 0 -0.09 V 0 H 0.07" />
+              </g>
+            {/if}
           </g>
         </g>
       {/each}
@@ -539,6 +590,27 @@
   .device.blocker .device-frame {
     stroke: var(--device-blocker);
     stroke-width: 0.1;
+  }
+  /* A removed 擋路裝置: only its dashed frame is left, fainter than a .faded enemy. */
+  .device.removed {
+    opacity: 0.3;
+  }
+  .device.removed .device-frame {
+    fill: transparent;
+    stroke: var(--device-blocker);
+    stroke-width: 0.06;
+    stroke-dasharray: 0.12 0.08;
+  }
+  .removal-clock circle {
+    fill: #fff;
+    stroke: var(--device-blocker);
+    stroke-width: 0.03;
+  }
+  .removal-clock path {
+    fill: none;
+    stroke: #1d1d1f;
+    stroke-width: 0.03;
+    stroke-linecap: round;
   }
   .device-initial {
     font-size: 0.34px;

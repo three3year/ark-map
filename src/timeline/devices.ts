@@ -7,10 +7,23 @@ export interface PresenceRun {
   present: boolean;
 }
 
-/** One device's runs in one wave, ordered by `from`; the first starts at 0. */
+/** 移除時刻: second `t` of wave `wave` (0-based); from then on the device is gone for good. */
+export interface RemovalMoment {
+  wave: number;
+  t: number;
+}
+
+/** 移除時刻 by device: the key is the device's index in `level.devices` (aliases repeat). */
+export type Removals = ReadonlyMap<number, RemovalMoment>;
+
+/**
+ * One device's runs in one wave, ordered by `from`; the first starts at 0. From `removedFrom` on,
+ * if not null, it is removed: off the field whatever its runs say.
+ */
 export interface DevicePresence {
   device: Device;
   runs: PresenceRun[];
+  removedFrom: number | null;
 }
 
 /**
@@ -28,24 +41,58 @@ function startOverrides(modifiers: Modifier[]): Map<string, boolean> {
 }
 
 /**
- * Each device's presence in one wave, in level-file order. A device is on the field at the start
- * unless it starts hidden, and the variant's 難度修正 may switch it either way. Wave and 條件出兵
- * activation and withdrawal are not modelled yet: a device keeps its start state all wave.
+ * Each device's presence in wave `waveIndex`, in level-file order. A device is on the field at the
+ * start unless it starts hidden, and the variant's 難度修正 may switch it either way. Wave and
+ * 條件出兵 activation and withdrawal are not modelled yet: a device keeps its start state all wave.
+ * A 移除時刻 in an earlier wave removes it all wave; one in this wave, from that second.
  */
-export function devicePresence(level: Level, modifiers: Modifier[]): DevicePresence[] {
+export function devicePresence(
+  level: Level,
+  modifiers: Modifier[],
+  waveIndex: number,
+  removals: Removals,
+): DevicePresence[] {
   const overrides = startOverrides(modifiers);
-  return level.devices.map((device) => ({
-    device,
-    runs: [{ from: 0, present: overrides.get(device.alias) ?? !device.hidden }],
-  }));
+  return level.devices.map((device, i) => {
+    const removal = removals.get(i);
+    const removedFrom =
+      !removal || removal.wave > waveIndex ? null : removal.wave < waveIndex ? 0 : removal.t;
+    return {
+      device,
+      runs: [{ from: 0, present: overrides.get(device.alias) ?? !device.hidden }],
+      removedFrom,
+    };
+  });
 }
 
-/** Whether the device is on the field at second `t`, by its runs. */
-export function presentAt({ runs }: DevicePresence, t: number): boolean {
+/** Whether the device would be on the field at second `t` were it not removed, by its runs. */
+function runsAt({ runs }: DevicePresence, t: number): boolean {
   let present = false;
   for (const run of runs) {
     if (run.from > t) break;
     present = run.present;
   }
   return present;
+}
+
+const removedBy = ({ removedFrom }: DevicePresence, t: number) =>
+  removedFrom !== null && t >= removedFrom;
+
+/** Whether the device is on the field at second `t`. */
+export function presentAt(presence: DevicePresence, t: number): boolean {
+  return runsAt(presence, t) && !removedBy(presence, t);
+}
+
+/** Whether the device is off the field at second `t` only because it has been removed. */
+export function removedAt(presence: DevicePresence, t: number): boolean {
+  return runsAt(presence, t) && removedBy(presence, t);
+}
+
+/** Every second of the wave at which some device may come on or go off, 0 first. */
+export function presenceChanges(devices: DevicePresence[]): number[] {
+  const seconds = devices.flatMap((d) => [
+    ...d.runs.map((r) => r.from),
+    ...(d.removedFrom === null ? [] : [d.removedFrom]),
+  ]);
+  return [...new Set([0, ...seconds])].sort((a, b) => a - b);
 }

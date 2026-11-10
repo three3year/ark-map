@@ -16,6 +16,7 @@ import {
   type Individual,
   type IndividualState,
   type Stay,
+  type TimelineOptions,
 } from "./index.ts";
 
 const road: Tile = {
@@ -143,8 +144,8 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
   };
 }
 
-function only(l: Level) {
-  const [individual] = buildTimeline(l).individuals;
+function only(l: Level, options: TimelineOptions = {}) {
+  const [individual] = buildTimeline(l, options).individuals;
   return individual!;
 }
 
@@ -688,5 +689,73 @@ describe("movement model: 擋路裝置", () => {
     );
     expect(enemy.leakTime).toBe(2);
     expect(enemy.stateAt(1)).toMatchObject({ position: { x: 1, y: 0 } });
+  });
+});
+
+describe("movement model: 移除時刻 re-routes ground individuals", () => {
+  // The bottom row is the short way but a 擋路裝置 sits in it; the way round over the top is
+  // 10 cells. Once the 碎石 is gone the bottom row is open: 4 cells from (0, 0) to (4, 0).
+  const ring = [".....", ".###.", ".###.", "..B.."];
+  const across = {
+    motionMode: "WALK",
+    start: { row: 0, col: 0 },
+    end: { row: 0, col: 4 },
+    allowDiagonalMove: false,
+  } as const;
+  /** The ring's 碎石 is level.devices[0]; removed at `t` of the first wave. */
+  const removedAt = (t: number): TimelineOptions => ({
+    removals: new Map([[0, { wave: 0, t }]]),
+  });
+
+  it("keeps the individual where it was until the 移除時刻", () => {
+    const kept = only(level(ring, across));
+    const removed = only(level(ring, across), removedAt(1));
+    expect(kept.leakTime).toBe(10);
+    for (const t of [0, 0.5, 1]) expect(removed.stateAt(t)).toEqual(kept.stateAt(t));
+  });
+
+  it("turns back from where it is at the 移除時刻 and takes the opened way", () => {
+    // At 1 s it is one cell up the left side: back down, then along the bottom row.
+    const enemy = only(level(ring, across), removedAt(1));
+    expectAt(enemy.stateAt(1.5), 0, 0.5);
+    expectAt(enemy.stateAt(3), 1, 0);
+    expect(enemy.leakTime).toBe(6);
+  });
+
+  it("draws the old path up to the 移除時刻 joined to the new one, as one walk", () => {
+    const enemy = only(level(ring, across), removedAt(1));
+    expect(legsAt(enemy, 0)).toEqual([["move", 0, 6, p(0, 0), p(0, 1), p(0, 0), p(4, 0)]]);
+  });
+
+  it("an individual waiting at the 移除時刻 walks the new way once the wait is over", () => {
+    const waiting = { ...across, checkpoints: [cp("WAIT_FOR_SECONDS", across.start, 3)] };
+    expect(only(level(ring, waiting)).leakTime).toBe(13);
+    const enemy = only(level(ring, waiting), removedAt(1));
+    expect(enemy.stateAt(2)).toEqual(at(0, 0, { start: 0, end: 3 }));
+    expectAt(enemy.stateAt(4), 1, 0);
+    expect(enemy.leakTime).toBe(7);
+  });
+
+  it("a patrol takes the new way on the walk after the 移除時刻", () => {
+    // Over the top to (4, 0) by 10 s, where the 碎石 goes; then back and forth along the bottom.
+    const patrol = {
+      ...across,
+      checkpoints: [cp("PATROL_MOVE", { row: 0, col: 4 }), cp("PATROL_MOVE", { row: 0, col: 0 })],
+    };
+    const enemy = only(level(ring, patrol), removedAt(10));
+    expectAt(enemy.stateAt(5), 2, 3);
+    expectAt(enemy.stateAt(12), 2, 0);
+    expectAt(enemy.stateAt(16), 2, 0);
+    expect(legsAt(enemy, 14)).toEqual([
+      ["move", 14, 18, p(0, 0), p(4, 0)],
+      ["move", 18, 22, p(4, 0), p(0, 0)],
+    ]);
+  });
+
+  it("flying routes are as they were", () => {
+    const fly = { ...across, motionMode: "FLY" } as const;
+    expect(only(level(ring, fly), removedAt(1)).remainingPathAt(0)).toEqual(
+      only(level(ring, fly)).remainingPathAt(0),
+    );
   });
 });
