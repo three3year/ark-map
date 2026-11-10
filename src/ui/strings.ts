@@ -228,6 +228,8 @@ export const strings = {
   show: "顯示",
   stowedCount: (n: number) => `已收起 ${n} 隻`,
   showAllStowed: "全部顯示",
+  /** A 擋路裝置's 移除時刻, `wave` 0-based. */
+  removalMoment: (wave: number, t: number) => `第 ${wave + 1} 波 第 ${t} 秒移除`,
   showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
   showListedRows: "顯示列出的所有列",
 } as const;

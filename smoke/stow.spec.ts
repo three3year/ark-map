@@ -32,6 +32,7 @@ import {
   siteStage,
   spawnTableRegion,
   timeDisplay,
+  watchMenuCancelled,
   wideWindow,
 } from "./levelPage.ts";
 
@@ -67,15 +68,6 @@ const counts = (page: Page) =>
     ["pending", "onField", "leaked"].map((c) => page.locator(`[data-count="${c}"]`).textContent()),
   );
 const stowedHint = (page: Page) => page.locator("[data-stowed-count]");
-
-async function watchMenuCancelled(page: Page) {
-  await page.evaluate(() => {
-    addEventListener("contextmenu", (e) => {
-      document.body.dataset.menuCancelled = String(e.defaultPrevented);
-    });
-  });
-  return () => page.evaluate(() => document.body.dataset.menuCancelled);
-}
 
 test("1-7: right-clicking an enemy stows that one individual, without the browser menu", async ({
   page,
