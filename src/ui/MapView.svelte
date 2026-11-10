@@ -196,7 +196,7 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
-{#snippet enemyMark({ individual, position, invisible, stay }: OnField, faded: boolean)}
+{#snippet enemyMark({ individual, position, invisible }: OnField, faded: boolean)}
   <g
     class="enemy"
     class:invisible
@@ -242,22 +242,30 @@
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
-      {#if stay}
-        {@const remaining = remainingOf(stay)}
-        <!-- Above the 無害敵人 tag when there is one. -->
-        <g
-          class="stay-bar"
-          data-remaining={remaining.toFixed(3)}
-          transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})"
-        >
+    </g>
+  </g>
+{/snippet}
+
+{#snippet stayBar({ individual, position, stay }: OnField)}
+  {#if stay}
+    {@const remaining = remainingOf(stay)}
+    <g
+      class="stay-bar"
+      transform="translate({position.x} {svgY(position.y)})"
+      data-stay={individual.id}
+      data-remaining={remaining.toFixed(3)}
+    >
+      <g class="billboard">
+        <!-- Over the avatar, and over the 無害敵人 tag when there is one. -->
+        <g transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})">
           <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
           <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
           <!-- Seconds left, over the bar's right end. -->
           <text class="stay-seconds" x={stayBarWidth} y="-0.02">{(stay.end - t).toFixed(1)}</text>
         </g>
-      {/if}
+      </g>
     </g>
-  </g>
+  {/if}
 {/snippet}
 
 <div class="map-view">
@@ -454,6 +462,18 @@
           {/each}
         </g>
       {/if}
+
+      <!-- 停留 bars sit on top of everything, so crowded enemies never hide a countdown. -->
+      <g class="stay-bars">
+        <g class="faded">
+          {#each fadedEnemies as enemy (enemy.individual.id)}
+            {@render stayBar(enemy)}
+          {/each}
+        </g>
+        {#each shownEnemies as enemy (enemy.individual.id)}
+          {@render stayBar(enemy)}
+        {/each}
+      </g>
     </svg>
   </div>
 
@@ -668,11 +688,16 @@
     stroke: #2e9e5b;
     stroke-dasharray: 0.12 0.08;
   }
+  /* Only the round avatar takes clicks; a click on the tag reaches what lies below. */
   .harmless-tag {
+    pointer-events: none;
     font-size: 0.2px;
     text-anchor: middle;
     fill: #2e9e5b;
     font-weight: 700;
+  }
+  .stay-bars {
+    pointer-events: none;
   }
   .stay-track {
     fill: #1d1d1fb3;
