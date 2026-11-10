@@ -13,6 +13,7 @@
     type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
+  import { adjacentStages, type AdjacentStage, type StageLink } from "./adjacentStages.ts";
   import AreaList from "./AreaList.svelte";
   import ExpansionSwitch from "./ExpansionSwitch.svelte";
   import { legacyRedirect } from "./legacyRedirect.ts";
@@ -167,6 +168,19 @@
       ? { route, ...found, variant, view, level: loaded.level, terrain: loaded.terrain }
       : null,
   );
+
+  /** 上一關／下一關, each with its 關卡連結: the 內容拓展 stays the URL's. */
+  const adjacent = $derived.by(() => {
+    if (!index || !levelPage) return { prev: null, next: null };
+    const { route, stage, variant } = levelPage;
+    const link = (to: AdjacentStage | null): StageLink | null =>
+      to && {
+        stage: to.stage,
+        href: formatHash({ ...route, stageId: to.stage.id, variant: to.variant }),
+      };
+    const { prev, next } = adjacentStages(index, stage.id, variant.id);
+    return { prev: link(prev), next: link(next) };
+  });
 </script>
 
 {#snippet siteTitle(extra?: Snippet)}
@@ -189,6 +203,8 @@
       view={levelPage.view}
       level={levelPage.level}
       terrain={levelPage.terrain}
+      prev={adjacent.prev}
+      next={adjacent.next}
       wave={position.wave}
       t={position.t}
       {switches}
