@@ -60,7 +60,9 @@ export function devicePresence(
   removals: Removals,
 ): DevicePresence[] {
   const overrides = startOverrides(modifiers);
-  const on = level.devices.map((d) => overrides.get(d.alias) ?? !d.hidden);
+  const on = level.devices.map(
+    (d) => (d.alias === null ? undefined : overrides.get(d.alias)) ?? !d.hidden,
+  );
   const named = (alias: string) => level.devices.flatMap((d, i) => (d.alias === alias ? [i] : []));
   for (let w = 0; w < waveIndex; w++) {
     for (const { alias, activate } of deviceEvents(level, plan, w)) {

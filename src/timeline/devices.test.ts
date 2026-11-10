@@ -299,6 +299,30 @@ describe("條件出兵 activation", () => {
   });
 });
 
+describe("a device with no alias", () => {
+  it("act1dp_01: its 20 绒绒云团 have a null alias and are on the field from the start", () => {
+    const level = loadFixtureLevel("level_act1dp_01");
+    expect(level.devices.map((d) => d.alias)).toEqual(Array.from({ length: 20 }, () => null));
+    expect(buildTimeline(level).devicesAt(0)).toHaveLength(20);
+  });
+
+  it("no withdrawal or 難度修正, even keyed by an empty alias, reaches it", () => {
+    const level = field([wave([withdraw({ key: "" })]), wave([])], {
+      alias: null,
+      hidden: false,
+    });
+    level.modifiers = [
+      {
+        difficulties: ["NORMAL"],
+        key: "level_predefines_enable",
+        blackboard: [{ key: "", value: 0, valueStr: null }],
+      },
+    ];
+    expect(stoneOn(level, 0, 0)).toBe(true);
+    expect(stoneOn(level, 1, 0)).toBe(true);
+  });
+});
+
 it("a hidden device nothing activates is never on the field and changes no route", () => {
   const level = field([wave([spawn()]), wave([spawn()])]);
   for (const waveIndex of [0, 1]) {

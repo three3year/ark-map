@@ -118,7 +118,7 @@ export interface EnemyRef {
 }
 
 export interface Device {
-  alias: string;
+  alias: string | null;
   key: string;
   cell: Cell;
   direction: string;
