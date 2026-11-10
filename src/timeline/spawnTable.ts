@@ -2,6 +2,7 @@
 import type { Difficulty, EnemyRef, Level } from "../level/index.ts";
 import type { WaveActionId } from "./identity.ts";
 import { scheduleWave, waveSpawns } from "./schedule.ts";
+import { switchMarks, type SwitchMark } from "./switchMarks.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
 
 /** PRTS.Map's convention between waves: the next wave starts 5 s after the previous ends. */
@@ -49,8 +50,10 @@ export interface SpawnRow extends WaveActionId {
   harmless: boolean;
   /** 隱藏組 the action belongs to; rows of groups switched off are left out. */
   hiddenGroup: string | null;
-  /** The first 隨機出兵組 candidate the action belongs to. */
+  /** The first 隨機出兵組 candidate the action belongs to: the one its 切換 picks. */
   random: RandomRowInfo | null;
+  /** 開關標記 of the action, one per 開關 it belongs to. */
+  marks: SwitchMark[];
   /** Set on the last row of each wave. */
   waveEnd: WaveEnd | null;
 }
@@ -111,6 +114,7 @@ export function spawnTable(level: Level, options: SpawnTableOptions = {}): Spawn
         harmless: action.harmless,
         hiddenGroup: action.hiddenGroup,
         random,
+        marks: switchMarks(level, plan, ref),
         waveEnd: i === spawns.length - 1 ? waveEnd : null,
       });
     });
