@@ -8,6 +8,8 @@
   /* 出生點 dots and 侵入點 are red; 消失點 dots and 保護目標 are blue. */
   --spawn-red: #e5484d;
   --exit-blue: #3e83f8;
+  /* What does not apply right now: an unpicked candidate's rows, a 空波次's time slider. */
+  --dimmed: 0.45;
   font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   color: var(--fg);
   background: var(--bg);

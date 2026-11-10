@@ -9,6 +9,7 @@
     end: number;
     /** Playback stops here: the wave's last individual has leaked. */
     stop: number;
+    emptyWave: boolean;
     onSeek: (t: number) => void;
     /**
      * Playback has reached `stop`. Returns true when the page has moved on to 0 s of another
@@ -16,7 +17,7 @@
      */
     onReachStop: () => boolean;
   }
-  let { t, end, stop, onSeek, onReachStop }: Props = $props();
+  let { t, end, stop, emptyWave, onSeek, onReachStop }: Props = $props();
 
   let playing = $state(false);
   let speed = $state<PlaybackSpeed>(1);
@@ -52,6 +53,7 @@
     max={end}
     step="0.1"
     value={t}
+    disabled={emptyWave}
     aria-label={strings.timeSlider}
     oninput={(e) => {
       playing = false;
@@ -74,7 +76,7 @@
         </button>
       {/each}
     </div>
-    <output>{t.toFixed(1)} {strings.seconds}</output>
+    <output>{emptyWave ? strings.emptyWaveNote : `${t.toFixed(1)} ${strings.seconds}`}</output>
   </div>
 </div>
 
@@ -86,6 +88,10 @@
     display: block;
     width: 100%;
     margin: 0;
+  }
+  input:disabled {
+    opacity: var(--dimmed);
+    cursor: not-allowed;
   }
   .controls {
     display: flex;

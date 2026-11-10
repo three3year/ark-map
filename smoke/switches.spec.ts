@@ -5,6 +5,7 @@ import { cellKey, type Level } from "../src/level/index.ts";
 import {
   buildTimeline,
   endpointRows,
+  isEmptyWave,
   matchesEndpoint,
   routeEndpoints,
   spawnTable,
@@ -25,6 +26,7 @@ import {
   siteLevel,
   spawnTableRegion,
   timeDisplay,
+  timeSlider,
   wideWindow,
 } from "./levelPage.ts";
 
@@ -98,24 +100,60 @@ test("15-13: 出生點 and 消失點 dots follow hidden group1, in both views", 
 test("ro2_n_2_6: picking a thief in the spawn table spawns it", async ({ page }) => {
   const level = siteLevel("ro2_n_2_6");
   const t = 5;
-  expect(onField(level, t, { waveIndex: 1 }), "the default pick spawns nothing").toBe(0);
+  expect(
+    isEmptyWave(buildTimeline(level, { waveIndex: 1 })),
+    "the default pick leaves 第 2 波 a 空波次",
+  ).toBe(true);
 
   await page.goto("#/level/ro2_n_2_6?v=normal");
   await selectWave(page, 1);
   await expect(page.locator('tr[data-random="0-0"]')).toHaveAttribute("data-picked", "true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+  const slider = timeSlider(page);
+  await expect(slider).toBeDisabled();
   const url = page.url();
+  const pickThief = page.locator('tr[data-random="0-1"] button.pick');
+  const pickDefault = page.locator('tr[data-random="0-0"] button.pick');
 
-  await page.locator('tr[data-random="0-1"] button.pick').click();
-  // The default pick leaves the wave empty, so the time slider only reaches 5 s from here.
+  await pickThief.click();
+
+  await expect(slider).toBeEnabled();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
   await seek(page, t);
-
   await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "true");
   expect(page.url()).toBe(url);
   await expect(page.locator('select[data-random-group="0"]')).toHaveValue("1");
   const expected = onField(level, t, { waveIndex: 1, switches: { picks: { 0: 1 } } });
   expect(expected).toBe(1);
   await expect(page.locator("svg.map g.enemy")).toHaveCount(expected);
+
+  await pickDefault.click();
+  await expect(slider).toBeDisabled();
+  await pickThief.click();
+  await expect(slider).toBeEnabled();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+});
+
+test("ro2_n_2_6: jumping to an unpicked candidate's row lands on a 空波次", async ({ page }) => {
+  const level = siteLevel("ro2_n_2_6");
+  expect(
+    isEmptyWave(buildTimeline(level, { waveIndex: 1 })),
+    "the default pick leaves 第 2 波 a 空波次",
+  ).toBe(true);
+
+  await page.goto("#/level/ro2_n_2_6?v=normal");
+  await expect(page.getByRole("radio", { name: "第 1 波" })).toBeChecked();
+  await expect(page.locator('tr[data-random="0-1"]')).toHaveAttribute("data-picked", "false");
+
+  await page.locator('tr[data-random="0-1"] button.enemy').click();
+
+  await expect(page.getByRole("radio", { name: "第 2 波" })).toBeChecked();
+  await expect(timeSlider(page)).toBeDisabled();
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
+  const thief = spawnTable(level).find((r) => r.random?.group === 0 && r.random.candidate === 1)!;
+  expect(thief.waveTime, "the thief's row spawns after 0 s").toBeGreaterThan(0);
+  await page.locator('tr[data-random="0-1"] button.pick').click();
+  await expect(timeDisplay(page)).toHaveText("0.0 秒");
 });
 
 test("11-7: a 條件出兵 switched on spawns at its second and shows its path", async ({ page }) => {
@@ -180,9 +218,9 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   const group = page.locator('input[data-hidden-group="random"]');
   await expect(group).not.toBeChecked();
   await expect(page.locator("svg.map g.enemy")).toHaveCount(0);
+  await expect(timeSlider(page)).toBeDisabled();
 
   await group.check();
-  // With the group off the wave is empty, so the time slider only reaches 11 s from here.
   await seek(page, t);
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(1);
@@ -195,9 +233,8 @@ test("DP-1: a 條件出兵's own 隱藏組 and 隨機出兵組 switch from the p
   await expect(enemy).toHaveAttribute("data-enemy", "enemy_1007_slime_2");
   expect(page.url()).toBe(url);
 
-  // An old link's switches are ignored: the page opens at 0 s with the variant's default.
   await openLink(page, "#/level/act1dp_01?v=normal&c=0-10&h=random&r=0-0");
-  await expect(timeDisplay(page)).toHaveText("0.0 秒");
+  await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
   await expect(conditional).not.toBeChecked();
   await expect(enemy).toHaveCount(onField(level, 0, {}));
 });
