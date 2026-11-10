@@ -214,6 +214,7 @@ export const strings = {
     skill: "技能序號",
   } as Partial<Record<string, string>>,
   legendDevice: { device: "裝置", blocker: "擋路裝置" },
+  legendSwitchMark: { conditional: "條件出兵", hiddenGroup: "隱藏組", random: "隨機出兵組" },
   legendPath: "路徑",
   legendTeleport: "傳送",
   waitSeconds: (seconds: number) => `等 ${seconds} 秒`,

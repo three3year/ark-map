@@ -1,7 +1,14 @@
 // Seam 1: level model + 開關狀態 -> a spawn action's 開關標記 (kind + number, as the 開關面板 lists them).
 import { describe, expect, it } from "vitest";
 import { convertFixture, loadFixtureLevel, rawFixture } from "../../test-fixtures/load.ts";
-import { spawnPlan, spawnTable, switchMarks, type ActionRef } from "./index.ts";
+import {
+  buildTimeline,
+  spawnPlan,
+  spawnTable,
+  switchMarkKinds,
+  switchMarks,
+  type ActionRef,
+} from "./index.ts";
 import type { Level } from "../level/index.ts";
 import { thiefGroup } from "../../test-fixtures/rogue2_2-6.ts";
 
@@ -130,5 +137,49 @@ describe("spawn table rows", () => {
     expect(rows.map((r) => r.marks.map((m) => `${m.kind} ${m.number}`))).toEqual(
       Array.from({ length: 4 }, () => ["conditional 1", "hiddenGroup 1", "random 1"]),
     );
+  });
+});
+
+describe("敵人個體", () => {
+  const level = loadFixtureLevel("level_act1dp_01");
+  const switches = { conditional: { 0: { wave: 0, t: 10 } }, hiddenOn: ["random"] };
+
+  it("carry their action's marks: act1dp_01's 條件出兵 enemies", () => {
+    const { individuals } = buildTimeline(level, { switches });
+    expect(individuals.length).toBeGreaterThan(0);
+    for (const individual of individuals) {
+      expect(individual.marks.map((m) => `${m.kind} ${m.number}`)).toEqual([
+        "conditional 1",
+        "hiddenGroup 1",
+        "random 1",
+      ]);
+    }
+  });
+
+  it("an enemy of no 開關 has no mark: ro2_n_2_6's 第 1 波", () => {
+    const { individuals } = buildTimeline(loadFixtureLevel("level_rogue2_2-6"));
+    expect(individuals.length).toBeGreaterThan(0);
+    expect(individuals.every((i) => i.marks.length === 0)).toBe(true);
+  });
+});
+
+describe("the wave's mark kinds, for the legend", () => {
+  it("are every kind some enemy of the wave carries, in mark order", () => {
+    const level = loadFixtureLevel("level_act1dp_01");
+    const switches = { conditional: { 0: { wave: 0, t: 10 } }, hiddenOn: ["random"] };
+    expect(switchMarkKinds(buildTimeline(level, { switches }))).toEqual([
+      "conditional",
+      "hiddenGroup",
+      "random",
+    ]);
+  });
+
+  it("leave out the kinds no enemy carries: ro3_n_5_5 has no 條件出兵 on", () => {
+    const level = loadFixtureLevel("level_rogue3_5-5");
+    expect(switchMarkKinds(buildTimeline(level))).toEqual(["hiddenGroup", "random"]);
+  });
+
+  it("are none when no enemy comes from a 開關: ro2_n_2_6's 第 1 波", () => {
+    expect(switchMarkKinds(buildTimeline(loadFixtureLevel("level_rogue2_2-6")))).toEqual([]);
   });
 });
