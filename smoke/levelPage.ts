@@ -84,6 +84,9 @@ export const filterCaption = (page: Page) => page.locator("[data-endpoint-filter
 export const enemyOnMap = (page: Page, id: string) =>
   page.locator(`svg.map g.enemy[data-individual="${id}"]`);
 
+/** The 停留 bar over enemy individual `id`, with its seconds left, on the map's top layer. */
+export const stayBarOf = (page: Page, id: string) => page.locator(`svg.map [data-stay="${id}"]`);
+
 /** The 座標 enemy individual `id` is drawn at. */
 export async function drawnAt(page: Page, level: Level, id: string): Promise<Vec2> {
   const [x, svgY] = (await enemyOnMap(page, id).getAttribute("transform"))!
