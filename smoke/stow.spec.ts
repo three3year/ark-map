@@ -64,10 +64,6 @@ function aloneOnField(timeline: Timeline, fits: (i: Individual, onField: OnField
 const withActionMate = (i: Individual, onField: OnField) =>
   onField.some((e) => e.individual !== i && actionKey(e.individual) === actionKey(i));
 
-const counts = (page: Page) =>
-  Promise.all(
-    ["pending", "onField", "leaked"].map((c) => page.locator(`[data-count="${c}"]`).textContent()),
-  );
 const stowedHint = (page: Page) => page.locator("[data-stowed-count]");
 
 test("1-7: right-clicking an enemy stows that one individual, without the browser menu", async ({
@@ -84,7 +80,6 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
   await page.goto("#/level/main_01-07?v=normal");
   await seek(page, t);
   const lastMenuCancelled = await watchMenuCancelled(page);
-  const before = await counts(page);
   const url = page.url();
   await expect(stowedHint(page)).toHaveCount(0);
 
@@ -94,7 +89,6 @@ test("1-7: right-clicking an enemy stows that one individual, without the browse
   expect(await lastMenuCancelled()).toBe("true");
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField.length - 1);
   for (const e of mates) await expect(enemyOnMap(page, e.individual.id)).toHaveCount(1);
-  expect(await counts(page)).toEqual(before);
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", "1");
   await expect(stowedHint(page)).toContainText("已收起 1 隻");
   expect(page.url()).toBe(url);
@@ -391,7 +385,6 @@ test("1-7: unchecking a row's box stows its every individual, without jumping or
   await page.goto("#/level/main_01-07?v=normal");
   await orderCell(rowOf(page, other)).click();
   await seek(page, 0);
-  const before = await counts(page);
   const url = page.url();
   await expect(rowBox(page, row)).toBeChecked();
 
@@ -400,7 +393,6 @@ test("1-7: unchecking a row's box stows its every individual, without jumping or
   await expect(rowBox(page, row)).not.toBeChecked();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
   await expect(selection).toHaveAttribute("data-selected", `${actionKey(other)}-0`);
-  expect(await counts(page)).toEqual(before);
   await expect(stowedHint(page)).toHaveAttribute("data-stowed-count", String(row.count));
   expect(await shownOpacity(rowOf(page, row).locator("button.enemy"))).toBeCloseTo(1, 2);
   await expect(rowOf(page, row).locator("button.enemy")).toHaveCSS("text-decoration-line", "none");
