@@ -92,14 +92,11 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
   } = options;
   if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [], removedAt: () => [] };
   const modifiers = variantModifiers(level.modifiers, difficulty);
-  const devices = devicePresence(level, modifiers, waveIndex, removals);
+  const plan = spawnPlan(level, difficulty, switches);
+  const devices = devicePresence(level, modifiers, plan, waveIndex, removals);
   const nextNode = nextNodeSegments(level, devices);
   const individuals: Individual[] = [];
-  for (const { action, ref, fragmentStart, start, picked } of waveSpawns(
-    level,
-    spawnPlan(level, difficulty, switches),
-    waveIndex,
-  )) {
+  for (const { action, ref, fragmentStart, start, picked } of waveSpawns(level, plan, waveIndex)) {
     if (!picked) continue;
     const route = (ref.branchIndex === null ? level.routes : level.extraRoutes)[action.routeIndex];
     const enemy = level.enemies[action.key];

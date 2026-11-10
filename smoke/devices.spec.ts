@@ -1,9 +1,17 @@
 // 裝置 on the map: square frames with the game's image, 擋路裝置 framed more boldly; ground
-// enemies go round the 擋路裝置.
+// enemies go round the 擋路裝置. Hidden devices appear once something activates them.
 import { expect, test, type Page } from "@playwright/test";
 import { cellKey } from "../src/level/index.ts";
 import { buildTimeline } from "../src/timeline/index.ts";
-import { enemyOnMap, expectVariantShown, seek, siteLevel } from "./levelPage.ts";
+import {
+  conditionalSwitch,
+  deviceOnMap,
+  enemyOnMap,
+  expectVariantShown,
+  seek,
+  setConditionalSecond,
+  siteLevel,
+} from "./levelPage.ts";
 
 const devicesOnMap = (page: Page, key: string) => page.locator(`svg.map [data-device="${key}"]`);
 
@@ -88,4 +96,31 @@ test("TB-1: a selected enemy going round the 碎石 is where the timeline puts i
     .map(Number);
   expect(x).toBeCloseTo(state.position.x, 3);
   expect(level.map.height - 1 - svgY!).toBeCloseTo(state.position.y, 3);
+});
+
+test("EP-8: the hidden 加農炮 HidenCnnon activates appears from the 條件出兵's trigger second", async ({
+  page,
+}) => {
+  const level = siteLevel("act39side_08");
+  const branch = level.branches.findIndex((b) => b.key === "HidenCnnon");
+  const cannon = level.devices.findIndex((d) => d.alias === "trap_196_cnnon#3");
+  expect(level.devices[cannon]!.hidden).toBe(true);
+  const trigger = 20;
+  const switches = { conditional: { [branch]: { wave: 0, t: trigger } } };
+  const on = (t: number) =>
+    buildTimeline(level, { switches })
+      .devicesAt(t)
+      .some((d) => d === level.devices[cannon]);
+  expect([on(trigger - 1), on(trigger)]).toEqual([false, true]);
+
+  await page.goto("#/level/act39side_08?v=normal");
+  await expect(page.locator("svg.map .tile").first()).toBeVisible();
+  await expect(deviceOnMap(page, cannon)).toHaveCount(0);
+  await conditionalSwitch(page, branch).check();
+  await setConditionalSecond(page, branch, trigger);
+
+  await seek(page, trigger - 1);
+  await expect(deviceOnMap(page, cannon)).toHaveCount(0);
+  await seek(page, trigger);
+  await expect(deviceOnMap(page, cannon)).toHaveCount(1);
 });

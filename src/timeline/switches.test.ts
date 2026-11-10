@@ -60,25 +60,27 @@ describe("隱藏組: 15-12 (shown as 15-13)", () => {
 
 describe("隨機出兵組: ro2_n_2_6", () => {
   // Wave 2 opens with group g1: nothing (an empty spawn, weight 85) or one of four thieves
-  // (weight 5 each). Wave 1's g1 and g2 pick treasure boxes (devices, no spawn) and are not
-  // spawn groups. PRTS.Map shows the same: 22@85% "-" plus four 22@5% rows with 切换.
+  // (weight 5 each), group 2 after wave 1's g1 and g2, which pick treasure boxes to activate
+  // (devices, no spawn). PRTS.Map shows the same: 22@85% "-" plus four 22@5% rows with 切换.
   const level = loadFixtureLevel("level_rogue2_2-6");
   const groups = levelGroups(level, "NORMAL").random;
   const enemiesOf = (picks: Record<number, number>) =>
     buildTimeline(level, { waveIndex: 1, switches: { picks } }).individuals.map((i) => i.enemy.id);
 
-  it("has one spawn group, whose default is the weight-85 empty candidate", () => {
+  it("has two box groups, then the spawn group, whose default is the weight-85 empty candidate", () => {
     expect(groups).toMatchObject([
+      { branchIndex: null, waveIndex: 0, fragmentIndex: 0, key: "g1" },
+      { branchIndex: null, waveIndex: 0, fragmentIndex: 0, key: "g2" },
       { branchIndex: null, waveIndex: 1, fragmentIndex: 0, key: "g1" },
     ]);
-    expect(groups[0]!.candidates.map((c) => c.weight)).toEqual([85, 5, 5, 5, 5]);
-    expect(groups[0]!.defaultPick).toBe(0);
+    expect(groups[2]!.candidates.map((c) => c.weight)).toEqual([85, 5, 5, 5, 5]);
+    expect(groups[2]!.defaultPick).toBe(0);
     expect(enemiesOf({})).toEqual([]);
   });
 
   it("picking another candidate spawns that thief only", () => {
-    expect(enemiesOf({ 0: 1 })).toEqual(["enemy_2034_sythef"]);
-    expect(enemiesOf({ 0: 4 })).toEqual(["enemy_2085_skzjxd"]);
+    expect(enemiesOf({ 2: 1 })).toEqual(["enemy_2034_sythef"]);
+    expect(enemiesOf({ 2: 4 })).toEqual(["enemy_2085_skzjxd"]);
   });
 
   it("the spawn table matches PRTS.Map's rows; candidate rows carry their weight share", () => {
@@ -113,13 +115,13 @@ describe("隨機出兵組: ro2_n_2_6", () => {
   });
 
   it("picking the default candidate again leaves no switch state behind", () => {
-    const picked = switchPick(level, {}, 0, 2);
-    expect(picked).toEqual({ picks: { 0: 2 } });
-    expect(switchPick(level, picked, 0, 0)).toEqual({});
+    const picked = switchPick(level, {}, 2, 2);
+    expect(picked).toEqual({ picks: { 2: 2 } });
+    expect(switchPick(level, picked, 2, 0)).toEqual({});
   });
 
   it("a picked thief takes the next 次序 number", () => {
-    const wave2 = spawnTable(level, { switches: { picks: { 0: 2 } } }).filter(
+    const wave2 = spawnTable(level, { switches: { picks: { 2: 2 } } }).filter(
       (r) => r.waveIndex === 1,
     );
     expect(wave2.map((r) => [r.random?.picked, r.firstOrder])).toEqual([

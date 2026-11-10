@@ -40,29 +40,29 @@ export function scheduleWave(wave: Pick<Wave, "preDelay" | "fragments">): WaveSc
   return { actions, end: previousEnd };
 }
 
-/** A spawn action placed in one wave; times count from the wave start. */
-export interface WaveSpawn {
+/** An action placed in one wave; times count from the wave start. */
+export interface PlacedAction {
   action: Action;
   ref: ActionRef;
   fragmentStart: number;
   start: number;
-  /** In no 隨機出兵組, or in its picked candidate: the action produces individuals. */
+  /** In no 隨機出兵組, or in its picked candidate: the action takes effect. */
   picked: boolean;
 }
 
 /**
- * The spawn actions of wave `waveIndex` whose 隱藏組 is on (or that have none), in level-file
- * order: the wave's own, then those of each 條件出兵 `plan` switches on in this wave. A 條件出兵
- * runs like a wave whose fragments are its phases, starting at its trigger second.
+ * The actions of wave `waveIndex` whose 隱藏組 is on (or that have none), spawn or not, in
+ * level-file order: the wave's own, then those of each 條件出兵 `plan` switches on in this wave.
+ * A 條件出兵 runs like a wave whose fragments are its phases, starting at its trigger second.
  */
-export function waveSpawns(level: Level, plan: SpawnPlan, waveIndex: number): WaveSpawn[] {
+export function waveActions(level: Level, plan: SpawnPlan, waveIndex: number): PlacedAction[] {
   const wave = level.waves[waveIndex];
   if (!wave) return [];
-  const placed: WaveSpawn[] = [];
+  const placed: PlacedAction[] = [];
   const place = (schedule: WaveSchedule, offset: number, at: (s: ScheduledAction) => ActionRef) => {
     for (const s of schedule.actions) {
       const { hiddenGroup } = s.action;
-      if (!isSpawn(s.action) || (hiddenGroup !== null && !plan.hiddenOn.has(hiddenGroup))) continue;
+      if (hiddenGroup !== null && !plan.hiddenOn.has(hiddenGroup)) continue;
       const ref = at(s);
       placed.push({
         action: s.action,
@@ -92,3 +92,7 @@ export function waveSpawns(level: Level, plan: SpawnPlan, waveIndex: number): Wa
   }
   return placed;
 }
+
+/** The spawn actions of {@link waveActions}. */
+export const waveSpawns = (level: Level, plan: SpawnPlan, waveIndex: number): PlacedAction[] =>
+  waveActions(level, plan, waveIndex).filter((a) => isSpawn(a.action));
