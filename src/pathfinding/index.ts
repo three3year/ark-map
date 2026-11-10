@@ -13,7 +13,10 @@ import {
 /** For each cell, the cell an enemy there heads for next on its way to the target. */
 export type NextNodeTable = (cell: Cell) => Cell;
 
-/** Looks up (and caches) the nextNode table for a motion mode, target cell and diagonal flag. */
+/**
+ * Looks up (and caches) the nextNode table for a motion mode, target cell and diagonal flag, and
+ * the 擋路格 by {@link cellKey}, which flying ignores.
+ */
 export type NextNodeLookup = (
   mode: MotionMode,
   target: Cell,
@@ -33,6 +36,7 @@ export interface PathfindingOptions {
 /** SPFA edge cost of stepping onto a `tile_hole` (an obstacle, not impassable). */
 const HOLE_COST = 1_000_000;
 
+/** SPFA edge cost of stepping onto a 擋路格. */
 const BLOCKER_COST = 1_000;
 
 const noBlockers: ReadonlySet<string> = new Set();
