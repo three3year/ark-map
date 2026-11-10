@@ -65,10 +65,11 @@
     />
   </g>
 {:else if mark.icon === "infection"}
-  <g class="infection">
-    <path d="M 0 -0.3 L 0.17 -0.04 L 0.09 0.26 L -0.11 0.26 L -0.18 -0.02 Z" />
-    <path class="facet" d="M 0 -0.3 L -0.02 0.26" />
-  </g>
+  <!-- A red band dripping three spikes, the middle one longest. -->
+  <path
+    class="infection"
+    d="M -0.28 -0.26 L 0.28 -0.26 L 0.28 -0.14 Q 0.22 -0.08 0.19 0.12 Q 0.16 -0.06 0.1 -0.1 Q 0.04 -0.02 0 0.26 Q -0.04 -0.02 -0.1 -0.1 Q -0.16 -0.06 -0.19 0.08 Q -0.22 -0.08 -0.28 -0.14 Z"
+  />
 {/if}
 
 <style>
@@ -150,14 +151,7 @@
     stroke: #2e9e5b;
     stroke-width: 0.07;
   }
-  .infection {
-    stroke: #ff7a1a;
-    stroke-width: 0.04;
-  }
-  .infection path:first-child {
-    fill: #2b2b2f;
-  }
-  .infection .facet {
-    stroke-width: 0.03;
+  path.infection {
+    fill: #ff1f2d;
   }
 </style>
