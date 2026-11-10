@@ -24,6 +24,7 @@ import {
   shownOpacity,
   siteLevel,
   siteStage,
+  stayBarOf,
   timeDisplay,
   timeSlider,
   wideWindow,
@@ -80,7 +81,7 @@ test("4-10: an enemy standing still has a shrinking bar over it, gone once it mo
   const { individual, stay } = takeSnapshot(timeline, t!).onField.find(
     (e) => e.stay && e.stay.start <= t! - 1,
   )!;
-  const bar = enemyOnMap(page, individual.id).locator(".stay-bar");
+  const bar = stayBarOf(page, individual.id);
 
   await page.goto("#/level/main_04-10?v=normal");
   await seek(page, t!);
@@ -105,15 +106,16 @@ test("4-10: every enemy standing still shows the seconds left above its bar, gon
   expect(t, "4-10 has an enemy standing still").toBeDefined();
   const staying = takeSnapshot(timeline, t!).onField.filter((e) => e.stay);
   const { individual, stay } = staying.find((e) => e.stay!.start <= t! - 1)!;
-  const seconds = enemyOnMap(page, individual.id).locator(".stay-seconds");
-  const bar = enemyOnMap(page, individual.id).locator(".stay-track");
+  const seconds = stayBarOf(page, individual.id).locator("text");
+  // The track runs the bar's full width; the fill drawn over it shrinks.
+  const bar = stayBarOf(page, individual.id).locator("rect").first();
 
   await page.goto("#/level/main_04-10?v=normal");
   await seek(page, t!);
 
-  await expect(page.locator("svg.map .stay-seconds")).toHaveCount(staying.length);
+  await expect(page.locator("svg.map [data-stay]")).toHaveCount(staying.length);
   for (const e of staying) {
-    await expect(enemyOnMap(page, e.individual.id).locator(".stay-seconds")).toHaveText(
+    await expect(stayBarOf(page, e.individual.id).locator("text")).toHaveText(
       (e.stay!.end - t!).toFixed(1),
     );
   }
@@ -127,7 +129,7 @@ test("4-10: every enemy standing still shows the seconds left above its bar, gon
     expect(Math.abs(secondsBox.right - barBox.right), `${view}: right ends line up`).toBeLessThan(
       2,
     );
-    if (view === "tilted") await page.locator("button.view-toggle").click();
+    if (view === "tilted") await page.getByRole("button", { name: "平面俯視" }).click();
   }
 
   await seek(page, Math.ceil(stay!.end));

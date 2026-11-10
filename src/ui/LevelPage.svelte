@@ -10,6 +10,7 @@
     type Variant,
     type VariantId,
   } from "../level/index.ts";
+  import type { StageLink } from "./adjacentStages.ts";
   import LevelInfo from "./LevelInfo.svelte";
   import {
     actionKey,
@@ -23,6 +24,7 @@
     spawnTable,
     switchConditional,
     switchHidden,
+    switchMarkKinds,
     switchPick,
     takeSnapshot,
     timelineEnd,
@@ -37,6 +39,7 @@
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView, { type DeviceMark } from "./MapView.svelte";
+  import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
@@ -51,8 +54,9 @@
     /**
      * The site's title, drawn atop the left column: the spawn table's column beside it then starts
      * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
+     * Its argument goes at the end of the title's row.
      */
-    siteTitle: Snippet;
+    siteTitle: Snippet<[Snippet]>;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -60,6 +64,9 @@
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
+    /** 上一關 and 下一關 in the area; null at its ends. */
+    prev: StageLink | null;
+    next: StageLink | null;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
@@ -80,6 +87,8 @@
     view,
     level,
     terrain,
+    prev,
+    next,
     wave,
     t,
     switches,
@@ -89,6 +98,15 @@
     onJump,
     onSwitches,
   }: Props = $props();
+
+  /** A stage's code and name; the name alone when the code is blank. */
+  const stageLabel = ({ code, name }: StageEntry) => (code.trim() ? `${code} ${name}` : name);
+
+  let mapView = $state(loadMapView(browserStorage()));
+  function toggleMapView() {
+    mapView = mapView === "tilted" ? "flat" : "tilted";
+    saveMapView(browserStorage(), mapView);
+  }
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
@@ -282,7 +300,7 @@
   });
 
   /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1472;
+  const breakpoint = 1552;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -329,16 +347,32 @@
   }
 </script>
 
+{#snippet viewToggle()}
+  <button
+    type="button"
+    class="view-toggle"
+    aria-pressed={mapView === "flat"}
+    onclick={toggleMapView}
+  >
+    {mapView === "tilted" ? strings.viewFlat : strings.viewTilted}
+  </button>
+{/snippet}
+
 <div class="level-page">
   <div class="main-column">
-    {@render siteTitle()}
+    {@render siteTitle(viewToggle)}
     <nav>
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
-    <h2>{stage.code} {stage.name}</h2>
-    {#if variant.emergencyCondition}
-      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
-    {/if}
+    <div class="title-line">
+      {#if prev}
+        <a href={prev.href} data-adjacent="prev">‹ {stageLabel(prev.stage)}</a>
+      {/if}
+      <h2>{stage.code} {stage.name}</h2>
+      {#if next}
+        <a href={next.href} data-adjacent="next">{stageLabel(next.stage)} ›</a>
+      {/if}
+    </div>
     {#if stage.variants.length > 1}
       <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
@@ -353,7 +387,17 @@
         {/each}
       </div>
     {/if}
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
+    {/if}
+    <div class="map-controls">
+      {#if level.waves.length > 1}
+        <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+      {/if}
+      <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
+    </div>
     <MapView
+      view={mapView}
       map={level.map}
       {terrain}
       devices={deviceMarks}
@@ -368,6 +412,7 @@
       filter={filtered}
       onFilter={toggleFilter}
       onToggleStow={toggleStow}
+      markKinds={switchMarkKinds(timeline)}
     />
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>
@@ -398,24 +443,6 @@
         </span>
       </div>
     {/if}
-    {#if level.waves.length > 1}
-      <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
-    {/if}
-    <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
-    <dl class="counts" aria-live="polite">
-      <div>
-        <dt>{strings.countPending}</dt>
-        <dd data-count="pending">{snapshot.counts.pending}</dd>
-      </div>
-      <div>
-        <dt>{strings.countOnField}</dt>
-        <dd data-count="onField">{snapshot.counts.onField}</dd>
-      </div>
-      <div>
-        <dt>{strings.countLeaked}</dt>
-        <dd data-count="leaked">{snapshot.counts.leaked}</dd>
-      </div>
-    </dl>
     <div aria-live="polite">
       {#if stowedCount > 0}
         <p class="stowed" data-stowed-count={stowedCount}>
@@ -472,7 +499,6 @@
         {selected}
         onJump={jumpTo}
         onPick={pick}
-        branchKeys={level.branches.map((b) => b.key)}
         filter={filtered}
         onClearFilter={() => (endpointFilter = null)}
         {rowStow}
@@ -485,24 +511,24 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
+   * - The column is --side-column-width, 939px: the widest spawn table of any level, measured in
+   *   Chrome with its 標記 wrapping (922px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
    *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
    *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
    * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
    *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 857 + 32px page padding + 17px page scrollbar = 1470px, so
-   *   1472px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
+   * - Breakpoint: 540 + 24px gap + 939 + 32px page padding + 17px page scrollbar = 1552px.
+   *   CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
    *   above and the two `@media` rules below.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 857px;
+    --side-column-width: 939px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1472px) {
+  @media (min-width: 1552px) {
     .level-page {
       max-width: none;
       display: grid;
@@ -542,7 +568,7 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1472px) {
+  @media (width < 1552px) {
     .side {
       position: fixed;
       top: 0;
@@ -600,15 +626,24 @@
       transition: none;
     }
   }
-  nav a {
+  nav a,
+  .title-line a {
     color: var(--accent);
   }
-  h2 {
+  /* 上一關, the title, 下一關: wrapping on a narrow screen. */
+  .title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
     margin: 8px 0 12px;
+  }
+  h2 {
+    margin: 0;
     font-size: 1.4rem;
   }
   .condition {
-    margin: -6px 0 12px;
+    margin: 0 0 12px;
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
@@ -657,26 +692,17 @@
   .variants {
     margin-bottom: 12px;
   }
-  .counts {
-    display: flex;
-    gap: 8px;
-    margin: 12px 0 0;
+  .map-controls {
+    margin-bottom: 12px;
   }
-  .counts div {
-    flex: 1;
-    background: var(--panel);
+  .view-toggle {
+    padding: 4px 10px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    min-width: 0;
-    padding: 8px 12px;
-  }
-  dt {
-    color: var(--muted);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
     font-size: 0.85rem;
-  }
-  dd {
-    margin: 0;
-    font-size: 1.5rem;
-    font-variant-numeric: tabular-nums;
+    cursor: pointer;
   }
 </style>

@@ -15,6 +15,7 @@
   } from "../timeline/index.ts";
   import { roundTenth } from "./playback.ts";
   import { strings } from "./strings.ts";
+  import SwitchMark from "./SwitchMark.svelte";
 
   interface Props {
     level: Level;
@@ -85,7 +86,7 @@
     {#if plan.groups.hidden.length > 0}
       <fieldset>
         <legend title={strings.hiddenGroupsHint}>{strings.hiddenGroups}</legend>
-        {#each plan.groups.hidden as group (group.name)}
+        {#each plan.groups.hidden as group, i (group.name)}
           <label>
             <input
               type="checkbox"
@@ -93,6 +94,7 @@
               checked={plan.hiddenOn.has(group.name)}
               onchange={(e) => onHidden(group.name, e.currentTarget.checked)}
             />
+            <SwitchMark kind="hiddenGroup" number={i + 1} />
             {group.name}
             <span class="muted">{group.defaultOn ? strings.defaultOn : strings.defaultOff}</span>
           </label>
@@ -104,7 +106,8 @@
         <legend title={strings.randomGroupsHint}>{strings.randomGroups}</legend>
         {#each plan.groups.random as group, i (i)}
           <label class="random">
-            <span>
+            <span class="name">
+              <SwitchMark kind="random" number={i + 1} />
               {strings.randomGroup(i)}
               <span class="muted">
                 {strings.randomGroupWhere(groupSource(group), group.fragmentIndex, group.key)}
@@ -131,7 +134,7 @@
     {#if spawning.length > 0}
       <fieldset>
         <legend title={strings.conditionalHint}>{strings.conditional}</legend>
-        {#each spawning as { branch, index } (index)}
+        {#each spawning as { branch, index }, i (index)}
           {@const trigger = conditional[index]}
           <div class="conditional" data-conditional={index}>
             <label>
@@ -141,6 +144,7 @@
                 onchange={(e) =>
                   onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
               />
+              <SwitchMark kind="conditional" number={i + 1} />
               {branchLabel(branch)}
               <span class="muted">{branch.key}</span>
             </label>
@@ -212,6 +216,11 @@
   .random {
     flex-wrap: wrap;
     width: 100%;
+  }
+  .name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .conditional {
     display: flex;

@@ -29,8 +29,10 @@
     type RouteEndpoint,
     type Snapshot,
     type Stay,
+    type SwitchMark,
+    type SwitchMarkKind,
   } from "../timeline/index.ts";
-  import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
+  import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
   import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
   import TerrainIcon from "./TerrainIcon.svelte";
@@ -62,6 +64,10 @@
     /** A dot was clicked. */
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
+    /** 傾斜視角 or 平面俯視. */
+    view: MapViewMode;
+    /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
+    markKinds: SwitchMarkKind[];
   }
   let {
     map,
@@ -78,11 +84,30 @@
     filter,
     onFilter,
     onToggleStow,
+    view,
+    markKinds,
   }: Props = $props();
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
   const stayBarWidth = 0.64;
+
+  // 開關標記 on an avatar: squares in a row, the first with its bottom-right corner on the outer
+  // edge of the avatar's ring (radius 0.36, stroke 0.05), the rest leftward.
+  const markSide = 0.26;
+  const markGap = 0.03;
+  const ringOuter = 0.385;
+  /** A wider number widens its square, as the HTML square's min-width does. */
+  const markWidth = ({ number }: SwitchMark) =>
+    Math.max(markSide, 0.1 * String(number).length + 0.08);
+  function placedMarks(marks: SwitchMark[]) {
+    let right = ringOuter;
+    return marks.map((mark) => {
+      const width = markWidth(mark);
+      right -= width + markGap;
+      return { mark, width, x: right + markGap };
+    });
+  }
 
   const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
@@ -116,12 +141,6 @@
     brokenImages = new Set([...brokenImages, image]);
   }
   const shows = (image: string | null): image is string => !!image && !brokenImages.has(image);
-
-  let view = $state(loadMapView(browserStorage()));
-  function toggleView() {
-    view = view === "tilted" ? "flat" : "tilted";
-    saveMapView(browserStorage(), view);
-  }
 
   // The tilted view mimics the game's camera: the flat SVG rotated about its front (bottom)
   // edge, seen from a fixed distance in cells, so every map shares the game's angle.
@@ -196,7 +215,7 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
-{#snippet enemyMark({ individual, position, invisible, stay }: OnField, faded: boolean)}
+{#snippet enemyMark({ individual, position, invisible }: OnField, faded: boolean)}
   <g
     class="enemy"
     class:invisible
@@ -242,31 +261,44 @@
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
-      {#if stay}
-        {@const remaining = remainingOf(stay)}
-        <!-- Above the 無害敵人 tag when there is one. -->
+      {#each placedMarks(individual.marks) as { mark, width, x } (`${mark.kind} ${mark.number}`)}
         <g
-          class="stay-bar"
-          data-remaining={remaining.toFixed(3)}
-          transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})"
+          class="switch-mark"
+          data-switch-mark={mark.kind}
+          data-switch-mark-number={mark.number}
+          transform="translate({x} {ringOuter - markSide})"
         >
+          <rect {width} height={markSide} />
+          <text x={width / 2} y={markSide / 2}>{mark.number}</text>
+        </g>
+      {/each}
+    </g>
+  </g>
+{/snippet}
+
+{#snippet stayBar({ individual, position, stay }: OnField)}
+  {#if stay}
+    {@const remaining = remainingOf(stay)}
+    <g
+      class="stay-bar"
+      transform="translate({position.x} {svgY(position.y)})"
+      data-stay={individual.id}
+      data-remaining={remaining.toFixed(3)}
+    >
+      <g class="billboard">
+        <!-- Over the avatar, and over the 無害敵人 tag when there is one. -->
+        <g transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})">
           <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
           <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
           <!-- Seconds left, over the bar's right end. -->
           <text class="stay-seconds" x={stayBarWidth} y="-0.02">{(stay.end - t).toFixed(1)}</text>
         </g>
-      {/if}
+      </g>
     </g>
-  </g>
+  {/if}
 {/snippet}
 
 <div class="map-view">
-  <div class="toolbar">
-    <button type="button" class="view-toggle" aria-pressed={view === "flat"} onclick={toggleView}>
-      {view === "tilted" ? strings.viewFlat : strings.viewTilted}
-    </button>
-  </div>
-
   <div class="stage" class:tilted={view === "tilted"} style={stageStyle}>
     <svg
       class="map"
@@ -454,6 +486,18 @@
           {/each}
         </g>
       {/if}
+
+      <!-- 停留 bars sit on top of everything, so crowded enemies never hide a countdown. -->
+      <g class="stay-bars">
+        <g class="faded">
+          {#each fadedEnemies as enemy (enemy.individual.id)}
+            {@render stayBar(enemy)}
+          {/each}
+        </g>
+        {#each shownEnemies as enemy (enemy.individual.id)}
+          {@render stayBar(enemy)}
+        {/each}
+      </g>
     </svg>
   </div>
 
@@ -491,6 +535,12 @@
         <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
       {/if}
     {/each}
+    {#each markKinds as kind (kind)}
+      <li>
+        <span class="swatch switch-mark" data-switch-mark={kind}></span>
+        <span>{strings.legendSwitchMark[kind]}</span>
+      </li>
+    {/each}
     {#if selected}
       <li><span class="swatch line walk"></span>{strings.legendPath}</li>
       <li><span class="swatch line teleport"></span>{strings.legendTeleport}</li>
@@ -513,22 +563,6 @@
     --device-blocker: #7c3aed;
     --path: #f5a524;
   }
-  .toolbar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 6px;
-  }
-  .view-toggle {
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--fg);
-    font: inherit;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-
   .stage {
     container-type: inline-size;
     background: #2a2b30;
@@ -668,11 +702,33 @@
     stroke: #2e9e5b;
     stroke-dasharray: 0.12 0.08;
   }
+  /* Only the round avatar takes clicks; a click on the tag reaches what lies below. */
   .harmless-tag {
+    pointer-events: none;
     font-size: 0.2px;
     text-anchor: middle;
     fill: #2e9e5b;
     font-weight: 700;
+  }
+  .stay-bars {
+    pointer-events: none;
+  }
+  /* The look global.css gives every 開關標記, in map units; a click reaches what lies below. */
+  .switch-mark {
+    pointer-events: none;
+  }
+  .switch-mark rect {
+    fill: var(--switch-mark-fill);
+    rx: calc(0.26px * var(--switch-mark-corner));
+  }
+  .switch-mark text {
+    font-size: calc(0.26px * var(--switch-mark-font));
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: #fff;
+    user-select: none;
   }
   .stay-track {
     fill: #1d1d1fb3;
@@ -843,6 +899,11 @@
   }
   .swatch.device.blocker {
     border: 3px solid var(--device-blocker);
+  }
+  .swatch.switch-mark {
+    border: none;
+    border-radius: calc(14px * var(--switch-mark-corner));
+    background: var(--switch-mark-fill);
   }
   .swatch.dot {
     width: 10px;

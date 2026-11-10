@@ -69,10 +69,16 @@ export const spawnTableRegion = (page: Page) => page.getByRole("region", { name:
 export const rowOf = (page: Page, row: SpawnRow) =>
   page.locator(`tr[data-wave="${row.waveIndex}"][data-action="${actionKey(row)}"]`);
 
-export const orderCell = (row: Locator) => {
-  const heading = 'ancestor::table[1]/thead/tr/th[normalize-space()="次序"]';
+/** The cell of spawn-table `row` under the column headed `text`. */
+export const cellUnder = (row: Locator, text: string) => {
+  const heading = `ancestor::table[1]/thead/tr/th[normalize-space()="${text}"]`;
   return row.locator(`xpath=*[${heading}][count(${heading}/preceding-sibling::*) + 1]`);
 };
+
+export const orderCell = (row: Locator) => cellUnder(row, "次序");
+
+/** The 切換 button of spawn-table `row`, there only on a candidate row that is not picked. */
+export const pickButton = (row: Locator) => row.getByRole("button", { name: "切換" });
 
 /** The button that opens and closes the spawn table's drawer, below the breakpoint. */
 export const drawerButton = (page: Page) => page.getByRole("button", { name: "出兵表" });
@@ -83,6 +89,9 @@ export const filterCaption = (page: Page) => page.locator("[data-endpoint-filter
 /** Enemy individual `id` on the map. */
 export const enemyOnMap = (page: Page, id: string) =>
   page.locator(`svg.map g.enemy[data-individual="${id}"]`);
+
+/** The 停留 bar over enemy individual `id`, with its seconds left, on the map's top layer. */
+export const stayBarOf = (page: Page, id: string) => page.locator(`svg.map [data-stay="${id}"]`);
 
 /** The 座標 enemy individual `id` is drawn at. */
 export async function drawnAt(page: Page, level: Level, id: string): Promise<Vec2> {
