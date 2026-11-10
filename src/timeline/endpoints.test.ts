@@ -22,6 +22,7 @@ import {
   type SpawnSwitches,
   type Timeline,
 } from "./index.ts";
+import { thiefGroup } from "../../test-fixtures/rogue2_2-6.ts";
 
 /** "row,col" of each cell with an endpoint of `kind`. */
 const cellsOf = (timeline: Timeline, kind: EndpointKind) =>
@@ -54,10 +55,10 @@ describe("出生點 and 消失點", () => {
     // all leaving at (7, 4).
     const level = loadFixtureLevel("level_rogue2_2-6");
     const timelineOf = (pick: number) =>
-      buildTimeline(level, { waveIndex: 1, switches: { picks: { 2: pick } } });
+      buildTimeline(level, { waveIndex: 1, switches: { picks: { [thiefGroup]: pick } } });
 
     it("filtering by (1, 0) lists the picked thief's row only, not the other candidate there", () => {
-      const switches = { picks: { 2: 1 } };
+      const switches = { picks: { [thiefGroup]: 1 } };
       const spawn = endpointAt(routeEndpoints(timelineOf(1)), "spawn", "1,0");
       const rows = endpointRows(spawnTable(level, { switches }), 1, spawn);
       expect(rows.map((r) => [r.waveIndex, r.random?.candidate])).toEqual([[1, 1]]);
@@ -97,7 +98,7 @@ describe("出生點 and 消失點", () => {
       ["level_main_04-10", {}],
       ["level_main_15-12", { hiddenOn: ["group1", "group2"] }],
       ["level_main_11-06", { conditional: { 0: { wave: 0, t: 30 } } }],
-      ["level_rogue2_2-6", { picks: { 2: 1 } }],
+      ["level_rogue2_2-6", { picks: { [thiefGroup]: 1 } }],
       ["level_rogue3_5-5", {}],
     ];
     it.each(cases)("%s: every endpoint of every wave", (fixture, switches) => {
