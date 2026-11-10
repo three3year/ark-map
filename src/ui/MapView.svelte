@@ -32,7 +32,7 @@
   } from "../timeline/index.ts";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
-  import { legendMarks, terrainMark } from "./terrain.ts";
+  import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
   import TerrainIcon from "./TerrainIcon.svelte";
 
   interface Props {
@@ -295,10 +295,6 @@
           width="1"
           height="1"
         />
-        {#if tileKind(tile) === "floor" && !terrainMark(tile.tileKey, terrain)}
-          <!-- The stripes give way to any other mark on the cell. -->
-          <rect class="floor-ring" x={col - 0.41} y={svgY(row) - 0.41} width="0.82" height="0.82" />
-        {/if}
         {#if tileKind(tile) === "highland"}
           <path
             class="highland-corners"
@@ -320,6 +316,10 @@
           >
             <TerrainIcon {mark} />
           </g>
+        {/if}
+        {#if tileKind(tile) === "floor" && keepsFloorStripes(mark)}
+          <!-- Over the mark, so a cell-filling one like 深水區 cannot hide it. -->
+          <rect class="floor-ring" x={col - 0.41} y={svgY(row) - 0.41} width="0.82" height="0.82" />
         {/if}
       {/each}
 

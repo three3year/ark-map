@@ -94,15 +94,25 @@ test("ISW-NO: every 高台 has corner marks, 禁入 in front or not", async ({ p
   await expect(page.locator("svg.map path.highland-corners")).toHaveCount(await highlands.count());
 });
 
-test("ISW-NO: 不可放置 cells get a ring of hazard stripes, except where another mark is drawn", async ({
+test("ISW-NO: 不可放置 cells get a ring of hazard stripes, except under a never-deployable mark", async ({
   page,
 }) => {
   await page.goto("#/level/ro4_n_2_4?v=normal");
-  // Its 不可放置 cells are plain tile_floor plus 侵入點, 保護目標, 通道 and 地穴, which all carry marks.
+  // Its 不可放置 cells are plain tile_floor plus 侵入點, 保護目標, 通道 and 地穴, none deployable anywhere.
   await expect(page.locator("svg.map rect.floor-ring")).toHaveCount(
     tileCount("ro4_n_2_4", "tile_floor"),
   );
   await expect(page.locator("svg.map rect.tile.floor")).not.toHaveCount(
     tileCount("ro4_n_2_4", "tile_floor"),
+  );
+});
+
+test("TC-8: a 不可放置 活性源石 keeps its stripes, since 活性源石 elsewhere can be deployed on", async ({
+  page,
+}) => {
+  await page.goto("#/level/act11mini_08?v=normal");
+  // Its 不可放置 cells are plain tile_floor, one 活性源石, and 侵入點, 保護目標 and 通道.
+  await expect(page.locator("svg.map rect.floor-ring")).toHaveCount(
+    tileCount("act11mini_08", "tile_floor") + tileCount("act11mini_08", "tile_infection"),
   );
 });
