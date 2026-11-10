@@ -1,13 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { buildTimeline, isEmptyWave } from "../src/timeline/index.ts";
-import {
-  playButton,
-  selectWave,
-  shownOpacity,
-  siteLevel,
-  timeDisplay,
-  timeSlider,
-} from "./levelPage.ts";
+import { playButton, selectWave, siteLevel, timeDisplay, timeSlider } from "./levelPage.ts";
+
+const isStriped = (locator: Locator) =>
+  locator.evaluate((el) =>
+    getComputedStyle(el).backgroundImage.includes("repeating-linear-gradient"),
+  );
 
 const emptyWaveOf = (id: string, waveIndex: number) =>
   isEmptyWave(buildTimeline(siteLevel(id), { waveIndex }));
@@ -23,7 +21,7 @@ test("6-15: the last 波次 is empty; its slider is disabled and 播放 stays pu
 
   await expect(timeSlider(page)).toBeDisabled();
   await expect(timeDisplay(page)).toHaveText("本波沒有敵人");
-  expect(await shownOpacity(timeSlider(page))).toBeLessThan(1);
+  expect(await isStriped(timeSlider(page)), "a 空波次's slider is striped").toBe(true);
   await expect(playButton(page)).toBeEnabled();
 
   await playButton(page).click();
@@ -52,5 +50,5 @@ test("2-8: opening on an empty 第 1 波, 播放 moves on to 第 2 波 and the s
   await expect(timeSlider(page)).toBeEnabled();
   await expect(timeDisplay(page)).toHaveText(/^\d+\.\d 秒$/);
   await expect(timeDisplay(page)).not.toHaveText(/^0\.0 /);
-  expect(await shownOpacity(timeSlider(page))).toBe(1);
+  expect(await isStriped(timeSlider(page)), "a 波次 with enemies has a plain slider").toBe(false);
 });
