@@ -37,6 +37,10 @@
     deviceIndex: (device: Device) => number;
     /** A device was right-clicked. */
     onToggleRemoval: (device: Device) => void;
+    /** The selected device, drawn pressed. */
+    selectedDevice: Device | null;
+    /** Clicking the selected device again passes null. */
+    onSelectDevice: (device: Device | null) => void;
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
@@ -63,6 +67,8 @@
     removalOf,
     deviceIndex,
     onToggleRemoval,
+    selectedDevice,
+    onSelectDevice,
     endpoints,
     enemies,
     t,
@@ -79,6 +85,15 @@
 
   const toggleSelect = (individual: Individual) =>
     onSelect(individual.id === selected?.id ? null : individual);
+  const toggleSelectDevice = (device: Device) =>
+    onSelectDevice(device === selectedDevice ? null : device);
+  /** Enter or Space on a focused device selects it, as a click does. */
+  function deviceKey(e: KeyboardEvent, device: Device) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleSelectDevice(device);
+    }
+  }
 
   type OnField = Snapshot["onField"][number];
   /** Outside the 端點篩選, selected or not. */
@@ -313,14 +328,19 @@
         <!-- Fainter than an enemy outside the 端點篩選. -->
         <g
           class="device removed"
+          class:selected={device === selectedDevice}
           transform="translate({device.cell.col} {svgY(device.cell.row)})"
           data-device={device.key}
           data-device-index={deviceIndex(device)}
           data-alias={device.alias}
           data-cell={cellKey(device.cell)}
           data-removed
-          role="img"
+          role="button"
+          tabindex="0"
           aria-label={device.name}
+          aria-pressed={device === selectedDevice}
+          onclick={() => toggleSelectDevice(device)}
+          onkeydown={(e) => deviceKey(e, device)}
           oncontextmenu={(e) => {
             e.preventDefault();
             onToggleRemoval(device);
@@ -338,14 +358,19 @@
         <g
           class="device"
           class:blocker={device.blocker}
+          class:selected={device === selectedDevice}
           transform="translate({device.cell.col} {svgY(device.cell.row)})"
           data-device={device.key}
           data-device-index={deviceIndex(device)}
           data-alias={device.alias}
           data-cell={cellKey(device.cell)}
           data-blocker={device.blocker}
-          role="img"
+          role="button"
+          tabindex="0"
           aria-label={device.name}
+          aria-pressed={device === selectedDevice}
+          onclick={() => toggleSelectDevice(device)}
+          onkeydown={(e) => deviceKey(e, device)}
           oncontextmenu={(e) => {
             e.preventDefault();
             onToggleRemoval(device);
@@ -600,6 +625,19 @@
     stroke: var(--device-blocker);
     stroke-width: 0.06;
     stroke-dasharray: 0.12 0.08;
+  }
+  .device {
+    cursor: pointer;
+  }
+  .device:focus {
+    outline: none;
+  }
+  .device.selected .device-frame,
+  .device:focus-visible .device-frame {
+    stroke: var(--path);
+  }
+  .device.selected .device-frame {
+    stroke-width: 0.1;
   }
   .removal-clock circle {
     fill: #fff;
