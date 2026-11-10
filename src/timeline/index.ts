@@ -1,13 +1,14 @@
 // 基準時間軸: level model -> every enemy individual's trajectory; 時刻快照 = its value at T.
 // Pure; no DOM or network.
 import {
+  cellKey,
   moveSpeedFactor,
   variantModifiers,
   type Difficulty,
   type Level,
   type Vec2,
 } from "../level/index.ts";
-import { createNextNodeLookup } from "../pathfinding/index.ts";
+import { createNextNodeLookup, type NextNodeLookup } from "../pathfinding/index.ts";
 import { devicePresence, presentAt } from "./devices.ts";
 import { nextNodeModel, theoreticalSpeed, type MovementModel, type Stay } from "./movement.ts";
 import { individualKey, type IndividualId } from "./identity.ts";
@@ -66,9 +67,15 @@ export function timelineEnd(timeline: Timeline): number {
 export function buildTimeline(level: Level, options: TimelineOptions = {}): Timeline {
   const { waveIndex = 0, difficulty = "NORMAL", switches = {}, movement = nextNodeModel } = options;
   if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [] };
-  const nextNode = createNextNodeLookup(level.map);
+  const lookup = createNextNodeLookup(level.map);
   const modifiers = variantModifiers(level.modifiers, difficulty);
   const devices = devicePresence(level, modifiers);
+  // 擋路格: where the 擋路裝置 on the field at the wave start stand; they stay all wave.
+  const blockers = new Set(
+    devices.filter((d) => d.device.blocker && presentAt(d, 0)).map((d) => cellKey(d.device.cell)),
+  );
+  const nextNode: NextNodeLookup = (mode, target, diagonal) =>
+    lookup(mode, target, diagonal, blockers);
   const individuals: Individual[] = [];
   for (const { action, ref, fragmentStart, start, picked } of waveSpawns(
     level,
