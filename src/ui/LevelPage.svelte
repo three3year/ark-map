@@ -104,6 +104,7 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
+  const devices = $derived(timeline.devicesAt(t));
   const endpoints = $derived(routeEndpoints(timeline));
 
   /** The selected individual, by {@link individualKey}, in one level's wave. */
@@ -303,6 +304,7 @@
     <MapView
       map={level.map}
       {terrain}
+      {devices}
       {endpoints}
       enemies={drawn}
       {t}

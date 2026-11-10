@@ -1,7 +1,7 @@
 // Seam 1: level model -> baseline timeline / snapshot.
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
-import type { Difficulty, Level, Modifier } from "../level/index.ts";
+import type { Device, Difficulty, Level, Modifier } from "../level/index.ts";
 import { buildTimeline, takeSnapshot, type Stay } from "./index.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
@@ -180,6 +180,7 @@ describe("movement model v0", () => {
       ],
       extraRoutes: [],
       branches: [],
+      devices: [],
       waves: [
         {
           preDelay: 0,
@@ -306,5 +307,59 @@ describe("movement model v0", () => {
       ]);
       expect(walkTimes(level)).toEqual({ enemy_test: 4, enemy_other: 4 });
     });
+  });
+});
+
+describe("裝置 on the field", () => {
+  const aliases = (devices: Device[]) => devices.map((d) => d.alias);
+
+  it("TB-1: its 8 碎石 and 4 留聲機 are on the field all through the wave", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    const timeline = buildTimeline(level);
+    expect(timeline.devicesAt(0)).toHaveLength(12);
+    expect(timeline.devicesAt(0).filter((d) => d.key === "trap_027_stone")).toHaveLength(8);
+    expect(aliases(timeline.devicesAt(60))).toEqual(aliases(level.devices));
+  });
+
+  it("WR-EX-6: the 3 hidden 障礙物 stay off in normal; the challenge 難度修正 puts them on", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    expect(buildTimeline(level).devicesAt(0)).toEqual([]);
+    expect(aliases(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0))).toEqual([
+      "trap_001_crate#2",
+      "trap_001_crate#3",
+      "trap_001_crate#4",
+    ]);
+  });
+
+  it("5-10: hidden ballistae that only a 純機關 activates stay off the field", () => {
+    const level = loadFixtureLevel("level_main_05-10");
+    expect(level.devices).toHaveLength(10);
+    expect(buildTimeline(level).devicesAt(0)).toEqual([]);
+  });
+
+  it("a level_predefines_enable entry of value 0 takes a device off in its variant only", () => {
+    // 9-12 challenge, for one: trap_043_dupilr#2 and #5 are not hidden and get value 0.
+    const level = loadFixtureLevel("level_act10mini_01");
+    level.modifiers.push({
+      difficulties: ["FOUR_STAR"],
+      key: "level_predefines_enable",
+      blackboard: [{ key: "trap_027_stone#1", value: 0, valueStr: null }],
+    });
+    expect(buildTimeline(level).devicesAt(0)).toHaveLength(12);
+    const challenge = buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0);
+    expect(aliases(challenge)).not.toContain("trap_027_stone#1");
+    expect(challenge).toHaveLength(11);
+  });
+
+  it("devices sharing an alias go on together", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    level.devices[1]!.alias = "trap_001_crate#2";
+    expect(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0)).toHaveLength(3);
+    level.modifiers = level.modifiers.map((m) =>
+      m.key === "level_predefines_enable"
+        ? { ...m, blackboard: m.blackboard.filter((b) => b.key === "trap_001_crate#2") }
+        : m,
+    );
+    expect(buildTimeline(level, { difficulty: "FOUR_STAR" }).devicesAt(0)).toHaveLength(2);
   });
 });

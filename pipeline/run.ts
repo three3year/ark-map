@@ -1,16 +1,23 @@
 // Data pipeline entry point: fetch raw game data (cached by blob sha), trim every level the
 // stage index covers into the site's JSON under public/data/, write the stage index and the
-// 名稱表, and copy the avatars those levels use.
+// 名稱表, and copy the enemy avatars and 裝置 images those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
 import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
-import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
+import {
+  buildDeviceCatalog,
+  buildEnemyCatalog,
+  controllerKeys,
+  convertLevel,
+  siteLevelFile,
+} from "./convertLevel.ts";
 import { fetchCached, fetchJson, fetchStats, listTree, type TreeListing } from "./fetchCached.ts";
 import { pipelineOutcome, type ConversionFailure } from "./outcome.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
+  RawCharacterTable,
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
@@ -59,11 +66,12 @@ async function dirSize(dir: string): Promise<{ files: number; bytes: number }> {
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 log(`原始檔快取: ${rawCacheDir}`);
-const [cnExcel, twExcel, cnLevels, avatarFiles] = await Promise.all([
+const [cnExcel, twExcel, cnLevels, avatarFiles, deviceImageFiles] = await Promise.all([
   listTree(sources.cn, "excel"),
   listTree(sources.tw, "excel"),
   listTree(sources.cn, "levels"),
   listTree(sources.avatars),
+  listTree(sources.devices),
 ]);
 
 function table<T>(source: RepoSource, listing: TreeListing | null, name: string): Promise<T> {
@@ -95,25 +103,39 @@ const catalog = buildEnemyCatalog(
 
 await rm(outDir, { recursive: true, force: true });
 
-/** Copy an enemy's avatar into the site the first time a level uses it. */
-const avatars = new Map<string, Promise<string | null>>();
-function avatarFor(enemyId: string): Promise<string | null> {
-  let avatar = avatars.get(enemyId);
-  if (!avatar) {
-    const file = `${enemyId}.png`;
-    avatar =
-      avatarFiles && !avatarFiles.has(file)
-        ? Promise.resolve(null)
-        : fetchCached(sources.avatars, file, avatarFiles?.get(file)).then(async (png) => {
-            if (!png) return null;
-            await mkdir(path.join(outDir, "avatars"), { recursive: true });
-            await writeFile(path.join(outDir, "avatars", file), png);
-            return `data/avatars/${file}`;
-          });
-    avatars.set(enemyId, avatar);
+/** One source's `<key>.png` images, each copied into the site's `dir` the first time a level uses it. */
+function siteImages(source: RepoSource, listing: TreeListing | null, dir: string) {
+  const images = new Map<string, Promise<string | null>>();
+  /** The image's site-relative path, or null when the source has none. */
+  function imageFor(key: string): Promise<string | null> {
+    let image = images.get(key);
+    if (!image) {
+      const file = `${key}.png`;
+      image =
+        listing && !listing.has(file)
+          ? Promise.resolve(null)
+          : fetchCached(source, file, listing?.get(file)).then(async (png) => {
+              if (!png) return null;
+              await mkdir(path.join(outDir, dir), { recursive: true });
+              await writeFile(path.join(outDir, dir, file), png);
+              return `data/${dir}/${file}`;
+            });
+      images.set(key, image);
+    }
+    return image;
   }
-  return avatar;
+  return { images, imageFor };
 }
+const { images: avatars, imageFor: avatarFor } = siteImages(
+  sources.avatars,
+  avatarFiles,
+  "avatars",
+);
+const { images: deviceImages, imageFor: deviceImageFor } = siteImages(
+  sources.devices,
+  deviceImageFiles,
+  "devices",
+);
 
 // 集成戰略: the theme table should name every file under obt/roguelike/ and nothing else.
 if (cnLevels) {
@@ -133,26 +155,53 @@ if (cnLevels) {
 // Files the listing does not have are left out up front; the index reports their stages.
 const wanted = indexedLevelPaths(tables).filter((p) => !cnLevels || cnLevels.has(`${p}.json`));
 log(`關卡檔 ${wanted.length} 個(抓取中,已快取的不重抓)`);
+/** Raw level files by level path; files the source does not have are left out. */
+const bodies = new Map<string, Buffer>();
+await forEachLimit(wanted, 8, async (levelPath) => {
+  const file = `${levelPath}.json`;
+  const body = await fetchCached(sources.cn, `levels/${file}`, cnLevels?.get(file));
+  if (body) bodies.set(levelPath, body);
+});
+// 控制器 are judged over every level to convert, before any is converted.
+const controllers = controllerKeys(
+  [...bodies.values()].map((body) => ({
+    predefines: (JSON.parse(body.toString("utf8")) as RawLevel).predefines,
+  })),
+);
+const devices = buildDeviceCatalog(
+  controllers,
+  await table<RawCharacterTable>(sources.cn, cnExcel, "character_table"),
+  await table<RawCharacterTable>(sources.tw, twExcel, "character_table"),
+);
+log(`控制器 ${controllers.size} 種:${[...controllers].sort().join("、")}`);
 const facts = new Map<string, LevelFacts>();
 const failures: ConversionFailure[] = [];
-const names: NameTable = { enemies: {}, terrain: {} };
+const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
 /** Every `tileKey` the converted level files use. */
 const tileKeys = new Set<string>();
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
 const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
 const unknownEnums = new Map<string, Set<string>>();
+/** Pre-placed device keys in neither blocker list -> the level files they appear in. */
+const unknownDevices = new Map<string, Set<string>>();
+/** Every device key the converted level files use. */
+const deviceKeys = new Set<string>();
+const record = (seen: Map<string, Set<string>>, key: string, levelPath: string) => {
+  if (!seen.has(key)) seen.set(key, new Set());
+  seen.get(key)!.add(levelPath);
+};
 let done = 0;
 await forEachLimit(wanted, 8, async (levelPath) => {
   const file = `${levelPath}.json`;
-  const body = await fetchCached(sources.cn, `levels/${file}`, cnLevels?.get(file));
+  const body = bodies.get(levelPath);
   if (body) {
     try {
       const raw = JSON.parse(body.toString("utf8")) as RawLevel;
-      const level = convertLevel(levelPath, raw, catalog, (field, value) => {
-        const key = `${field} = ${value}`;
-        if (!unknownEnums.has(key)) unknownEnums.set(key, new Set());
-        unknownEnums.get(key)!.add(levelPath);
+      const level = convertLevel(levelPath, raw, catalog, {
+        devices,
+        onUnknownEnum: (field, value) => record(unknownEnums, `${field} = ${value}`, levelPath),
+        onUnknownDevice: (key) => record(unknownDevices, key, levelPath),
       });
       // Level-local enemies are drawn as their prefab, a database enemy.
       const prefabs = new Map(
@@ -162,7 +211,14 @@ await forEachLimit(wanted, 8, async (levelPath) => {
         const prefab = prefabs.get(enemy.id);
         enemy.avatar = (await avatarFor(enemy.id)) ?? (prefab ? await avatarFor(prefab) : null);
       }
-      await writeJson(path.join(outDir, "levels", file), siteLevelFile(level, catalog, names));
+      for (const device of level.devices) {
+        device.image = await deviceImageFor(device.key);
+        deviceKeys.add(device.key);
+      }
+      await writeJson(
+        path.join(outDir, "levels", file),
+        siteLevelFile(level, catalog, names, devices),
+      );
       facts.set(levelPath, levelFacts(raw));
       for (const tile of level.map.tiles) tileKeys.add(tile.tileKey);
       for (const { key } of level.modifiers)
@@ -181,6 +237,11 @@ const terrain = terrainTable([...tileKeys].sort(), tables.cn.stage, tables.tw.st
 await writeJson(path.join(outDir, "names.json"), {
   enemies: Object.fromEntries(sortedNames.map((id) => [id, names.enemies[id]!])),
   terrain,
+  devices: Object.fromEntries(
+    Object.keys(names.devices)
+      .sort()
+      .map((key) => [key, names.devices[key]!]),
+  ),
 } satisfies NameTable);
 const unnamedTiles = [...tileKeys].filter((key) => !terrain[key]);
 log(
@@ -205,6 +266,20 @@ if (unknownKeys.length > 0) {
       `畫面只顯示原始鍵名、不套用:`,
   );
   for (const [key, n] of unknownKeys) console.warn(`  ${key} ×${n}`);
+}
+
+const deviceImageCount = (await Promise.all(deviceImages.values())).filter(Boolean).length;
+log(
+  `裝置 ${deviceKeys.size} 種、${deviceImageCount} 種有圖;名稱表收錄 ${Object.keys(names.devices).length} 種`,
+);
+if (unknownDevices.size > 0) {
+  console.warn(
+    `[資料管線] ${unknownDevices.size} 種裝置不在擋路或不擋路清單(pipeline/deviceKinds.ts),當作不擋路:`,
+  );
+  for (const [key, levels] of unknownDevices) {
+    const sample = [...levels].slice(0, 3).join("、");
+    console.warn(`  ${key}:${levels.size} 個關卡檔,例如 ${sample}`);
+  }
 }
 
 if (unknownEnums.size > 0) {

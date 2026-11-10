@@ -7,7 +7,8 @@
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
 // fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
 // keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
-// the fixture table.
+// the fixture table. The CN and TW character tables keep the name and description of the device
+// keys the fixture levels pre-place.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
 //                      [--rogue <roguelike stage id>...] [--tile <tile key>...]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -18,6 +19,7 @@ import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
+  RawCharacterTable,
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
@@ -64,12 +66,28 @@ const previousDb = await readFile(path.join(fixtureDir, "enemy_database.json"), 
   () => ({ enemies: [] }) as RawEnemyDatabase,
 );
 for (const enemy of previousDb.enemies) enemyIds.add(enemy.Key);
+const deviceKeys = new Set<string>();
 const levelFiles = (await readdir(fixtureDir)).filter((f) => f.startsWith("level_"));
 for (const file of levelFiles) {
   const level = JSON.parse(await readFile(path.join(fixtureDir, file), "utf8")) as RawLevel;
   for (const ref of level.enemyDbRefs ?? []) enemyIds.add(ref.id);
   for (const tile of level.mapData.tiles) tileKeys.add(tile.tileKey);
+  for (const token of level.predefines?.tokenInsts ?? []) deviceKeys.add(token.inst.characterKey);
 }
+
+for (const [source, suffix] of [
+  [sources.cn, ""],
+  [sources.tw, ".tw"],
+] as const) {
+  const table = await fetchJson<RawCharacterTable>(source, "excel/character_table.json");
+  const subset: RawCharacterTable = Object.fromEntries(
+    [...deviceKeys]
+      .sort()
+      .flatMap((key) => (table[key] ? [[key, pick(table[key], ["name", "description"])]] : [])),
+  );
+  await writeFile(path.join(fixtureDir, `character_table${suffix}.json`), JSON.stringify(subset));
+}
+console.log(`fixtures: 角色表 ${deviceKeys.size} 種裝置`);
 
 const db = await fetchJson<RawEnemyDatabase>(sources.cn, "levels/enemydata/enemy_database.json");
 const handbook = await fetchJson<RawEnemyHandbookTable>(

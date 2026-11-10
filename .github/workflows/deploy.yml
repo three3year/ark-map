@@ -62,6 +62,14 @@ jobs:
           key: raw-avatars-${{ steps.upstream.outputs.avatars-rev }}
           restore-keys: raw-avatars-
 
+      - name: 還原原始檔快取(裝置圖)
+        uses: actions/cache/restore@v4
+        id: cache-devices
+        with:
+          path: ${{ steps.upstream.outputs.devices-path }}
+          key: raw-devices-${{ steps.upstream.outputs.devices-rev }}
+          restore-keys: raw-devices-
+
       - name: 資料管線
         run: pnpm data
         env:
@@ -89,6 +97,13 @@ jobs:
         with:
           path: ${{ steps.upstream.outputs.avatars-path }}
           key: raw-avatars-${{ steps.upstream.outputs.avatars-rev }}
+
+      - name: 儲存原始檔快取(裝置圖)
+        if: steps.cache-devices.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.upstream.outputs.devices-path }}
+          key: raw-devices-${{ steps.upstream.outputs.devices-rev }}
 
       - name: 單元測試
         run: pnpm test

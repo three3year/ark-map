@@ -2,6 +2,7 @@
   import {
     cellKey,
     isWalkable,
+    type Device,
     type LevelMap,
     type TerrainTable,
     type Tile,
@@ -25,6 +26,8 @@
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
+    /** The 裝置 on the field at second `t`, drawn under the enemies. */
+    devices: Device[];
     /** 出生點 and 消失點 of the wave on screen, drawn as red and blue dots. */
     endpoints: RouteEndpoint[];
     /** The 時刻快照's individuals on field at second `t` that are drawn: not 收起, or selected. */
@@ -46,6 +49,7 @@
   let {
     map,
     terrain,
+    devices,
     endpoints,
     enemies,
     t,
@@ -79,11 +83,12 @@
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
-  /** Avatars that failed to load fall back to the enemy's code. */
-  let brokenAvatars = $state(new Set<string>());
-  function markBroken(avatar: string) {
-    brokenAvatars = new Set([...brokenAvatars, avatar]);
+  /** Images that failed to load: an enemy falls back to its code, a device to its initial. */
+  let brokenImages = $state(new Set<string>());
+  function markBroken(image: string) {
+    brokenImages = new Set([...brokenImages, image]);
   }
+  const shows = (image: string | null): image is string => !!image && !brokenImages.has(image);
 
   let view = $state(loadMapView(browserStorage()));
   function toggleView() {
@@ -136,6 +141,11 @@
     return tileKindOrder.filter((kind) => kinds.has(kind));
   });
   const marks = $derived(legendMarks(map, terrain));
+  const legendDevices = $derived(
+    (["device", "blocker"] as const).filter((kind) =>
+      devices.some((d) => d.blocker === (kind === "blocker")),
+    ),
+  );
 
   /**
    * Endpoint dots sit in their cell's top-right corner, clear of the cell centre; a 消失點 on a
@@ -188,7 +198,7 @@
     <g class="billboard">
       <title>{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title>
       <circle r="0.36" class="enemy-bg" />
-      {#if individual.enemy.avatar && !brokenAvatars.has(individual.enemy.avatar)}
+      {#if shows(individual.enemy.avatar)}
         <image
           href={individual.enemy.avatar}
           x="-0.34"
@@ -284,6 +294,38 @@
             <TerrainIcon {mark} />
           </g>
         {/if}
+      {/each}
+
+      {#each devices as device (device)}
+        <g
+          class="device"
+          class:blocker={device.blocker}
+          transform="translate({device.cell.col} {svgY(device.cell.row)})"
+          data-device={device.key}
+          data-alias={device.alias}
+          data-cell={cellKey(device.cell)}
+          data-blocker={device.blocker}
+          role="img"
+          aria-label={device.name}
+        >
+          <g class="billboard">
+            <title>{device.name}</title>
+            <rect class="device-bg" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+            {#if shows(device.image)}
+              <image
+                href={device.image}
+                x="-0.36"
+                y="-0.36"
+                width="0.72"
+                height="0.72"
+                onerror={() => markBroken(device.image!)}
+              />
+            {:else}
+              <text class="device-initial">{[...device.name][0]}</text>
+            {/if}
+            <rect class="device-frame" x="-0.4" y="-0.4" width="0.8" height="0.8" rx="0.06" />
+          </g>
+        </g>
       {/each}
 
       {#each endpointDots as { endpoint, x, y } (endpointKey(endpoint))}
@@ -391,6 +433,9 @@
         {/if}
       </li>
     {/each}
+    {#each legendDevices as kind (kind)}
+      <li><span class="swatch device {kind}"></span>{strings.legendDevice[kind]}</li>
+    {/each}
     {#each ["spawn", "exit"] as const as kind (kind)}
       {#if hasEndpoint(kind)}
         <li><span class="swatch dot {kind}"></span>{strings.endpoint[kind]}</li>
@@ -413,6 +458,9 @@
     --highland-corner: #4f5d70;
     --tile-forbidden: #4a4c53;
     --enemy-ring: var(--spawn-red);
+    --device-bg: #f4f2ec;
+    --device-frame: #5d6470;
+    --device-blocker: #7c3aed;
     --path: #f5a524;
   }
   .toolbar {
@@ -478,6 +526,25 @@
   }
   .terrain {
     pointer-events: none;
+  }
+  /* A square frame, unlike an enemy's round one; a 擋路裝置's is bolder and violet. */
+  .device-bg {
+    fill: var(--device-bg);
+  }
+  .device-frame {
+    fill: none;
+    stroke: var(--device-frame);
+    stroke-width: 0.04;
+  }
+  .device.blocker .device-frame {
+    stroke: var(--device-blocker);
+    stroke-width: 0.1;
+  }
+  .device-initial {
+    font-size: 0.34px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: #1d1d1f;
   }
   .endpoint {
     cursor: pointer;
@@ -685,6 +752,14 @@
   .terrain-item:hover .tip,
   .terrain-item:focus-visible .tip {
     display: block;
+  }
+  .swatch.device {
+    border-radius: 2px;
+    background: var(--device-bg);
+    border: 1.5px solid var(--device-frame);
+  }
+  .swatch.device.blocker {
+    border: 3px solid var(--device-blocker);
   }
   .swatch.dot {
     width: 10px;

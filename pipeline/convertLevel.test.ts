@@ -9,13 +9,24 @@ import {
 } from "../src/level/index.ts";
 import {
   convertFixture,
+  fixtureDeviceCatalog,
+  fixtureLevelNames,
   loadFixtureLevel,
   rawEnemyDatabase,
   rawEnemyHandbook,
+  rawCharacterTables,
   rawFixture,
 } from "../test-fixtures/load.ts";
-import { buildEnemyCatalog, convertLevel, siteLevelFile } from "./convertLevel.ts";
-import type { RawEnemyDbRef } from "./raw.ts";
+import {
+  buildDeviceCatalog,
+  buildEnemyCatalog,
+  controllerKeys,
+  convertLevel,
+  siteLevelFile,
+} from "./convertLevel.ts";
+import type { RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
+
+const enemyCatalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
 
 describe("map orientation", () => {
   it("1-7: route 1 starts at (5, 10) top-right (PRTS F11) and ends at (3, 0) left (PRTS D1)", () => {
@@ -173,7 +184,7 @@ describe("numeric enums (older activity files)", () => {
       "act14mini_08",
       raw,
       buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()),
-      (field, value) => unknown.push([field, value]),
+      { onUnknownEnum: (field, value) => unknown.push([field, value]) },
     );
     expect(unknown).toEqual([
       ["difficultyMask", 4],
@@ -193,7 +204,7 @@ describe("numeric enums (older activity files)", () => {
       "main_01-07",
       raw,
       buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()),
-      (field, value) => unknown.push([field, value]),
+      { onUnknownEnum: (field, value) => unknown.push([field, value]) },
     );
     expect(unknown).toEqual([
       ["checkpointType", "JUMP"],
@@ -318,7 +329,7 @@ describe("名稱表", () => {
 
   it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_main_01-07");
-    const names: NameTable = { enemies: {}, terrain: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
     const file = siteLevelFile(level, catalog(), names);
     expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
     expect(names.enemies).toMatchObject({
@@ -330,7 +341,7 @@ describe("名稱表", () => {
   });
 
   it("one table serves every level; a name only one level gives stays in its level file", () => {
-    const names: NameTable = { enemies: {}, terrain: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
     const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
     const raw = rawFixture("level_main_01-07");
     // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.
@@ -358,6 +369,29 @@ describe("名稱表", () => {
     expect(names.enemies["enemy_1122_sphond_0"]).toBeUndefined();
     expect(withNames(file, names)).toEqual(level);
     expect(withNames(other, names)).toEqual(loadFixtureLevel("level_main_04-04"));
+  });
+});
+
+describe("名稱表: 裝置", () => {
+  it("TB-1: the level file names and describes no device; the name table does, and restores the level", () => {
+    const level = loadFixtureLevel("level_act10mini_01");
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
+    expect(file.devices.filter((d) => "name" in d || "description" in d)).toEqual([]);
+    expect(names.devices).toEqual({
+      trap_014_tower: { name: 'L-44"留聲機"', description: "優先攻擊生命上限最高的單位" },
+      trap_027_stone: { name: "碎石", description: "改變敵人行進路線" },
+    });
+    expect(withNames(file, names)).toEqual(level);
+  });
+
+  it("a device kind neither character table has keeps its key as its name in the level file", () => {
+    const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const file = siteLevelFile(level, enemyCatalog(), names, buildDeviceCatalog(new Set(), {}, {}));
+    expect(names.devices).toEqual({});
+    expect(file.devices[0]).toMatchObject({ name: "trap_001_crate", description: null });
+    expect(withNames(file, names)).toEqual(level);
   });
 });
 
@@ -526,4 +560,126 @@ describe("key fields of the levels the timeline tests use", () => {
       expect(level.modifiers.filter(affectsMovement)).toEqual([]);
     });
   }
+});
+
+describe("裝置", () => {
+  it("TB-1: 8 blocking 碎石 at their cells, by alias; its 4 留聲機 do not block", () => {
+    // predefines.tokenInsts of the raw file: an older activity file, direction 0 = UP.
+    const level = loadFixtureLevel("level_act10mini_01");
+    const stones = level.devices.filter((d) => d.key === "trap_027_stone");
+    expect(stones.map((d) => [d.alias, d.cell])).toEqual([
+      ["trap_027_stone#1", { row: 4, col: 4 }],
+      ["trap_027_stone#2", { row: 4, col: 5 }],
+      ["trap_027_stone#3", { row: 3, col: 4 }],
+      ["trap_027_stone#4", { row: 3, col: 5 }],
+      ["trap_027_stone#5", { row: 2, col: 4 }],
+      ["trap_027_stone#6", { row: 2, col: 5 }],
+      ["trap_027_stone#7", { row: 1, col: 4 }],
+      ["trap_027_stone#8", { row: 1, col: 5 }],
+    ]);
+    expect(stones.every((d) => d.blocker && !d.hidden && d.direction === "UP")).toBe(true);
+    const towers = level.devices.filter((d) => d.key === "trap_014_tower");
+    expect(towers.map((d) => d.blocker)).toEqual([false, false, false, false]);
+  });
+
+  it("WR-EX-6: 3 障礙物 hidden at the start, which the challenge 難度修正 enables", () => {
+    const level = loadFixtureLevel("level_act16d5_ex06");
+    expect(level.devices.map((d) => [d.alias, d.cell, d.hidden, d.blocker])).toEqual([
+      ["trap_001_crate#2", { row: 3, col: 7 }, true, true],
+      ["trap_001_crate#3", { row: 5, col: 5 }, true, true],
+      ["trap_001_crate#4", { row: 3, col: 3 }, true, true],
+    ]);
+    const enable = level.modifiers.filter((m) => m.key === "level_predefines_enable");
+    expect(enable.map((m) => [m.difficulties, m.blackboard.map((b) => b.key).sort()])).toEqual([
+      [["FOUR_STAR"], ["trap_001_crate#2", "trap_001_crate#3", "trap_001_crate#4"]],
+    ]);
+  });
+
+  it("控制器: a key with most instances at (0, 0) over all levels is left out; one with few is kept", () => {
+    const token = (key: string, row: number, col: number): RawTokenInst => ({
+      alias: `${key}#${row}${col}`,
+      inst: { characterKey: key },
+      position: { row, col },
+      direction: "UP",
+      hidden: false,
+    });
+    const tb1 = rawFixture("level_act10mini_01");
+    tb1.predefines!.tokenInsts!.push(
+      token("trap_050_blizzard", 0, 0),
+      token("trap_027_stone", 0, 0),
+    );
+    const other = {
+      predefines: {
+        tokenInsts: [token("trap_050_blizzard", 0, 0), token("trap_050_blizzard", 2, 3)],
+      },
+    };
+    const controllers = controllerKeys([tb1, other, rawFixture("level_act16d5_ex06")]);
+    expect([...controllers]).toEqual(["trap_050_blizzard"]);
+    const level = convertLevel("TB-1", tb1, enemyCatalog(), {
+      devices: buildDeviceCatalog(controllers, {}, {}),
+    });
+    expect(level.devices.filter((d) => d.key === "trap_050_blizzard")).toEqual([]);
+    expect(level.devices.filter((d) => d.key === "trap_027_stone")).toHaveLength(9);
+    expect(level.devices.at(-1)!.cell).toEqual({ row: 0, col: 0 });
+  });
+
+  it("warns once per level about a key in neither blocker list, and outputs it as not blocking", () => {
+    const raw = rawFixture("level_act10mini_01");
+    const stone = raw.predefines!.tokenInsts![0]!;
+    for (const alias of ["new#1", "new#2"]) {
+      raw.predefines!.tokenInsts!.push({ ...stone, alias, inst: { characterKey: "trap_999_new" } });
+    }
+    const unknown: string[] = [];
+    const level = convertLevel("TB-1", raw, enemyCatalog(), {
+      onUnknownDevice: (key) => unknown.push(key),
+    });
+    expect(unknown).toEqual(["trap_999_new"]);
+    expect(level.devices.filter((d) => d.key === "trap_999_new").map((d) => d.blocker)).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it("every device key of the fixture levels is in one of the blocker lists", () => {
+    const unknown: string[] = [];
+    for (const name of fixtureLevelNames()) {
+      convertLevel(name, rawFixture(name), enemyCatalog(), {
+        devices: fixtureDeviceCatalog(),
+        onUnknownDevice: (key) => unknown.push(key),
+      });
+    }
+    expect(unknown).toEqual([]);
+  });
+
+  it("does not read pre-placed operators (characterInsts)", () => {
+    const raw = rawFixture("level_act10mini_01") as RawLevel & {
+      predefines: { characterInsts: RawTokenInst[] };
+    };
+    const stone = raw.predefines.tokenInsts![0]!;
+    raw.predefines.characterInsts = [
+      { ...stone, alias: "op", inst: { characterKey: "char_002_amiya" } },
+    ];
+    expect(convertFixture(raw).devices.map((d) => d.key)).not.toContain("char_002_amiya");
+  });
+
+  it("names a device and gives its description from the TW character table, markup removed", () => {
+    const stone = loadFixtureLevel("level_act10mini_01").devices[0]!;
+    expect([stone.name, stone.description]).toEqual(["碎石", "改變敵人行進路線"]);
+    // TW: "<@ba.kw>無法</>被友方角色治療".
+    const shield = loadFixtureLevel("level_rogue3_5-5").devices.find(
+      (d) => d.key === "trap_024_npcsld",
+    )!;
+    expect(shield.description).toBe("無法被友方角色治療");
+  });
+
+  it("falls back to the CN character table when TW lacks the key, and to the key when both do", () => {
+    const { cn, tw } = rawCharacterTables();
+    delete tw["trap_001_crate"];
+    const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog(), {
+      devices: buildDeviceCatalog(new Set(), cn, tw),
+    });
+    expect(level.devices.map((d) => [d.name, d.description])[0]).toEqual(["障碍物", null]);
+    const unnamed = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
+    expect(unnamed.devices[0]!.name).toBe("trap_001_crate");
+  });
 });
