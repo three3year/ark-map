@@ -48,7 +48,8 @@ function panelItem(page: Page, mark: SwitchMark): Locator {
     .filter({ has: page.locator(`[data-random-group="${mark.group}"]`) });
 }
 
-const id = "act1dp_s02";
+/** DS-2: its 開關 switched on, its rows carry all three kinds of mark. */
+const everyKindStage = "act1dp_s02";
 
 function allSwitchedOn(level: Level): { spawning: number[]; switches: SpawnSwitches } {
   const spawning = level.branches.flatMap((b, i) => (b.deviceOnly ? [] : [i]));
@@ -75,11 +76,23 @@ const markBoxes = (enemy: Locator) =>
     }),
   );
 
+type Box = { left: number; top: number; width: number; height: number };
+/** A point near a mark's bottom-right corner, beyond the avatar's ring. */
+const outerCorner = ({ left, top, width, height }: Box): [number, number] => [
+  left + width * 0.85,
+  top + height * 0.85,
+];
+/** A point near a mark's top-left corner, over the avatar. */
+const innerCorner = ({ left, top, width, height }: Box): [number, number] => [
+  left + width * 0.15,
+  top + height * 0.15,
+];
+
 test("DS-2: each row's marks are the 開關面板's marks for the same 開關; a 純機關 has none", async ({
   page,
 }) => {
-  const level = siteLevel(id);
-  const difficulty = siteStage(id).variants[0]!.difficulty;
+  const level = siteLevel(everyKindStage);
+  const difficulty = siteStage(everyKindStage).variants[0]!.difficulty;
   const { spawning, switches } = allSwitchedOn(level);
   const rows = spawnTable(level, { difficulty, switches });
   const marks = rows.flatMap((r) => r.marks);
@@ -88,7 +101,7 @@ test("DS-2: each row's marks are the 開關面板's marks for the same 開關; a
   );
   expect(marks.some((m) => m.kind === "conditional" && m.number !== m.branchIndex + 1)).toBe(true);
 
-  await page.goto(`#/level/${id}?v=normal`);
+  await page.goto(`#/level/${everyKindStage}?v=normal`);
   await switchAllOn(page, spawning);
   await expect(page.locator("tr[data-action]")).toHaveCount(rows.length);
 
@@ -108,25 +121,34 @@ test("DS-2: each row's marks are the 開關面板's marks for the same 開關; a
 test("DS-2: an enemy's marks on the map are its row's; they let clicks through and fade with it", async ({
   page,
 }) => {
-  const level = siteLevel(id);
-  const difficulty = siteStage(id).variants[0]!.difficulty;
+  const level = siteLevel(everyKindStage);
+  const difficulty = siteStage(everyKindStage).variants[0]!.difficulty;
   const { spawning, switches } = allSwitchedOn(level);
   const rows = spawnTable(level, { difficulty, switches });
   const timeline = buildTimeline(level, { difficulty, switches });
   const endpoints = routeEndpoints(timeline);
   const near = (a: Vec2, b: Vec2, d: number) => Math.hypot(a.x - b.x, a.y - b.y) < d;
+  /** Roughly where the marks sit, down and right of the enemy's centre; and an endpoint dot. */
+  const marksOffset = 0.33;
+  const dotOffset = 0.3;
+  const clearOfEnemies = 1.2;
+  const clearOfDevices = 0.8;
+  const clearOfDots = 0.4;
   const cellAt = ({ col, row }: Cell): Vec2 => ({ x: col, y: row });
   let found: { t: number; individual: Individual } | undefined;
   for (let t = 0; t < 300 && !found; t++) {
     const onField = takeSnapshot(timeline, t).onField;
     const clear = onField.find(({ individual, position, invisible }) => {
-      const corner = { x: position.x + 0.33, y: position.y - 0.33 };
+      const corner = { x: position.x + marksOffset, y: position.y - marksOffset };
+      const dotOf = ({ col, row }: Cell): Vec2 => ({ x: col + dotOffset, y: row + dotOffset });
       return (
         !invisible &&
         individual.marks.length > 0 &&
-        onField.every((o) => o.individual === individual || !near(o.position, position, 1.2)) &&
-        level.devices.every(({ cell }) => !near(cellAt(cell), corner, 0.8)) &&
-        endpoints.every(({ cell }) => !near({ x: cell.col + 0.3, y: cell.row + 0.3 }, corner, 0.4))
+        onField.every(
+          (o) => o.individual === individual || !near(o.position, position, clearOfEnemies),
+        ) &&
+        level.devices.every(({ cell }) => !near(cellAt(cell), corner, clearOfDevices)) &&
+        endpoints.every(({ cell }) => !near(dotOf(cell), corner, clearOfDots))
       );
     });
     if (clear) found = { t, individual: clear.individual };
@@ -136,7 +158,7 @@ test("DS-2: an enemy's marks on the map are its row's; they let clicks through a
   const row = rows.find((r) => r.waveIndex === 0 && sameAction(r, individual))!;
   const enemy = enemyOnMap(page, individual.id);
 
-  await page.goto(`#/level/${id}?v=normal`);
+  await page.goto(`#/level/${everyKindStage}?v=normal`);
   await switchAllOn(page, spawning);
   await page.getByRole("button", { name: "平面俯視" }).click();
   await seek(page, t);
@@ -149,10 +171,10 @@ test("DS-2: an enemy's marks on the map are its row's; they let clicks through a
   }
 
   const [first] = await markBoxes(enemy);
-  await page.mouse.click(first!.left + first!.width * 0.85, first!.top + first!.height * 0.85);
+  await page.mouse.click(...outerCorner(first!));
   await expect(enemy).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator('svg.map g.enemy[aria-pressed="true"]')).toHaveCount(0);
-  await page.mouse.click(first!.left + first!.width * 0.15, first!.top + first!.height * 0.15);
+  await page.mouse.click(...innerCorner(first!));
   await expect(enemy).toHaveAttribute("aria-pressed", "true");
 
   const elsewhere = endpoints.find((e) => !matchesEndpoint(individual, e))!;
@@ -199,15 +221,15 @@ test("DP-1: an enemy of three 開關 has three marks in a row, leftward from the
 test("DS-2: the legend lists the mark kinds of the wave's enemies, whatever the second", async ({
   page,
 }) => {
-  const level = siteLevel(id);
-  const difficulty = siteStage(id).variants[0]!.difficulty;
+  const level = siteLevel(everyKindStage);
+  const difficulty = siteStage(everyKindStage).variants[0]!.difficulty;
   const { spawning, switches } = allSwitchedOn(level);
   const rowKinds = new Set(spawnTable(level, { difficulty, switches }).flatMap((r) => r.marks));
   expect(new Set([...rowKinds].map((m) => m.kind)).size).toBe(3);
   expect(switchMarkKinds(buildTimeline(level, { difficulty }))).toEqual([]);
   expect(switchMarkKinds(buildTimeline(level, { difficulty, switches }))).toEqual(["conditional"]);
 
-  await page.goto(`#/level/${id}?v=normal`);
+  await page.goto(`#/level/${everyKindStage}?v=normal`);
   await expect(page.getByRole("list", { name: "圖例" })).toBeVisible();
   expect(await legendKinds(page)).toEqual([]);
 

@@ -107,7 +107,7 @@ test("4-10: every enemy standing still shows the seconds left above its bar, gon
   const staying = takeSnapshot(timeline, t!).onField.filter((e) => e.stay);
   const { individual, stay } = staying.find((e) => e.stay!.start <= t! - 1)!;
   const seconds = stayBarOf(page, individual.id).locator("text");
-  const bar = stayBarOf(page, individual.id).locator("rect").first();
+  const bar = stayBarOf(page, individual.id).locator(".stay-track");
 
   await page.goto("#/level/main_04-10?v=normal");
   await seek(page, t!);

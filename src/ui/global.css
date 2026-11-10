@@ -14,8 +14,8 @@
   --switch-mark-conditional: #2272c3;
   --switch-mark-hidden-group: #7a45c9;
   --switch-mark-random: #b35a12;
-  --switch-mark-corner: 0.22;
-  --switch-mark-font: 0.72;
+  --switch-mark-corner-ratio: 0.22;
+  --switch-mark-font-ratio: 0.72;
   font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   color: var(--fg);
   background: var(--bg);

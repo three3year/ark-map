@@ -32,6 +32,14 @@
     type SwitchMark,
     type SwitchMarkKind,
   } from "../timeline/index.ts";
+  import {
+    avatarRadius,
+    ringOuter,
+    ringStroke,
+    stayBarHeight,
+    stayBarTop,
+    stayBarWidth,
+  } from "./enemyGeometry.ts";
   import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
   import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
@@ -89,13 +97,13 @@
 
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
-  const stayBarWidth = 0.64;
 
   const markSide = 0.26;
   const markGap = 0.03;
-  const ringOuter = 0.385;
+  const markDigitWidth = 0.1;
+  const markPadding = 0.08;
   const markWidth = ({ number }: SwitchMark) =>
-    Math.max(markSide, 0.1 * String(number).length + 0.08);
+    Math.max(markSide, markDigitWidth * String(number).length + markPadding);
   function placedMarks(marks: SwitchMark[]) {
     let right = ringOuter;
     return marks.map((mark) => {
@@ -239,7 +247,7 @@
   >
     <g class="billboard">
       <title>{individual.enemy.name}{individual.harmless ? `(${strings.harmless})` : ""}</title>
-      <circle r="0.36" class="enemy-bg" />
+      <circle r={avatarRadius} class="enemy-bg" />
       {#if shows(individual.enemy.avatar)}
         <image
           href={individual.enemy.avatar}
@@ -253,7 +261,7 @@
       {:else}
         <text class="enemy-code">{individual.enemy.code ?? individual.enemy.name.slice(0, 1)}</text>
       {/if}
-      <circle r="0.36" class="enemy-ring" />
+      <circle r={avatarRadius} class="enemy-ring" stroke-width={ringStroke} />
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
@@ -282,9 +290,19 @@
       data-remaining={remaining.toFixed(3)}
     >
       <g class="billboard">
-        <g transform="translate({-stayBarWidth / 2} {individual.harmless ? -0.74 : -0.52})">
-          <rect class="stay-track" width={stayBarWidth} height="0.08" rx="0.04" />
-          <rect class="stay-fill" width={stayBarWidth * remaining} height="0.08" rx="0.04" />
+        <g transform="translate({-stayBarWidth / 2} {stayBarTop(individual.harmless)})">
+          <rect
+            class="stay-track"
+            width={stayBarWidth}
+            height={stayBarHeight}
+            rx={stayBarHeight / 2}
+          />
+          <rect
+            class="stay-fill"
+            width={stayBarWidth * remaining}
+            height={stayBarHeight}
+            rx={stayBarHeight / 2}
+          />
           <!-- Seconds left, over the bar's right end. -->
           <text class="stay-seconds" x={stayBarWidth} y="-0.02">{(stay.end - t).toFixed(1)}</text>
         </g>
@@ -297,6 +315,7 @@
   <div class="stage" class:tilted={view === "tilted"} style={stageStyle}>
     <svg
       class="map"
+      style:--switch-mark-side="{markSide}px"
       viewBox="-0.5 -0.5 {map.width} {map.height}"
       role="img"
       aria-label={strings.mapLabel}
@@ -684,7 +703,6 @@
   .enemy-ring {
     fill: none;
     stroke: var(--enemy-ring);
-    stroke-width: 0.05;
   }
   .enemy-code {
     font-size: 0.26px;
@@ -711,10 +729,10 @@
   }
   .switch-mark rect {
     fill: var(--switch-mark-fill);
-    rx: calc(0.26px * var(--switch-mark-corner));
+    rx: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
   }
   .switch-mark text {
-    font-size: calc(0.26px * var(--switch-mark-font));
+    font-size: calc(var(--switch-mark-side) * var(--switch-mark-font-ratio));
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     text-anchor: middle;
@@ -893,8 +911,9 @@
     border: 3px solid var(--device-blocker);
   }
   .swatch.switch-mark {
+    --switch-mark-side: 14px;
     border: none;
-    border-radius: calc(14px * var(--switch-mark-corner));
+    border-radius: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
     background: var(--switch-mark-fill);
   }
   .swatch.dot {
