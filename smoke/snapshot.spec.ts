@@ -179,10 +179,15 @@ test("4-4 challenge runs its 難度修正 move speed and lists its modifiers", a
   await seek(page, t!);
 
   await expect(page.locator("svg.map g.enemy")).toHaveCount(onField(challenge, t!));
-  const moveModifier = page.locator('[data-modifier="ebuff_attribute"]');
-  await expect(moveModifier).toContainText("移速");
-  await expect(moveModifier).toContainText("計入移速");
-  await expect(page.locator(".level-info dd")).toHaveCount(4);
+  const info = page.locator(".level-info");
+  await expect(info.locator(".numbers")).toHaveText(
+    "可部署人數 9 · 生命值 3 · 初始費用 10 · 費用上限 99",
+  );
+  await expect(info.locator(".modifiers > li")).toHaveText([
+    "關卡生命值 1",
+    "敵人屬性倍率 — 移速 ×2",
+  ]);
+  await expect(info).not.toContainText("計入移速");
 });
 
 test("playback leaves the URL alone", async ({ page }) => {
