@@ -8,12 +8,15 @@ import {
   spawnTable,
   switchMarkKinds,
   takeSnapshot,
+  type DeviceSwitchMark,
   type Individual,
   type SpawnSwitches,
-  type SwitchMark,
+  type TimelineOptions,
 } from "../src/timeline/index.ts";
 import {
+  clearAround,
   conditionalSwitch,
+  deviceByIndex,
   endpointDot,
   enemyOnMap,
   rowOf,
@@ -35,7 +38,7 @@ const marksIn = (scope: Locator) =>
 
 const switchPanel = (page: Page) => page.getByRole("region", { name: "開關" });
 
-function panelItem(page: Page, mark: SwitchMark): Locator {
+function panelItem(page: Page, mark: DeviceSwitchMark): Locator {
   const panel = switchPanel(page);
   if (mark.kind === "conditional") return panel.locator(`[data-conditional="${mark.branchIndex}"]`);
   if (mark.kind === "hiddenGroup") {
@@ -237,4 +240,102 @@ test("DS-2: the legend lists the mark kinds of the wave's enemies, whatever the 
   await expect.poll(() => legendKinds(page)).toEqual(["conditional"]);
   await seek(page, 5);
   expect(await legendKinds(page)).toEqual(["conditional"]);
+});
+
+/** ISW-NO 公害: its 開關 activate devices; the 隨機出兵組 t1 picks one of three, 寶箱 first. */
+const gonghai = "ro4_n_1_2";
+
+/** Device `alias` of `stage`'s first variant: its index and its first whole second on the field. */
+function deviceShowing(stage: string, alias: string, options: TimelineOptions) {
+  const level = siteLevel(stage);
+  const difficulty = siteStage(stage).variants[0]!.difficulty;
+  const index = level.devices.findIndex((d) => d.alias === alias);
+  const timeline = buildTimeline(level, { ...options, difficulty });
+  for (let t = 0; t < 600; t++) {
+    const device = timeline.devicesAt(t).find((d) => d.index === index);
+    if (device && clearAround(timeline, t, device.device.cell)) return { t, ...device };
+  }
+  throw new Error(`${alias} never shows clear of enemies`);
+}
+
+const fillOf = (scope: Locator) =>
+  scope.locator("[data-switch-mark]").evaluateAll((marks) =>
+    marks.map((m) => {
+      const painted = m.querySelector("rect") ?? m;
+      const style = getComputedStyle(painted);
+      return painted instanceof SVGElement ? style.fill : style.backgroundColor;
+    }),
+  );
+
+test("公害: a device a 開關 activates carries that 開關's mark, as in the 開關面板", async ({
+  page,
+}) => {
+  const trader = deviceShowing(gonghai, "trap_764_skzshp", { switches: { hiddenOn: ["cargo"] } });
+  const chest = deviceShowing(gonghai, "trap_757_skzbox#1", { switches: { picks: { 0: 1 } } });
+  expect(trader.marks).toEqual([{ kind: "hiddenGroup", number: 1, name: "cargo" }]);
+  expect(chest.marks).toEqual([{ kind: "random", number: 1, group: 0 }]);
+
+  await page.goto(`#/level/${gonghai}?v=normal`);
+  await page.getByRole("button", { name: "平面俯視" }).click();
+  await page.locator('input[data-hidden-group="cargo"]').check();
+  await seek(page, trader.t);
+  const onMap = deviceByIndex(page, trader.index);
+  expect(await marksIn(onMap)).toEqual(["hiddenGroup 1"]);
+  expect(await fillOf(onMap)).toEqual(await fillOf(panelItem(page, trader.marks[0]!)));
+
+  await page.locator('select[data-random-group="0"]').selectOption("1");
+  await seek(page, chest.t);
+  const chestOnMap = deviceByIndex(page, chest.index);
+  expect(await marksIn(chestOnMap)).toEqual(["random 1"]);
+  expect(await fillOf(chestOnMap)).toEqual(await fillOf(panelItem(page, chest.marks[0]!)));
+});
+
+test("BD-1: a device's mark lets clicks and right-clicks through to it; removed, it keeps the mark and fades", async ({
+  page,
+}) => {
+  // 公害 has no 擋路裝置 to remove; BD-1's shelter, withdrawn by a 隱藏組, stands from the start.
+  const stage = "act21mini_01";
+  const shelter = deviceShowing(stage, "trap_141_sheltr#5", {});
+  expect(shelter.device.blocker).toBe(true);
+  const onMap = deviceByIndex(page, shelter.index);
+
+  await page.goto(`#/level/${stage}?v=normal`);
+  await page.getByRole("button", { name: "平面俯視" }).click();
+  await seek(page, shelter.t);
+  const [mark] = await markBoxes(onMap);
+  const centre: [number, number] = [mark!.left + mark!.width / 2, mark!.top + mark!.height / 2];
+
+  await page.mouse.click(...centre);
+  await expect(onMap).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.click(...centre, { button: "right" });
+  await expect(onMap).toHaveAttribute("data-removed");
+  expect(await marksIn(onMap)).toEqual(["hiddenGroup 1"]);
+  expect(await shownOpacity(onMap.locator("[data-switch-mark] rect"))).toBeCloseTo(
+    await shownOpacity(onMap.locator(".device-frame")),
+    2,
+  );
+});
+
+test("一步之遥: a device of four 開關 has four marks leftward from its square's bottom-right corner", async ({
+  page,
+}) => {
+  const stage = "ro6_n_5_1";
+  const switches = { picks: { 2: 1 } };
+  const treant = deviceShowing(stage, "trap_219_fttreant#5", { switches });
+  const onMap = deviceByIndex(page, treant.index);
+
+  await page.goto(`#/level/${stage}?v=normal`);
+  await page.getByRole("button", { name: "平面俯視" }).click();
+  await page.locator('select[data-random-group="2"]').selectOption("1");
+  await seek(page, treant.t);
+
+  expect(await marksIn(onMap)).toEqual(["hiddenGroup 1", "hiddenGroup 2", "random 3", "random 5"]);
+  const square = (await onMap.locator(".device-bg").boundingBox())!;
+  const boxes = await markBoxes(onMap);
+  expect(boxes[0]!.left + boxes[0]!.width).toBeCloseTo(square.x + square.width, 0);
+  expect(boxes[0]!.top + boxes[0]!.height).toBeCloseTo(square.y + square.height, 0);
+  for (let i = 1; i < boxes.length; i++) {
+    expect(boxes[i]!.left + boxes[i]!.width).toBeLessThan(boxes[i - 1]!.left);
+    expect(boxes[i]!.top).toBeCloseTo(boxes[0]!.top, 0);
+  }
 });
