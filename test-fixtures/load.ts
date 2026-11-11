@@ -24,6 +24,7 @@ import type {
   RawZoneTable,
 } from "../pipeline/raw.ts";
 import type { EffectTables } from "../pipeline/effectCells.ts";
+import { buildSourceCatalog, type SourceCatalog } from "../pipeline/hiddenGroupSources.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level } from "../src/level/index.ts";
 
@@ -93,9 +94,18 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
   ));
 }
 
+let sourceCatalog: SourceCatalog | undefined;
+
+/** 隱藏組來源 from the fixture theme tables. */
+export function fixtureSourceCatalog(): SourceCatalog {
+  const { cn, tw } = rawTables();
+  return (sourceCatalog ??= buildSourceCatalog(cn.roguelike, tw.roguelike));
+}
+
 export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {
   return convertLevel(levelId, raw, buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()), {
     devices: fixtureDeviceCatalog(),
+    sources: fixtureSourceCatalog(),
   });
 }
 

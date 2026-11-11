@@ -186,6 +186,7 @@ describe("movement model v0", () => {
         },
       ],
       extraRoutes: [],
+      hiddenGroupSources: {},
       branches: [],
       devices: [],
       waves: [

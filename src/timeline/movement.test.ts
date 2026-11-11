@@ -93,6 +93,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
       },
     ],
     extraRoutes: [],
+    hiddenGroupSources: {},
     branches: [],
     devices,
     waves: [
