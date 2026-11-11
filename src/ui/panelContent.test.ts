@@ -103,6 +103,19 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("act46side_ex01: an 環境機制's target shows only in the name's hint", () => {
+    const env = challenge("level_act46side_ex01").find((line) => line.key === "env_system_new")!;
+    expect(env.hint).toBe("env_system_new · env_037_act46side");
+    expect(env.params.map((p) => p.label)).not.toContain("對象");
+    expect(env.params.map((p) => p.value)).not.toContain("env_037_act46side");
+  });
+
+  it("act46side_ex01: common parameters read in Chinese, an event's own ones as their key", () => {
+    const params = challengeParams("level_act46side_ex01", "env_system_new");
+    expect(params).toContainEqual({ label: "暈眩時間", value: "10", hint: null });
+    expect(params).toContainEqual({ label: "enemy_avalanche_damage", value: "5000", hint: null });
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",

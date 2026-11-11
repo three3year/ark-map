@@ -86,6 +86,9 @@ function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): b
   return true;
 }
 
+/** 環境機制 and 環境全域效果: their `key` names the mechanism, shown only in the name's hint. */
+const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
+
 /** Parameters naming whom a modifier applies to; alone, they change nothing. */
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
@@ -145,12 +148,19 @@ function modifierLine(
   modifier: Modifier,
   context: ModifierContext,
 ): ModifierLine | null {
-  const entries = modifier.blackboard.filter((entry) => hasEffect(modifier.key, entry));
+  const environment = environmentKeys.has(modifier.key);
+  const entries = modifier.blackboard.filter(
+    (entry) => !(environment && entry.key === "key") && hasEffect(modifier.key, entry),
+  );
   if (entries.every((entry) => targetKeys.has(entry.key))) return null;
   const name = isKnownModifierKey(modifier.key)
     ? strings.modifierKeys[modifier.key]
     : strings.modifierUnknown;
-  const line = { key: modifier.key, name, hint: modifier.key };
+  const target = environment
+    ? modifier.blackboard.find((entry) => entry.key === "key")?.valueStr
+    : null;
+  const hint = target ? `${modifier.key} · ${target}` : modifier.key;
+  const line = { key: modifier.key, name, hint };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
     return { ...line, value: entryValue(modifier.key, first, level.enemies), params: [] };
