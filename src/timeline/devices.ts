@@ -100,6 +100,11 @@ export function removedAt(device: DevicePresence, t: number): boolean {
   return valueAt(device.presence, t) && removedBy(device, t);
 }
 
+/** On the field or removed at some second of the wave. */
+export function listedSometime(device: DevicePresence): boolean {
+  return device.presence.initial || device.presence.changes.some((c) => c.value);
+}
+
 export function presenceChanges(devices: DevicePresence[]): number[] {
   const seconds = devices.flatMap((d) => [
     ...d.presence.changes.map((c) => c.from),
