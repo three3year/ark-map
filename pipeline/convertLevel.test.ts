@@ -18,6 +18,7 @@ import {
   rawEnemyHandbook,
   rawCharacterTables,
   rawFixture,
+  rawTables,
 } from "../test-fixtures/load.ts";
 import {
   buildDeviceCatalog,
@@ -28,6 +29,7 @@ import {
   type DeviceTables,
 } from "./convertLevel.ts";
 import { noEffectTables } from "./effectCells.ts";
+import { buildSourceCatalog } from "./hiddenGroupSources.ts";
 import type { RawEnemyData, RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
 
 const enemyCatalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
@@ -534,6 +536,22 @@ describe("隱藏組來源", () => {
       name: "谒日之祈",
       kind: "RELIC",
     });
+  });
+
+  it("an item of a kind the site does not know is left out, and its kind is reported", () => {
+    const { cn, tw } = rawTables();
+    for (const table of [cn.roguelike, tw.roguelike]) {
+      table.details["rogue_4"]!.items["rogue_4_relic_explore_5"]!.type = "MADE_UP";
+    }
+    const unknown: string[] = [];
+    const catalog = buildSourceCatalog(cn.roguelike, tw.roguelike, (item, kind) =>
+      unknown.push(`${item} ${kind}`),
+    );
+    const level = convertLevel("level_rogue4_1-2", rawFixture("level_rogue4_1-2"), enemyCatalog(), {
+      sources: catalog,
+    });
+    expect(unknown).toEqual(["rogue_4_relic_explore_5 MADE_UP"]);
+    expect(level.hiddenGroupSources["cargo"]).toBeUndefined();
   });
 });
 

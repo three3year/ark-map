@@ -202,9 +202,11 @@ export interface HiddenGroupSource {
   opens: boolean;
   /** TW name, else CN. */
   name: string;
-  /** "RELIC" | "COPPER_BUFF" | "TOTEM_EFFECT" | "FEATURE", as the theme table has it. */
-  kind: string;
+  kind: HiddenGroupSourceKind;
 }
+
+/** A 隱藏組來源's item kind, as the theme table has it: 收藏品, 通寶, 密文板效果 or 機制. */
+export type HiddenGroupSourceKind = "RELIC" | "COPPER_BUFF" | "TOTEM_EFFECT" | "FEATURE";
 
 /** Difficulty a variant runs at; 難度修正 whose mask matches it apply. */
 export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";

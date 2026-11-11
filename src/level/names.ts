@@ -93,10 +93,13 @@ export function withNames(file: LevelFile, names: NameTable): Level {
       description: description !== undefined ? description : (info?.description ?? null),
     };
   });
+  // A source whose kind neither the file nor the table gives is left out, as the pipeline leaves
+  // out one of an unknown kind.
   const hiddenGroupSources = mapValues(file.hiddenGroupSources, (sources) =>
-    sources.map(({ name, kind, ...source }): HiddenGroupSource => {
+    sources.flatMap(({ name, kind, ...source }): HiddenGroupSource[] => {
       const info = names.sources[source.item];
-      return { ...source, name: name ?? info?.name ?? source.item, kind: kind ?? info?.kind ?? "" };
+      const known = kind ?? info?.kind;
+      return known ? [{ ...source, name: name ?? info?.name ?? source.item, kind: known }] : [];
     }),
   );
   return { ...file, enemies, devices, hiddenGroupSources };

@@ -111,9 +111,7 @@ export function hiddenGroupText(
   );
   const sources = level.hiddenGroupSources[name] ?? [];
   const sourceTexts = unique(
-    sources.map((s) =>
-      strings.hiddenGroupSource(strings.sourceKinds[s.kind] ?? "", s.name, s.opens),
-    ),
+    sources.map((s) => strings.hiddenGroupSource(s.kind, s.name, s.opens)),
   );
   const variant = variantNote(level, name, variants);
   const parts = [

@@ -1,5 +1,12 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, Server, StageEntry, VariantId } from "../level/index.ts";
+import type {
+  AreaKind,
+  HiddenGroupSourceKind,
+  KnownModifierKey,
+  Server,
+  StageEntry,
+  VariantId,
+} from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
 import type { EnemyAttributeKey } from "./panelContent.ts";
 import type { TerrainIcon } from "./terrain.ts";
@@ -80,9 +87,9 @@ export const strings = {
     COPPER_BUFF: "通寶",
     TOTEM_EFFECT: "密文板效果",
     FEATURE: "機制",
-  } as Readonly<Record<string, string>>,
-  hiddenGroupSource: (kind: string, name: string, opens: boolean) =>
-    `${kind}「${name}」${opens ? "開啟" : "關閉"}`,
+  } satisfies Record<HiddenGroupSourceKind, string>,
+  hiddenGroupSource: (kind: HiddenGroupSourceKind, name: string, opens: boolean) =>
+    `${strings.sourceKinds[kind]}「${name}」${opens ? "開啟" : "關閉"}`,
   hiddenGroupSources: (sources: string[]) => `由${sources.join("、")}`,
   hiddenGroupNote: (parts: string[]) => parts.join(","),
   onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
