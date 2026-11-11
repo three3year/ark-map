@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { loadFixtureLevel } from "../../test-fixtures/load.ts";
+import { fixtureNameTable, loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { spawnPlan } from "../timeline/index.ts";
-import { variantModifiers } from "../level/index.ts";
+import { variantModifiers, type Level, type Modifier } from "../level/index.ts";
 import { branchLabel, candidateLabel, levelNumbers, modifierLines } from "./panelContent.ts";
 
 describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
@@ -35,10 +35,17 @@ describe("純機關: 5-10", () => {
 });
 
 describe("難度修正 lines", () => {
+  const lines = (level: Level, modifiers: Modifier[]) =>
+    modifierLines(level, modifiers, {
+      names: fixtureNameTable(),
+      plan: spawnPlan(level, "FOUR_STAR"),
+    });
   const challenge = (name: string) => {
     const level = loadFixtureLevel(name);
-    return modifierLines(level, variantModifiers(level.modifiers, "FOUR_STAR"));
+    return lines(level, variantModifiers(level.modifiers, "FOUR_STAR"));
   };
+  const challengeParams = (name: string, key: string) =>
+    challenge(name).find((line) => line.key === key)?.params;
 
   it("4-4 突襲: a lone value reads after the name; ×1 is dropped; move speed has its hint", () => {
     expect(challenge("level_main_04-04")).toEqual([
@@ -80,7 +87,7 @@ describe("難度修正 lines", () => {
         { key: "def", value: 50, valueStr: null },
       ],
     };
-    expect(modifierLines(loadFixtureLevel("level_main_04-04"), [add])[0]?.params).toEqual([
+    expect(lines(loadFixtureLevel("level_main_04-04"), [add])[0]?.params).toEqual([
       { label: "防禦", value: "50", hint: null },
     ]);
   });
@@ -90,15 +97,19 @@ describe("難度修正 lines", () => {
     expect(params).toContainEqual({ label: "指定敵人", value: "梅菲斯特", hint: null });
   });
 
+  it("act46side_ex01 突襲: preset devices read by name and state, the same ones merged", () => {
+    expect(challengeParams("level_act46side_ex01", "level_predefines_enable")).toEqual([
+      { label: "伊斯貝塔高台", value: "× 9 開", hint: null },
+    ]);
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",
       difficulties: [],
       blackboard: [{ key: "value", value: 2, valueStr: null }],
     };
-    expect(modifierLines(loadFixtureLevel("level_main_04-04"), [unknown])[0]?.name).toBe(
-      "未知修正",
-    );
+    expect(lines(loadFixtureLevel("level_main_04-04"), [unknown])[0]?.name).toBe("未知修正");
   });
 });
 

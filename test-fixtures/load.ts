@@ -8,8 +8,10 @@ import {
   buildEnemyCatalog,
   controllerKeys,
   convertLevel,
+  siteLevelFile,
   type DeviceCatalog,
 } from "../pipeline/convertLevel.ts";
+import { terrainTable } from "../pipeline/terrainTable.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
@@ -25,7 +27,7 @@ import type {
 } from "../pipeline/raw.ts";
 import type { EffectTables } from "../pipeline/effectCells.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
-import type { Level } from "../src/level/index.ts";
+import type { Level, NameTable } from "../src/level/index.ts";
 
 const rawDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "raw");
 
@@ -101,4 +103,20 @@ export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {
 
 export function loadFixtureLevel(name: string): Level {
   return convertFixture(rawFixture(name), name);
+}
+
+let nameTable: NameTable | undefined;
+
+/** The 名稱表 the pipeline would write for the fixture levels; its 地形表 has every fixture tile. */
+export function fixtureNameTable(): NameTable {
+  if (nameTable) return nameTable;
+  const catalog = buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
+  const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+  for (const name of fixtureLevelNames()) {
+    siteLevelFile(loadFixtureLevel(name), catalog, names, fixtureDeviceCatalog());
+  }
+  const { cn, tw } = rawTables();
+  const tileKeys = new Set([...Object.keys(cn.stage.tileInfo), ...Object.keys(tw.stage.tileInfo)]);
+  names.terrain = terrainTable(tileKeys, cn.stage, tw.stage);
+  return (nameTable = names);
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Level, Modifier } from "../level/index.ts";
+  import type { Level, Modifier, NameTable } from "../level/index.ts";
+  import type { SpawnPlan } from "../timeline/index.ts";
   import { levelNumbers, modifierLines } from "./panelContent.ts";
   import { strings } from "./strings.ts";
 
@@ -7,12 +8,15 @@
     level: Level;
     /** The 難度修正 the shown variant applies. */
     modifiers: Modifier[];
+    names: NameTable;
+    /** The shown variant's spawn plan, which numbers the 隱藏組 marks. */
+    plan: SpawnPlan;
     /** Variant name, e.g. "突襲". */
     variantName: string;
   }
-  let { level, modifiers, variantName }: Props = $props();
+  let { level, modifiers, names, plan, variantName }: Props = $props();
 
-  const lines = $derived(modifierLines(level, modifiers));
+  const lines = $derived(modifierLines(level, modifiers, { names, plan }));
 </script>
 
 <section class="level-info">

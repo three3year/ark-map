@@ -6,7 +6,7 @@
     type IndexedDevice,
     type Level,
     type StageEntry,
-    type TerrainTable,
+    type NameTable,
     type Variant,
     type VariantId,
   } from "../level/index.ts";
@@ -64,8 +64,8 @@
     variant: Variant;
     view: LevelView;
     level: Level;
-    /** The 名稱表's 地形表. */
-    terrain: TerrainTable;
+    /** The 名稱表: the 地形表, and names the 難度修正 list looks up. */
+    names: NameTable;
     /** 上一關 and 下一關 in the area; null at its ends. */
     prev: StageLink | null;
     next: StageLink | null;
@@ -89,7 +89,7 @@
     variant,
     view,
     level,
-    terrain,
+    names,
     prev,
     next,
     wave,
@@ -420,7 +420,7 @@
     <MapView
       view={mapView}
       map={level.map}
-      {terrain}
+      terrain={names.terrain}
       devices={drawnDevices}
       selectedDevice={selectedDevice?.index ?? null}
       {effectCells}
@@ -491,7 +491,7 @@
       onPick={pick}
       onConditional={setConditional}
     />
-    <LevelInfo {level} {modifiers} variantName={variantLabel(variant.id)} />
+    <LevelInfo {level} {modifiers} {names} {plan} variantName={variantLabel(variant.id)} />
     {@render footer()}
   </div>
   <!--

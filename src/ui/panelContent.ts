@@ -12,8 +12,9 @@ import {
   type Level,
   type LevelOptions,
   type Modifier,
+  type NameTable,
 } from "../level/index.ts";
-import { actionAt, type RandomCandidate } from "../timeline/index.ts";
+import { actionAt, type RandomCandidate, type SpawnPlan } from "../timeline/index.ts";
 import { strings } from "./strings.ts";
 
 function deviceName(level: Level, alias: string): string {
@@ -104,7 +105,46 @@ function entryValue(
   return valueStr;
 }
 
-function modifierLine(level: Level, modifier: Modifier): ModifierLine | null {
+/** What 難度修正 lines are worked out against besides the level. */
+export interface ModifierContext {
+  /** Names of the 地形, enemies and device kinds the level itself does not have. */
+  names: NameTable;
+  /** The variant's spawn plan: 隱藏組 marks number as the 開關面板 does. */
+  plan: SpawnPlan;
+}
+
+/**
+ * `level_predefines_enable`'s entries, one per device alias: "名稱 開", or "名稱 × N 開" for N
+ * devices of the same name and state.
+ */
+function presetDeviceParams(
+  level: Level,
+  entries: BlackboardEntry[],
+  { names }: ModifierContext,
+): ModifierParam[] {
+  const counts = new Map<string, { name: string; on: boolean; count: number }>();
+  for (const { key, value } of entries) {
+    const kind = key.replace(/#\d+$/, "");
+    const name =
+      level.devices.find((d) => d.alias === key)?.name ?? names.devices[kind]?.name ?? key;
+    const on = value !== 0;
+    const id = `${on}:${name}`;
+    const seen = counts.get(id);
+    if (seen) seen.count++;
+    else counts.set(id, { name, on, count: 1 });
+  }
+  return [...counts.values()].map(({ name, on, count }) => ({
+    label: name,
+    value: `${count > 1 ? `× ${count} ` : ""}${on ? strings.deviceOn : strings.deviceOff}`,
+    hint: null,
+  }));
+}
+
+function modifierLine(
+  level: Level,
+  modifier: Modifier,
+  context: ModifierContext,
+): ModifierLine | null {
   const entries = modifier.blackboard.filter((entry) => hasEffect(modifier.key, entry));
   if (entries.every((entry) => targetKeys.has(entry.key))) return null;
   const name = isKnownModifierKey(modifier.key)
@@ -114,6 +154,9 @@ function modifierLine(level: Level, modifier: Modifier): ModifierLine | null {
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
     return { ...line, value: entryValue(modifier.key, first, level.enemies), params: [] };
+  }
+  if (modifier.key === "level_predefines_enable") {
+    return { ...line, value: null, params: presetDeviceParams(level, entries, context) };
   }
   const moves = affectsMovement(modifier);
   return {
@@ -128,8 +171,11 @@ function modifierLine(level: Level, modifier: Modifier): ModifierLine | null {
 }
 
 /** The 難度修正 list: one line per modifier that changes something. */
-export const modifierLines = (level: Level, modifiers: Modifier[]): ModifierLine[] =>
-  modifiers.flatMap((modifier) => modifierLine(level, modifier) ?? []);
+export const modifierLines = (
+  level: Level,
+  modifiers: Modifier[],
+  context: ModifierContext,
+): ModifierLine[] => modifiers.flatMap((modifier) => modifierLine(level, modifier, context) ?? []);
 
 /** The 關卡資訊's numbers as one line: "可部署人數 8 · 生命值 3 · 初始費用 10 · 費用上限 99". */
 export const levelNumbers = (options: LevelOptions): string =>

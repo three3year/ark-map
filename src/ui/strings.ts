@@ -121,6 +121,9 @@ export const strings = {
   /** Hint on a 難度修正's move speed that the timeline applies. */
   modifierMovesEnemies: "已套用到地圖上的移動",
   modifierUnknown: "未知修正",
+  /** A preset device a 難度修正 switches on or off. */
+  deviceOn: "開",
+  deviceOff: "關",
   /** 難度修正 names by key. */
   modifierKeys: {
     ebuff_attribute: "敵人屬性倍率",
