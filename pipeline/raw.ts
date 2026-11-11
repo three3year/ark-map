@@ -214,8 +214,6 @@ export interface RawRoguelikeStage {
   levelReplaceIds: string[];
   code: string;
   name: string;
-  /** The emergency operation's condition text, "附加条件：…"; null for normal nodes. */
-  eliteDesc: string | null;
   /** "NORMAL" | "FOUR_STAR" */
   difficulty: string;
 }

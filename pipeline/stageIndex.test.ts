@@ -207,12 +207,11 @@ describe("stage index: 集成戰略", () => {
         sourceStageId: "ro1_e_1_1",
         levelFile: "data/levels/obt/roguelike/ro1/level_rogue1_1-1.json",
         difficulty: "FOUR_STAR",
-        emergencyCondition: "附加條件：敵人的攻擊力、防禦力和生命值大幅度提升",
       },
     ]);
   });
 
-  it("ro4_e_t_2 is ro4_t_2's emergency variant, its condition on that variant", () => {
+  it("ro4_e_t_2 is ro4_t_2's emergency variant", () => {
     const node = stageById(build(), "ro4_t_2");
     expect([node.code, node.name]).toEqual(["ISW-SP", "訊號燈"]);
     expect(node.variants.slice(0, 2)).toEqual([
@@ -227,8 +226,6 @@ describe("stage index: 集成戰略", () => {
         sourceStageId: "ro4_e_t_2",
         levelFile: "data/levels/obt/roguelike/ro4/level_rogue4_t-2.json",
         difficulty: "FOUR_STAR",
-        emergencyCondition:
-          "敵人的攻擊力、防禦力和生命值提升，出現額外敵人，道路障礙物的生命值大幅提升",
       },
     ]);
   });
@@ -247,7 +244,6 @@ describe("stage index: 集成戰略", () => {
         sourceStageId: "ro6_e_3_1_dlc1",
         levelFile: "data/levels/obt/roguelike/ro6/dlc1/level_rogue6_3-1_dlc1.json",
         difficulty: "FOUR_STAR",
-        emergencyCondition: "敌人的攻击力、防御力和生命值提升，部分敌人有所不同",
       },
     ]);
   });
