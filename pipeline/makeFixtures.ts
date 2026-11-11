@@ -15,6 +15,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sources, type RepoSource } from "../src/dataSources.ts";
+import { mapValues } from "../src/level/index.ts";
 import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
@@ -165,10 +166,6 @@ function pick<T extends object>(value: T, keys: (keyof T)[]): T {
 
 function filterEntries<T>(record: Record<string, T>, keep: (key: string, value: T) => boolean) {
   return Object.fromEntries(Object.entries(record).filter(([k, v]) => keep(k, v)));
-}
-
-function mapValues<T>(record: Record<string, T>, fn: (value: T) => T): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v)]));
 }
 
 const stageKeys: (keyof RawStage)[] = [

@@ -43,7 +43,8 @@ export type LevelFile = Omit<Level, "enemies" | "devices" | "hiddenGroupSources"
   hiddenGroupSources: Record<string, HiddenGroupSourceFile[]>;
 };
 
-function mapValues<T, U>(record: Record<string, T>, fn: (value: T) => U): Record<string, U> {
+/** `record` with `fn` applied to each value, keys kept. */
+export function mapValues<T, U>(record: Record<string, T>, fn: (value: T) => U): Record<string, U> {
   return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v)]));
 }
 
