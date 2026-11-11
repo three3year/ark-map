@@ -76,7 +76,12 @@ function skillRangeId(
   return (levels[mainSkillLvl - 1] ?? levels.at(-1))?.rangeId ?? null;
 }
 
-function chosenOffsets(context: EffectContext, token: RawTokenInst): Cell[] {
+interface Offset {
+  row: number;
+  col: number;
+}
+
+function chosenOffsets(context: EffectContext, token: RawTokenInst): Offset[] {
   const { tables, onUnknownRangeId } = context;
   for (const id of rangeIdCandidates(context, token)) {
     if (id === null) continue;
@@ -95,7 +100,7 @@ type Facing = (typeof directions)[number];
 const isFacing = (direction: Direction): direction is Facing =>
   (directions as readonly string[]).includes(direction);
 
-function rotate({ row, col }: Cell, facing: Facing): Cell {
+function rotate({ row, col }: Offset, facing: Facing): Offset {
   switch (facing) {
     case "RIGHT":
       return { row, col };
