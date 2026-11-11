@@ -77,8 +77,14 @@ export interface RawEnemyData {
     maxHp?: Slot<number>;
     atk?: Slot<number>;
     def?: Slot<number>;
+    magicResistance?: Slot<number>;
+    baseAttackTime?: Slot<number>;
+    attackSpeed?: Slot<number>;
     moveSpeed?: Slot<number>;
+    massLevel?: Slot<number>;
   };
+  rangeRadius?: Slot<number>;
+  lifePointReduce?: Slot<number>;
   motion?: Slot<RawEnum>;
   levelType?: Slot<RawEnum>;
   notCountInTotal?: Slot<boolean>;
