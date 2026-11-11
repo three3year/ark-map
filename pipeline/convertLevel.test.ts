@@ -734,6 +734,16 @@ describe("作用範圍", () => {
     );
   });
 
+  it("EP-8: a 鹽坨子炮 at level 1 takes 4-1 from its talent: five cells ahead on its row", () => {
+    expect(effectOf("level_act39side_08", "trap_196_cnnon#1")).toEqual(block([2], [3, 4, 5, 6, 7]));
+  });
+
+  it("EP-8: a 鹽坨子炮 at level 3 takes 6-1 from its talent: seven cells ahead on its row", () => {
+    expect(effectOf("level_act39side_08", "trap_196_cnnon#3")).toEqual(
+      block([6], [1, 2, 3, 4, 5, 6, 7]),
+    );
+  });
+
   it("a 碎石, with a range of only its own cell everywhere, has none", () => {
     const stones = loadFixtureLevel("level_act10mini_01").devices.filter(
       (d) => d.key === "trap_027_stone",
