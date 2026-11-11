@@ -402,9 +402,23 @@
           <g class="billboard">
             <title>{device.name}</title>
             {#if removed}
-              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-frame"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
             {:else}
-              <rect class="device-bg" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-bg"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
               {#if shows(device.image)}
                 <image
                   href={device.image}
@@ -417,7 +431,14 @@
               {:else}
                 <text class="device-initial">{[...device.name][0]}</text>
               {/if}
-              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-frame"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
               {#if removal}
                 <g class="removal-clock" transform="translate(-0.225 -0.225)">
                   <title>{strings.removalMoment(removal.wave, removal.t)}</title>
