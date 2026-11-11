@@ -87,7 +87,7 @@ export interface HiddenGroupText {
   name: string;
   /** Its tag in the level file, for the mouse-over hint. */
   hint: string;
-  /** 變體說明: the variants that switch it on by default; null when none does. */
+  /** 說明: its 隱藏組來源, then its 變體說明; null when it has neither. */
   note: string | null;
   /** The 出兵表's badge. */
   badge: string;

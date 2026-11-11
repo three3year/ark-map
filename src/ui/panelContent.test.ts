@@ -88,6 +88,24 @@ describe("隱藏組", () => {
     expect(text.badge).toBe("隱藏組・海潮的氣息");
   });
 
+  it("level_rogue5_1-1_dlc1's copper_r: two 通寶 named 花-鴨爵金幣 read as one", () => {
+    const level = loadFixtureLevel("level_rogue5_1-1_dlc1");
+    expect(level.hiddenGroupSources["copper_r"]).toHaveLength(2);
+    const text = hiddenGroupText(level, "copper_r", []);
+    expect(text.note).toBe("由通寶「花-鴨爵金幣」開啟");
+    expect(text.badge).toBe("隱藏組・花-鴨爵金幣");
+  });
+
+  it("level_rogue5_1-1_dlc1's copper_d: its closing source, then its 變體說明, which names the badge", () => {
+    const level = loadFixtureLevel("level_rogue5_1-1_dlc1");
+    const text = hiddenGroupText(level, "copper_d", [
+      { id: "normal", difficulty: "NORMAL" },
+      { id: "emergency", difficulty: "FOUR_STAR" },
+    ]);
+    expect(text.note).toBe("由通寶「花-鴨爵金幣」關閉,各變體都開");
+    expect(text.badge).toBe("隱藏組・各變體都開");
+  });
+
   it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
     const level = loadFixtureLevel("level_rogue2_1-1");
     expect(hiddenGroupText(level, "allydonq", []).name).toBe("裝置 獵潮的騎士");
