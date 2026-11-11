@@ -152,6 +152,25 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("act18mini_02: a tile parameter reads 地形 and the 地形表's name, each name once", () => {
+    const level = loadFixtureLevel("level_act18mini_02");
+    const params = lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
+      (line) => line.key === "map_tile_blackb_assign",
+    )!.params;
+    expect(params[0]).toEqual({ label: "地形", value: "蘆葦叢", hint: null });
+  });
+
+  it("names a 地形 the 地形表 lacks by its key", () => {
+    const tiles = {
+      key: "map_tile_blackb_add",
+      difficulties: [],
+      blackboard: [{ key: "tile", value: 0, valueStr: "tile_reed|tile_made_up" }],
+    };
+    expect(lines(loadFixtureLevel("level_main_04-04"), [tiles])[0]?.params).toEqual([
+      { label: "地形", value: "蘆葦叢、tile_made_up", hint: null },
+    ]);
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",

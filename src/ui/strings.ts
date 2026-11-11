@@ -215,7 +215,7 @@ export const strings = {
     value: "數值",
     scale: "倍率",
     key: "對象",
-    tile: "格",
+    tile: "地形",
     token_key: "裝置",
     skill: "技能序號",
     location: "格",

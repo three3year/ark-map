@@ -121,18 +121,25 @@ const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_grou
 /** Parameters naming whom a modifier applies to; alone, they change nothing. */
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
-/** Multiplier modifiers' numbers read "×2"; enemy lists ("a|b") read as names. */
+/**
+ * Multiplier modifiers' numbers read "×2". Text lists ("a|b") read as names, each once: enemy
+ * ids as enemies, `tile`'s keys as 地形; cells keep their order and repeats.
+ */
 function entryValue(
+  level: Level,
   modifierKey: string,
   { key, value, valueStr }: BlackboardEntry,
-  enemies: Record<string, EnemyRef>,
+  { names }: ModifierContext,
 ): string {
   if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
   const parts = valueStr.split("|");
-  if (key === "enemy" || key === "enemy_exclude") {
-    return parts.map((id) => enemies[id]?.name ?? id).join("、");
-  }
-  return parts.join("、");
+  if (key === "location") return parts.join("、");
+  const shown = parts.map((part) => {
+    if (key === "tile") return names.terrain[part]?.name ?? part;
+    if (key === "enemy" || key === "enemy_exclude") return level.enemies[part]?.name ?? part;
+    return part;
+  });
+  return [...new Set(shown)].join("、");
 }
 
 /** What 難度修正 lines are worked out against besides the level. */
@@ -209,7 +216,7 @@ function modifierLine(
   const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
-    return { ...line, value: entryValue(modifier.key, first, level.enemies), params: [] };
+    return { ...line, value: entryValue(level, modifier.key, first, context), params: [] };
   }
   if (modifier.key === "level_predefines_enable") {
     return { ...line, value: null, params: presetDeviceParams(level, entries, context) };
@@ -220,7 +227,7 @@ function modifierLine(
     value: null,
     params: entries.map((entry) => ({
       label: strings.blackboardKeys[entry.key] ?? entry.key,
-      value: entryValue(modifier.key, entry, level.enemies),
+      value: entryValue(level, modifier.key, entry, context),
       hint: moves && entry.key === "move_speed" ? strings.modifierMovesEnemies : null,
     })),
   };
