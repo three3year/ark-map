@@ -14,6 +14,7 @@
   import {
     cellKey,
     isWalkable,
+    type Cell,
     type DeviceIndex,
     type IndexedDevice,
     type LevelMap,
@@ -52,6 +53,8 @@
     terrain: TerrainTable;
     devices: DrawnDevice[];
     selectedDevice: DeviceIndex | null;
+    /** The 作用範圍 drawn over everything: the selected device's while it is on the field. */
+    effectCells: Cell[];
     /** Clicking the selected device again passes null. */
     onSelectDevice: (index: DeviceIndex | null) => void;
     /** A device was right-clicked. */
@@ -82,6 +85,7 @@
     terrain,
     devices,
     selectedDevice,
+    effectCells,
     onSelectDevice,
     onToggleRemoval,
     endpoints,
@@ -215,6 +219,11 @@
   });
   const hasEndpoint = (kind: RouteEndpoint["kind"]) => endpoints.some((e) => e.kind === kind);
 
+  /** One shape of every 作用範圍 cell, so the stripes run on without a seam between cells. */
+  const effectShape = $derived(
+    effectCells.map(({ row, col }) => `M ${col - 0.5} ${svgY(row) - 0.5} h 1 v 1 h -1 Z`).join(" "),
+  );
+
   /** Every 高台 gets a right triangle in each of its four corners, flush with the cell edge. */
   const highlandCorners =
     "M -0.5 -0.5 H -0.3 L -0.5 -0.3 Z M 0.5 -0.5 V -0.3 L 0.3 -0.5 Z " +
@@ -337,6 +346,16 @@
         >
           <rect width="0.14" height="0.14" fill="var(--floor-yellow)" />
           <rect width="0.07" height="0.14" fill="var(--floor-black)" />
+        </pattern>
+        <!-- 作用範圍: red and clear stripes, 0.1 of a cell each, laid in map coordinates. -->
+        <pattern
+          id="effect-stripes"
+          patternUnits="userSpaceOnUse"
+          width="0.2"
+          height="0.2"
+          patternTransform="rotate(45)"
+        >
+          <rect class="effect-stripe" width="0.1" height="0.2" />
         </pattern>
       </defs>
       {#each cells as { tile, row, col } (`${row},${col}`)}
@@ -539,6 +558,15 @@
           {@render stayBar(enemy)}
         {/each}
       </g>
+
+      {#if effectCells.length > 0}
+        <!-- Last, over everything; flat on the map, and clicks pass through to what is under it. -->
+        <path
+          class="effect-cells"
+          d={effectShape}
+          data-effect-cells={effectCells.map(cellKey).join(" ")}
+        />
+      {/if}
     </svg>
   </div>
 
@@ -582,6 +610,9 @@
         <span>{strings.legendSwitchMark[kind]}</span>
       </li>
     {/each}
+    {#if effectCells.length > 0}
+      <li><span class="swatch effect"></span>{strings.legendEffectCells}</li>
+    {/if}
     {#if selected}
       <li><span class="swatch line walk"></span>{strings.legendPath}</li>
       <li><span class="swatch line teleport"></span>{strings.legendTeleport}</li>
@@ -603,6 +634,7 @@
     --device-frame: #5d6470;
     --device-blocker: #7c3aed;
     --path: #f5a524;
+    --effect-stripe: #cc293f80;
   }
   .stage {
     container-type: inline-size;
@@ -651,6 +683,13 @@
     fill: var(--highland-corner);
   }
   .terrain {
+    pointer-events: none;
+  }
+  .effect-stripe {
+    fill: var(--effect-stripe);
+  }
+  .effect-cells {
+    fill: url(#effect-stripes);
     pointer-events: none;
   }
   .device-bg {
@@ -936,6 +975,9 @@
   }
   .swatch.device.blocker {
     border: 2px solid var(--device-blocker);
+  }
+  .swatch.effect {
+    background: repeating-linear-gradient(135deg, var(--effect-stripe) 0 2px, transparent 2px 4px);
   }
   .swatch.dot {
     width: 10px;
