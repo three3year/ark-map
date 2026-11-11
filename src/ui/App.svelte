@@ -10,7 +10,6 @@
     type NameTable,
     type StageEntry,
     type StageIndex,
-    type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
   import { adjacentStages } from "./adjacentStages.ts";
@@ -145,11 +144,11 @@
     };
   });
 
-  /** The last level JSON fetched, with the file it came from and the 地形表. */
+  /** The last level JSON fetched, with the file it came from and the 名稱表. */
   let loaded = $state<{
     file: string;
     level: Level;
-    terrain: TerrainTable;
+    names: NameTable;
   } | null>(null);
   let requested: string | null = null;
   /** The 名稱表, fetched with the first level. */
@@ -162,7 +161,7 @@
     Promise.all([fetchJson<LevelFile>(file), names]).then(
       ([json, nameTable]) => {
         if (requested === file) {
-          loaded = { file, level: withNames(json, nameTable), terrain: nameTable.terrain };
+          loaded = { file, level: withNames(json, nameTable), names: nameTable };
         }
       },
       (e: unknown) => (error = String(e)),
@@ -171,7 +170,7 @@
 
   const levelPage = $derived(
     route.page === "level" && !error && found && variant && view && loaded?.file === view.shownFile
-      ? { route, ...found, variant, view, level: loaded.level, terrain: loaded.terrain }
+      ? { route, ...found, variant, view, level: loaded.level, names: loaded.names }
       : null,
   );
 
@@ -211,7 +210,7 @@
       variant={levelPage.variant}
       view={levelPage.view}
       level={levelPage.level}
-      terrain={levelPage.terrain}
+      names={levelPage.names}
       prev={adjacentLinks.prev}
       next={adjacentLinks.next}
       wave={position.wave}
