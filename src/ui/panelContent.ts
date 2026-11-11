@@ -122,8 +122,9 @@ const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_grou
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
 /**
- * Multiplier modifiers' numbers read "×2". Text lists ("a|b") read as names, each once: enemy
- * ids as enemies, `tile`'s keys as 地形; cells keep their order and repeats.
+ * Multiplier modifiers' numbers read "×2". Text lists ("a|b") read as names, each once: `tile`'s
+ * keys as 地形, any other part as the enemy or device kind it names, else as is. Cells keep their
+ * order and repeats.
  */
 function entryValue(
   level: Level,
@@ -134,11 +135,15 @@ function entryValue(
   if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
   const parts = valueStr.split("|");
   if (key === "location") return parts.join("、");
-  const shown = parts.map((part) => {
-    if (key === "tile") return names.terrain[part]?.name ?? part;
-    if (key === "enemy" || key === "enemy_exclude") return level.enemies[part]?.name ?? part;
-    return part;
-  });
+  const shown = parts.map((part) =>
+    key === "tile"
+      ? (names.terrain[part]?.name ?? part)
+      : (level.enemies[part]?.name ??
+        names.enemies[part] ??
+        level.devices.find((d) => d.key === part)?.name ??
+        names.devices[part]?.name ??
+        part),
+  );
   return [...new Set(shown)].join("、");
 }
 

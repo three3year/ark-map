@@ -171,6 +171,29 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("act49side_01: an enemy id in a text value reads as the enemy's name", () => {
+    const level = loadFixtureLevel("level_act49side_01");
+    const params = lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
+      (line) => line.key === "env_system_new",
+    )!.params;
+    expect(params).toContainEqual({
+      label: "camp_tile_summon_enemy_id",
+      value: "操戈",
+      hint: null,
+    });
+  });
+
+  it("names enemies of other levels from the 名稱表, device kinds as devices, the rest as is", () => {
+    const env = {
+      key: "env_gbuff_new",
+      difficulties: [],
+      blackboard: [{ key: "spawn", value: 0, valueStr: "enemy_10164_tjgxb|trap_264_xdplat|x_y" }],
+    };
+    expect(lines(loadFixtureLevel("level_main_04-04"), [env])[0]?.params).toEqual([
+      { label: "spawn", value: "操戈、伊斯貝塔高台、x_y", hint: null },
+    ]);
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",
