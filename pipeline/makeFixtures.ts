@@ -1,7 +1,9 @@
 // Refresh test-fixtures/raw/ from the raw-data cache: copies the listed level files, then
 // subsets the enemy database and TW handbook to the enemies referenced by every level file
 // in the fixture directory (old and new), the enemies already in the subset, and any
-// `--enemy` ids. Also subsets the CN and TW stage, zone, activity and campaign tables to the
+// `--enemy` ids. Subsets the CN and TW character tables to the fixture levels' devices (the CN
+// one keeps the fields 作用範圍 come from), and the CN range table to the range ids the CN
+// subset names. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
 // pipeline reads; the activity tables also keep each 復刻's original activity. The stage
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
@@ -18,10 +20,12 @@ import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
+  RawCharacter,
   RawCharacterTable,
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRangeTable,
   RawRoguelikeStage,
   RawRoguelikeTopicTable,
   RawStage,
@@ -74,6 +78,22 @@ for (const file of levelFiles) {
   for (const token of level.predefines?.tokenInsts ?? []) deviceKeys.add(token.inst.characterKey);
 }
 
+/** The fields the pipeline reads; 作用範圍 come from the CN table only. */
+function characterFields(character: RawCharacter, withEffects: boolean): RawCharacter {
+  const named = pick(character, ["name", "description"]);
+  if (!withEffects) return named;
+  return {
+    ...named,
+    phases: character.phases?.map((p) => pick(p, ["rangeId"])) ?? null,
+    skills: character.skills?.map((s) => pick(s, ["skillId"])) ?? null,
+    talents:
+      character.talents?.map((t) => ({
+        candidates: t.candidates?.map((c) => pick(c, ["unlockCondition", "rangeId"])) ?? null,
+      })) ?? null,
+  };
+}
+
+const rangeIds = new Set<string>();
 for (const [source, suffix] of [
   [sources.cn, ""],
   [sources.tw, ".tw"],
@@ -82,11 +102,28 @@ for (const [source, suffix] of [
   const subset: RawCharacterTable = Object.fromEntries(
     [...deviceKeys]
       .sort()
-      .flatMap((key) => (table[key] ? [[key, pick(table[key], ["name", "description"])]] : [])),
+      .flatMap((key) =>
+        table[key] ? [[key, characterFields(table[key], source === sources.cn)]] : [],
+      ),
   );
   await writeFile(path.join(fixtureDir, `character_table${suffix}.json`), JSON.stringify(subset));
+  if (source !== sources.cn) continue;
+  for (const character of Object.values(subset)) {
+    const ids = [
+      ...(character.phases ?? []).map((p) => p.rangeId),
+      ...(character.talents ?? []).flatMap((t) => (t.candidates ?? []).map((c) => c.rangeId)),
+    ];
+    for (const id of ids) if (id) rangeIds.add(id);
+  }
 }
 console.log(`fixtures: 角色表 ${deviceKeys.size} 種裝置`);
+
+const ranges = await fetchJson<RawRangeTable>(sources.cn, "excel/range_table.json");
+const rangeSubset: RawRangeTable = Object.fromEntries(
+  [...rangeIds].sort().flatMap((id) => (ranges[id] ? [[id, pick(ranges[id], ["grids"])]] : [])),
+);
+await writeFile(path.join(fixtureDir, "range_table.json"), JSON.stringify(rangeSubset));
+console.log(`fixtures: 範圍表 ${Object.keys(rangeSubset).length} 個範圍`);
 
 const db = await fetchJson<RawEnemyDatabase>(sources.cn, "levels/enemydata/enemy_database.json");
 const handbook = await fetchJson<RawEnemyHandbookTable>(
