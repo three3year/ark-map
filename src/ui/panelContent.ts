@@ -177,39 +177,58 @@ const blackboardAttributes: Record<string, EnemyAttributeKey> = {
   map_hp: "lifePointReduce",
 };
 
+type ModifierKind = "multiply" | "add";
+
+/** The `ebuff_` modifiers whose kind their key's ending does not tell. */
+const ebuffKinds: ReadonlyMap<string, ModifierKind> = new Map([
+  ["ebuff_attribute", "multiply"],
+  ["ebuff_attack_radius", "multiply"],
+  ["ebuff_weight", "add"],
+]);
+
+/**
+ * Whether a modifier's numbers multiply (written "×n", no effect at 1) or add (no effect at 0),
+ * by its key alone; null for any other.
+ */
+function modifierKind(modifierKey: string): ModifierKind | null {
+  const ebuff = ebuffKinds.get(modifierKey);
+  if (ebuff) return ebuff;
+  if (modifierKey.endsWith("_mul")) return "multiply";
+  if (modifierKey.endsWith("_add")) return "add";
+  return null;
+}
+
+/** The 敵人屬性 a modifier's blackboard entry changes, by the modifier's key. */
+function changedAttribute(modifierKey: string, entryKey: string): EnemyAttributeKey | undefined {
+  switch (modifierKey) {
+    case "ebuff_attribute":
+    case "enemy_attribute_mul":
+    case "enemy_attribute_add":
+      return blackboardAttributes[entryKey.toLowerCase()];
+    case "enemy_attackradius_mul":
+    case "ebuff_attack_radius":
+      return entryKey === "scale" || entryKey === "range_scale" ? "rangeRadius" : undefined;
+    case "enemy_weight_add":
+    case "ebuff_weight":
+      return entryKey === "value" ? "massLevel" : undefined;
+    default:
+      return undefined;
+  }
+}
+
 interface AttributeChange {
   attribute: EnemyAttributeKey;
-  kind: "multiply" | "add";
+  kind: ModifierKind;
   value: number;
 }
 
 function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
-  const changes = (
-    kind: AttributeChange["kind"],
-    attributeOf: (entryKey: string) => EnemyAttributeKey | undefined,
-  ) =>
-    blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
-      const attribute = valueStr === null ? attributeOf(entryKey) : undefined;
-      return attribute ? [{ attribute, kind, value }] : [];
-    });
-  const byTable = (entryKey: string) => blackboardAttributes[entryKey.toLowerCase()];
-  switch (key) {
-    case "ebuff_attribute":
-    case "enemy_attribute_mul":
-      return changes("multiply", byTable);
-    case "enemy_attribute_add":
-      return changes("add", byTable);
-    case "enemy_attackradius_mul":
-    case "ebuff_attack_radius":
-      return changes("multiply", (k) =>
-        k === "scale" || k === "range_scale" ? "rangeRadius" : undefined,
-      );
-    case "enemy_weight_add":
-    case "ebuff_weight":
-      return changes("add", (k) => (k === "value" ? "massLevel" : undefined));
-    default:
-      return [];
-  }
+  const kind = modifierKind(key);
+  if (kind === null) return [];
+  return blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
+    const attribute = valueStr === null ? changedAttribute(key, entryKey) : undefined;
+    return attribute ? [{ attribute, kind, value }] : [];
+  });
 }
 
 export interface EnemyAttribute {
@@ -303,14 +322,16 @@ export interface HiddenGroupMark {
   number: number;
 }
 
-const multiplies = (modifierKey: string) =>
-  modifierKey === "ebuff_attribute" || modifierKey.endsWith("_mul");
-
 function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): boolean {
   if (valueStr !== null) return true;
-  if (multiplies(modifierKey)) return value !== 1;
-  if (modifierKey.endsWith("_add")) return value !== 0;
-  return true;
+  switch (modifierKind(modifierKey)) {
+    case "multiply":
+      return value !== 1;
+    case "add":
+      return value !== 0;
+    case null:
+      return true;
+  }
 }
 
 const internalKeys = new Set([
@@ -336,7 +357,9 @@ function entryValue(
   { key, value, valueStr }: BlackboardEntry,
   { names }: ModifierContext,
 ): string {
-  if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
+  if (valueStr === null) {
+    return modifierKind(modifierKey) === "multiply" ? `×${value}` : String(value);
+  }
   const parts = valueStr.split("|");
   if (key === "location") return parts.join("、");
   const shown = parts.map((part) =>

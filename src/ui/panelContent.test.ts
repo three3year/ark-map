@@ -337,6 +337,26 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("2-7 突襲: ebuff_attack_radius multiplies, as on the selection card, so its value reads ×2", () => {
+    expect(challengeParams("level_main_02-07", "ebuff_attack_radius")).toEqual([
+      { label: "範圍倍率", value: "×2", hint: null },
+    ]);
+  });
+
+  it("drops an ebuff_attack_radius of ×1 and an ebuff_weight of 0, so neither has a line", () => {
+    const radius = {
+      key: "ebuff_attack_radius",
+      difficulties: [],
+      blackboard: [{ key: "range_scale", value: 1, valueStr: null }],
+    };
+    const weight = {
+      key: "ebuff_weight",
+      difficulties: [],
+      blackboard: [{ key: "value", value: 0, valueStr: null }],
+    };
+    expect(lines(loadFixtureLevel("level_main_04-04"), [radius, weight])).toEqual([]);
+  });
+
   it("5-10 突襲: 指定敵人 reads as the enemy's name", () => {
     const params = challenge("level_main_05-10").flatMap((line) => line.params);
     expect(params).toContainEqual({ label: "指定敵人", value: "梅菲斯特", hint: null });
