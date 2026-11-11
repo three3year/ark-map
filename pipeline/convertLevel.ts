@@ -190,6 +190,12 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     maxHp: pick(attrs.maxHp, stats.maxHp),
     atk: pick(attrs.atk, stats.atk),
     def: pick(attrs.def, stats.def),
+    magicResistance: pick(attrs.magicResistance, stats.magicResistance),
+    baseAttackTime: pick(attrs.baseAttackTime, stats.baseAttackTime),
+    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed),
+    rangeRadius: pick(data.rangeRadius, stats.rangeRadius),
+    massLevel: pick(attrs.massLevel, stats.massLevel),
+    lifePointReduce: pick(data.lifePointReduce, stats.lifePointReduce),
     notCountInTotal: pick(data.notCountInTotal, stats.notCountInTotal),
   };
 }
@@ -202,6 +208,12 @@ const emptyStats: EnemyStats = {
   maxHp: 0,
   atk: 0,
   def: 0,
+  magicResistance: 0,
+  baseAttackTime: 0,
+  attackSpeed: 0,
+  rangeRadius: 0,
+  massLevel: 0,
+  lifePointReduce: 0,
   notCountInTotal: false,
 };
 

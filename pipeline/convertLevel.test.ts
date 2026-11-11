@@ -315,6 +315,91 @@ describe("enemy resolution", () => {
     expect(level.enemies["enemy_1002_nsabr"]!.maxHp).toBe(2200);
   });
 
+  it("4-4: the soldier carries the 10 敵人屬性, HP still the overwritten 2200", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    expect(soldier).toMatchObject({
+      maxHp: 2200,
+      atk: 200,
+      def: 100,
+      magicResistance: 0,
+      baseAttackTime: 2,
+      attackSpeed: 100,
+      rangeRadius: 0,
+      moveSpeed: 1.1,
+      massLevel: 1,
+      lifePointReduce: 1,
+    });
+  });
+
+  it("level n takes the 敵人屬性 it leaves undefined from level 0, 攻擊範圍 and 關卡生命 too", () => {
+    const crossbow = withRefs([
+      { useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData: null },
+    ]).enemies["enemy_1012_dcross"]!;
+    expect(crossbow).toMatchObject({
+      // Level 1 defines its own HP.
+      maxHp: 6700,
+      magicResistance: 50,
+      baseAttackTime: 3,
+      attackSpeed: 100,
+      rangeRadius: 2.2,
+      massLevel: 2,
+      lifePointReduce: 1,
+    });
+  });
+
+  it("takes every 敵人屬性 of an enemy not in the database from overwrittenData", () => {
+    const slot = <T>(m_value: T) => ({ m_defined: true, m_value });
+    const enemy = withRefs([
+      {
+        useDb: false,
+        id: "enemy_local",
+        level: 0,
+        overwrittenData: {
+          name: slot("本關敵人"),
+          attributes: {
+            maxHp: slot(3200),
+            atk: slot(450),
+            def: slot(120),
+            magicResistance: slot(30),
+            baseAttackTime: slot(2.5),
+            attackSpeed: slot(110),
+            moveSpeed: slot(0.9),
+            massLevel: slot(3),
+          },
+          rangeRadius: slot(1.75),
+          lifePointReduce: slot(2),
+        },
+      },
+    ]).enemies["enemy_local"]!;
+    expect(enemy).toMatchObject({
+      maxHp: 3200,
+      atk: 450,
+      def: 120,
+      magicResistance: 30,
+      baseAttackTime: 2.5,
+      attackSpeed: 110,
+      rangeRadius: 1.75,
+      moveSpeed: 0.9,
+      massLevel: 3,
+      lifePointReduce: 2,
+    });
+  });
+
+  it("the level's overwrittenData overrides 攻擊範圍 and 關卡生命 too", () => {
+    const crossbow = withRefs([
+      {
+        useDb: true,
+        id: "enemy_1012_dcross",
+        level: 0,
+        overwrittenData: {
+          rangeRadius: { m_defined: true, m_value: 3 },
+          lifePointReduce: { m_defined: true, m_value: 5 },
+        },
+      },
+    ]).enemies["enemy_1012_dcross"]!;
+    expect(crossbow).toMatchObject({ rangeRadius: 3, lifePointReduce: 5, maxHp: 6000 });
+  });
+
   it("carries the TW handbook code, shown when an enemy has no avatar", () => {
     const level = loadFixtureLevel("level_main_01-07");
     expect(level.enemies["enemy_1007_slime_2"]!.code).toBe("B2");
