@@ -587,6 +587,7 @@
     width: 100%;
     height: auto;
     transform-origin: 50% 100%;
+    user-select: none;
   }
   .stage.tilted .map {
     transform: perspective(var(--perspective)) rotateX(var(--tilt));
@@ -671,7 +672,6 @@
   }
   .device-initial {
     font-size: 0.26px;
-    user-select: none;
     text-anchor: middle;
     dominant-baseline: central;
     fill: #1d1d1f;
@@ -738,7 +738,6 @@
     text-anchor: middle;
     dominant-baseline: central;
     fill: #fff;
-    user-select: none;
   }
   .stay-track {
     fill: #1d1d1fb3;
