@@ -18,6 +18,7 @@ import {
   modifierLines,
   enemyAttributes,
   type EnemyAttribute,
+  type ModifierLine,
 } from "./panelContent.ts";
 
 describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
@@ -58,13 +59,15 @@ describe("隱藏組", () => {
   it("is named by what all its actions put on the field; its tag is the hint", () => {
     const level = loadFixtureLevel("level_main_17-04");
     const text = hiddenGroupText(level, fixtureNameTable(), "raid", []);
-    expect(text.name).toBe("實驗樣本A-000 × 1、破石草 × 1");
+    expect(text.content).toBe("實驗樣本A-000 × 1、破石草 × 1");
     expect(text.hint).toBe("raid");
   });
 
   it("公害's calamity is named by the device it activates", () => {
     const level = loadFixtureLevel("level_rogue4_1-2");
-    expect(hiddenGroupText(level, fixtureNameTable(), "calamity", []).name).toBe("裝置 年代之刺");
+    expect(hiddenGroupText(level, fixtureNameTable(), "calamity", []).content).toBe(
+      "裝置 年代之刺",
+    );
   });
 
   it("on in every variant that shows the file: 各變體都開", () => {
@@ -119,7 +122,9 @@ describe("隱藏組", () => {
 
   it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
     const level = loadFixtureLevel("level_rogue2_1-1");
-    expect(hiddenGroupText(level, fixtureNameTable(), "allydonq", []).name).toBe("裝置 獵潮的騎士");
+    expect(hiddenGroupText(level, fixtureNameTable(), "allydonq", []).content).toBe(
+      "裝置 獵潮的騎士",
+    );
   });
 });
 
@@ -287,8 +292,11 @@ describe("難度修正 lines", () => {
     const level = loadFixtureLevel(name);
     return lines(level, variantModifiers(level.modifiers, "FOUR_STAR"));
   };
+  /** A line's parameters; undefined for a "名稱 值" line or no line. */
+  const paramsOf = (line: ModifierLine | undefined) =>
+    line && "params" in line ? line.params : undefined;
   const challengeParams = (name: string, key: string) =>
-    challenge(name).find((line) => line.key === key)?.params;
+    paramsOf(challenge(name).find((line) => line.key === key));
 
   it("4-4 突襲: a lone value reads after the name; ×1 is dropped; move speed has its hint", () => {
     expect(challenge("level_main_04-04")).toEqual([
@@ -298,13 +306,11 @@ describe("難度修正 lines", () => {
         hint: "gbuff_lifepoint",
         value: "1",
         hiddenGroups: [],
-        params: [],
       },
       {
         key: "ebuff_attribute",
         name: "敵人屬性倍率",
         hint: "ebuff_attribute",
-        value: null,
         hiddenGroups: [],
         params: [{ label: "移速", value: "×2", hint: "已套用到地圖上的移動" }],
       },
@@ -332,7 +338,7 @@ describe("難度修正 lines", () => {
         { key: "def", value: 50, valueStr: null },
       ],
     };
-    expect(lines(loadFixtureLevel("level_main_04-04"), [add])[0]?.params).toEqual([
+    expect(paramsOf(lines(loadFixtureLevel("level_main_04-04"), [add])[0])).toEqual([
       { label: "防禦", value: "50", hint: null },
     ]);
   });
@@ -358,7 +364,7 @@ describe("難度修正 lines", () => {
   });
 
   it("5-10 突襲: 指定敵人 reads as the enemy's name", () => {
-    const params = challenge("level_main_05-10").flatMap((line) => line.params);
+    const params = challenge("level_main_05-10").flatMap((line) => paramsOf(line) ?? []);
     expect(params).toContainEqual({ label: "指定敵人", value: "梅菲斯特", hint: null });
   });
 
@@ -371,8 +377,8 @@ describe("難度修正 lines", () => {
   it("act46side_ex01: an 環境機制's target shows only in the name's hint", () => {
     const env = challenge("level_act46side_ex01").find((line) => line.key === "env_system_new")!;
     expect(env.hint).toBe("env_system_new · env_037_act46side");
-    expect(env.params.map((p) => p.label)).not.toContain("對象");
-    expect(env.params.map((p) => p.value)).not.toContain("env_037_act46side");
+    expect(paramsOf(env)!.map((p) => p.label)).not.toContain("對象");
+    expect(paramsOf(env)!.map((p) => p.value)).not.toContain("env_037_act46side");
   });
 
   it("act46side_ex01: common parameters read in Chinese, an event's own ones as their key", () => {
@@ -399,7 +405,7 @@ describe("難度修正 lines", () => {
     const raid = panel.find(({ group }) => group.name === "raid")!.number;
     const line = challenge("level_rogue3_4-2").find((l) => l.key === "level_hidden_group_enable")!;
     expect(line.hiddenGroups).toEqual([{ name: "raid", number: raid }]);
-    expect(line.params).toEqual([]);
+    expect(paramsOf(line)).toEqual([]);
   });
 
   it("act50side_ex03 突襲: a 隱藏組 with no action in the level shows nothing, so no line", () => {
@@ -417,9 +423,11 @@ describe("難度修正 lines", () => {
 
   it("act18mini_02: a tile parameter reads 地形 and each tile's name in the 地形表, repeats kept", () => {
     const level = loadFixtureLevel("level_act18mini_02");
-    const params = lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
-      (line) => line.key === "map_tile_blackb_assign",
-    )!.params;
+    const params = paramsOf(
+      lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
+        (line) => line.key === "map_tile_blackb_assign",
+      ),
+    )!;
     // tile_reed|tile_reedf|tile_reedw: three tiles the 地形表 all names 蘆葦叢.
     expect(params[0]).toEqual({ label: "地形", value: "蘆葦叢、蘆葦叢、蘆葦叢", hint: null });
   });
@@ -430,16 +438,18 @@ describe("難度修正 lines", () => {
       difficulties: [],
       blackboard: [{ key: "tile", value: 0, valueStr: "tile_reed|tile_made_up" }],
     };
-    expect(lines(loadFixtureLevel("level_main_04-04"), [tiles])[0]?.params).toEqual([
+    expect(paramsOf(lines(loadFixtureLevel("level_main_04-04"), [tiles])[0])).toEqual([
       { label: "地形", value: "蘆葦叢、tile_made_up", hint: null },
     ]);
   });
 
   it("act49side_01: an enemy id in a text value reads as the enemy's name", () => {
     const level = loadFixtureLevel("level_act49side_01");
-    const params = lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
-      (line) => line.key === "env_system_new",
-    )!.params;
+    const params = paramsOf(
+      lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
+        (line) => line.key === "env_system_new",
+      ),
+    )!;
     expect(params).toContainEqual({
       label: "camp_tile_summon_enemy_id",
       value: "操戈",
@@ -453,7 +463,7 @@ describe("難度修正 lines", () => {
       difficulties: [],
       blackboard: [{ key: "spawn", value: 0, valueStr: "enemy_10164_tjgxb|trap_264_xdplat|x_y" }],
     };
-    expect(lines(loadFixtureLevel("level_main_04-04"), [env])[0]?.params).toEqual([
+    expect(paramsOf(lines(loadFixtureLevel("level_main_04-04"), [env])[0])).toEqual([
       { label: "spawn", value: "操戈、伊斯貝塔高台、x_y", hint: null },
     ]);
   });
@@ -467,7 +477,7 @@ describe("難度修正 lines", () => {
         { key: "trap_made_up#1", value: 1, valueStr: null },
       ],
     };
-    expect(lines(loadFixtureLevel("level_main_04-04"), [presets])[0]?.params).toEqual([
+    expect(paramsOf(lines(loadFixtureLevel("level_main_04-04"), [presets])[0])).toEqual([
       { label: "伊斯貝塔高台", value: "關", hint: null },
       { label: "trap_made_up#1", value: "開", hint: null },
     ]);
@@ -479,7 +489,7 @@ describe("難度修正 lines", () => {
       difficulties: [],
       blackboard: [{ key: "damage_scale", value: 1, valueStr: null }],
     };
-    expect(lines(loadFixtureLevel("level_main_04-04"), [env])[0]?.params).toEqual([
+    expect(paramsOf(lines(loadFixtureLevel("level_main_04-04"), [env])[0])).toEqual([
       { label: "傷害倍率", value: "1", hint: null },
     ]);
   });

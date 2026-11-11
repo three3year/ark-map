@@ -87,7 +87,7 @@
               onchange={(e) => onHidden(group.name, e.currentTarget.checked)}
             />
             <SwitchMark kind="hiddenGroup" {number} />
-            <span class="content" title={text.hint}>{text.name}</span>
+            <span class="content" title={text.hint}>{text.content}</span>
             {#if text.note}
               <span class="note">{text.note}</span>
             {/if}

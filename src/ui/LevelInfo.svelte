@@ -34,7 +34,7 @@
           {#each line.hiddenGroups as { name, number } (name)}
             <span class="mark" title={name}><SwitchMark kind="hiddenGroup" {number} /></span>
           {/each}
-          {#if line.value !== null}
+          {#if "value" in line}
             {line.value}
           {:else if line.params.length > 0}
             —

@@ -92,7 +92,8 @@ export interface FileVariant {
 }
 
 export interface HiddenGroupText {
-  name: string;
+  /** What its actions put on the field, e.g. "源石蟲 × 3、裝置 碎石". */
+  content: string;
   /** Its tag in the level file, for the mouse-over hint. */
   hint: string;
   /** 說明: its 隱藏組來源, then its 變體說明; null when it has neither. */
@@ -133,7 +134,7 @@ export function hiddenGroupText(
   ];
   const openers = unique(sources.filter((s) => s.opens).map((s) => s.name));
   return {
-    name: actionsLabel(level, names, actions),
+    content: actionsLabel(level, names, actions),
     hint: name,
     note: parts.length > 0 ? strings.hiddenGroupNote(parts) : null,
     badge: strings.hiddenGroupBadge(openers.length > 0 ? strings.list(openers) : variant),
@@ -302,19 +303,26 @@ export interface ModifierParam {
   hint: string | null;
 }
 
-/**
- * One line of the 關卡資訊's 難度修正 list: "名稱 — 參數、參數", or "名稱 值" when all that is
- * left is a lone `value`.
- */
-export interface ModifierLine {
+interface ModifierLineHead {
   key: string;
   name: string;
   /** The name's mouse-over text: the raw key, and an 環境機制's target. */
   hint: string;
-  value: string | null;
   hiddenGroups: HiddenGroupMark[];
+}
+
+/** "名稱 值": all that is left is a lone `value`. */
+export interface ValueModifierLine extends ModifierLineHead {
+  value: string;
+}
+
+/** "名稱 — 參數、參數". */
+export interface ParamsModifierLine extends ModifierLineHead {
   params: ModifierParam[];
 }
+
+/** One line of the 關卡資訊's 難度修正 list. */
+export type ModifierLine = ValueModifierLine | ParamsModifierLine;
 
 /** A 隱藏組 by its 開關標記's number, which the 開關面板 gives it. */
 export interface HiddenGroupMark {
@@ -413,14 +421,14 @@ function modifierLine(
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
   const switchesGroups = hiddenGroupSwitch(modifier.key) !== null;
-  const ownsKey = environment || switchesGroups;
-  const target = ownsKey
+  const keyNamesTarget = environment || switchesGroups;
+  const target = keyNamesTarget
     ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
     : null;
   const entries = modifier.blackboard.filter(
     (entry) =>
       !internalKeys.has(entry.key) &&
-      !(ownsKey && entry.key === "key") &&
+      !(keyNamesTarget && entry.key === "key") &&
       hasEffect(modifier.key, entry),
   );
   const hiddenGroups =
@@ -436,15 +444,14 @@ function modifierLine(
   const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
-    return { ...line, value: entryValue(level, modifier.key, first, context), params: [] };
+    return { ...line, value: entryValue(level, modifier.key, first, context) };
   }
   if (modifier.key === "level_predefines_enable") {
-    return { ...line, value: null, params: presetDeviceParams(level, entries, context) };
+    return { ...line, params: presetDeviceParams(level, entries, context) };
   }
   const moves = affectsMovement(modifier);
   return {
     ...line,
-    value: null,
     params: entries.map((entry) => ({
       label: strings.blackboardKeys[entry.key] ?? entry.key,
       value: entryValue(level, modifier.key, entry, context),
