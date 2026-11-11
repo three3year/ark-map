@@ -11,14 +11,13 @@ import {
 import {
   convertFixture,
   fixtureDeviceCatalog,
+  fixtureEffectTables,
   fixtureLevelNames,
   loadFixtureLevel,
   rawEnemyDatabase,
   rawEnemyHandbook,
   rawCharacterTables,
-  rawRangeTable,
   rawFixture,
-  rawSkillTable,
 } from "../test-fixtures/load.ts";
 import {
   buildDeviceCatalog,
@@ -26,10 +25,13 @@ import {
   controllerKeys,
   convertLevel,
   siteLevelFile,
+  type DeviceTables,
 } from "./convertLevel.ts";
+import { noEffectTables } from "./effectCells.ts";
 import type { RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
 
 const enemyCatalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
+const noDeviceTables: DeviceTables = { names: { cn: {}, tw: {} }, effects: noEffectTables };
 
 describe("map orientation", () => {
   it("1-7: route 1 starts at (5, 10) top-right (PRTS F11) and ends at (3, 0) left (PRTS D1)", () => {
@@ -395,7 +397,7 @@ describe("名稱表: 裝置", () => {
       level,
       enemyCatalog(),
       names,
-      buildDeviceCatalog(new Set(), {}, {}, {}, {}),
+      buildDeviceCatalog(new Set(), noDeviceTables),
     );
     expect(names.devices).toEqual({});
     expect(file.devices[0]).toMatchObject({ name: "trap_001_crate", description: null });
@@ -623,7 +625,7 @@ describe("裝置", () => {
     const controllers = controllerKeys([tb1, other, rawFixture("level_act16d5_ex06")]);
     expect([...controllers]).toEqual(["trap_050_blizzard"]);
     const level = convertLevel("TB-1", tb1, enemyCatalog(), {
-      devices: buildDeviceCatalog(controllers, {}, {}, {}, {}),
+      devices: buildDeviceCatalog(controllers, noDeviceTables),
     });
     expect(level.devices.filter((d) => d.key === "trap_050_blizzard")).toEqual([]);
     expect(level.devices.filter((d) => d.key === "trap_027_stone")).toHaveLength(9);
@@ -682,7 +684,7 @@ describe("裝置", () => {
     const { cn, tw } = rawCharacterTables();
     delete tw["trap_001_crate"];
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, {}, {}),
+      devices: buildDeviceCatalog(new Set(), { names: { cn, tw }, effects: noEffectTables }),
     });
     expect(level.devices.map((d) => [d.name, d.description])[0]).toEqual(["障碍物", null]);
     const unnamed = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
@@ -781,7 +783,10 @@ describe("作用範圍", () => {
     const raw = rawFixture("level_main_16-02");
     for (const token of raw.predefines!.tokenInsts!) token.inst.phase = phase;
     const level = convertLevel("16-2", raw, enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
+      devices: buildDeviceCatalog(new Set(), {
+        names: { cn, tw },
+        effects: fixtureEffectTables(cn),
+      }),
     });
     return sorted(level.devices.find((d) => d.alias === "trap_271_fowstn#1")!.effectCells);
   }
@@ -809,7 +814,10 @@ describe("作用範圍", () => {
     cn["trap_271_fowstn"]!.phases = [{ rangeId: "x-404" }];
     const unknown: [string, string][] = [];
     const level = convertLevel("16-2", rawFixture("level_main_16-02"), enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
+      devices: buildDeviceCatalog(new Set(), {
+        names: { cn, tw },
+        effects: fixtureEffectTables(cn),
+      }),
       onUnknownRangeId: (rangeId, key) => unknown.push([rangeId, key]),
     });
     expect(unknown).toEqual([
@@ -861,7 +869,10 @@ describe("作用範圍", () => {
       cn[key]!.phases = [{ rangeId: "x-404" }];
       const unknown: string[] = [];
       const level = convertLevel(levelName, rawFixture(levelName), enemyCatalog(), {
-        devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
+        devices: buildDeviceCatalog(new Set(), {
+          names: { cn, tw },
+          effects: fixtureEffectTables(cn),
+        }),
         onUnknownRangeId: (rangeId) => unknown.push(rangeId),
       });
       const devices = level.devices.filter((d) => d.key === key);

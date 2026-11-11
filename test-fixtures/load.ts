@@ -23,6 +23,7 @@ import type {
   RawStageTable,
   RawZoneTable,
 } from "../pipeline/raw.ts";
+import type { EffectTables } from "../pipeline/effectCells.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level } from "../src/level/index.ts";
 
@@ -80,14 +81,15 @@ export function rawRangeTable(): RawRangeTable {
 
 let deviceCatalog: DeviceCatalog | undefined;
 
+export function fixtureEffectTables(characters: RawCharacterTable): EffectTables {
+  return { characters, skills: rawSkillTable(), ranges: rawRangeTable() };
+}
+
 export function fixtureDeviceCatalog(): DeviceCatalog {
-  const { cn, tw } = rawCharacterTables();
+  const names = rawCharacterTables();
   return (deviceCatalog ??= buildDeviceCatalog(
     controllerKeys(fixtureLevelNames().map(rawFixture)),
-    cn,
-    tw,
-    rawRangeTable(),
-    rawSkillTable(),
+    { names, effects: fixtureEffectTables(names.cn) },
   ));
 }
 

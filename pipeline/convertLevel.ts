@@ -45,10 +45,8 @@ import type {
   RawEnemyHandbookTable,
   RawEnum,
   RawLevel,
-  RawRangeTable,
   RawRoute,
   RawRune,
-  RawSkillTable,
   Slot,
 } from "./raw.ts";
 
@@ -358,19 +356,21 @@ export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): 
   return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
 }
 
+export interface DeviceTables {
+  names: { cn: RawCharacterTable; tw: RawCharacterTable };
+  effects: EffectTables;
+}
+
 export function buildDeviceCatalog(
   controllers: ReadonlySet<string>,
-  cn: RawCharacterTable,
-  tw: RawCharacterTable,
-  ranges: RawRangeTable,
-  skills: RawSkillTable,
+  { names: { cn, tw }, effects }: DeviceTables,
 ): DeviceCatalog {
   const info = new Map<string, DeviceInfo>();
   for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
     const { name, description } = tw[key] ?? cn[key]!;
     info.set(key, { name, description: description && plainText(description) });
   }
-  return { controllers, info, effects: { characters: cn, skills, ranges } };
+  return { controllers, info, effects };
 }
 
 export type UnknownDeviceHandler = (key: string) => void;

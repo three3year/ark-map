@@ -213,13 +213,18 @@ const controllers = controllerKeys(
     predefines: (JSON.parse(body.toString("utf8")) as RawLevel).predefines,
   })),
 );
-const devices = buildDeviceCatalog(
-  controllers,
-  await table<RawCharacterTable>(sources.cn, cnExcel, "character_table"),
-  await table<RawCharacterTable>(sources.tw, twExcel, "character_table"),
-  await table<RawRangeTable>(sources.cn, cnExcel, "range_table"),
-  await table<RawSkillTable>(sources.cn, cnExcel, "skill_table"),
-);
+const cnCharacters = await table<RawCharacterTable>(sources.cn, cnExcel, "character_table");
+const devices = buildDeviceCatalog(controllers, {
+  names: {
+    cn: cnCharacters,
+    tw: await table<RawCharacterTable>(sources.tw, twExcel, "character_table"),
+  },
+  effects: {
+    characters: cnCharacters,
+    skills: await table<RawSkillTable>(sources.cn, cnExcel, "skill_table"),
+    ranges: await table<RawRangeTable>(sources.cn, cnExcel, "range_table"),
+  },
+});
 log(`控制器 ${controllers.size} 種:${[...controllers].sort().join("、")}`);
 const facts = new Map<string, LevelFacts>();
 const failures: ConversionFailure[] = [];
