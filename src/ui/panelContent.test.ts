@@ -6,7 +6,8 @@ import {
   branchLabel,
   candidateLabel,
   enemyAttributes,
-  modifierText,
+  levelNumbers,
+  modifierLines,
   type EnemyAttribute,
 } from "./panelContent.ts";
 
@@ -132,36 +133,78 @@ describe("敵人屬性", () => {
   });
 });
 
-describe("難度修正 text", () => {
+describe("難度修正 lines", () => {
   const challenge = (name: string) => {
     const level = loadFixtureLevel(name);
-    return { level, modifiers: variantModifiers(level.modifiers, "FOUR_STAR") };
+    return modifierLines(level, variantModifiers(level.modifiers, "FOUR_STAR"));
   };
 
-  it("4-4 突襲: names each modifier; multiplier numbers read ×", () => {
-    const { level, modifiers } = challenge("level_main_04-04");
-    expect(modifiers.map((m) => modifierText(m, level.enemies))).toEqual([
-      { name: "關卡生命值", params: [{ label: "數值", value: "1" }] },
+  it("4-4 突襲: a lone value reads after the name; ×1 is dropped; move speed has its hint", () => {
+    expect(challenge("level_main_04-04")).toEqual([
       {
+        key: "gbuff_lifepoint",
+        name: "關卡生命值",
+        hint: "gbuff_lifepoint",
+        value: "1",
+        params: [],
+      },
+      {
+        key: "ebuff_attribute",
         name: "敵人屬性倍率",
-        params: [
-          { label: "攻擊", value: "×1" },
-          { label: "防禦", value: "×1" },
-          { label: "map_hp", value: "×1" },
-          { label: "移速", value: "×2" },
-        ],
+        hint: "ebuff_attribute",
+        value: null,
+        params: [{ label: "移速", value: "×2", hint: "已套用到地圖上的移動" }],
       },
     ]);
   });
 
+  it("5-7 突襲: a modifier whose every parameter is ×1 has no line, nor one without parameters", () => {
+    expect(challenge("level_main_05-07").map((line) => line.key)).not.toContain("ebuff_attribute");
+    expect(challenge("level_main_05-07").map((line) => line.key)).not.toContain("cbuff_excluded");
+  });
+
+  it("act15side_ex04 突襲: a modifier left with only 指定敵人 has no line", () => {
+    expect(challenge("level_act15side_ex04").map((line) => line.name)).toEqual([
+      "關卡生命值",
+      "干員屬性倍率",
+    ]);
+  });
+
+  it("drops an addition of 0", () => {
+    const add = {
+      key: "enemy_attribute_add",
+      difficulties: [],
+      blackboard: [
+        { key: "atk", value: 0, valueStr: null },
+        { key: "def", value: 50, valueStr: null },
+      ],
+    };
+    expect(modifierLines(loadFixtureLevel("level_main_04-04"), [add])[0]?.params).toEqual([
+      { label: "防禦", value: "50", hint: null },
+    ]);
+  });
+
   it("5-10 突襲: 指定敵人 reads as the enemy's name", () => {
-    const { level, modifiers } = challenge("level_main_05-10");
-    const params = modifiers.flatMap((m) => modifierText(m, level.enemies).params);
-    expect(params).toContainEqual({ label: "指定敵人", value: "梅菲斯特" });
+    const params = challenge("level_main_05-10").flatMap((line) => line.params);
+    expect(params).toContainEqual({ label: "指定敵人", value: "梅菲斯特", hint: null });
   });
 
   it("names a key it does not know 未知修正", () => {
-    const unknown = { key: "made_up_modifier", difficulties: [], blackboard: [] };
-    expect(modifierText(unknown, {}).name).toBe("未知修正");
+    const unknown = {
+      key: "made_up_modifier",
+      difficulties: [],
+      blackboard: [{ key: "value", value: 2, valueStr: null }],
+    };
+    expect(modifierLines(loadFixtureLevel("level_main_04-04"), [unknown])[0]?.name).toBe(
+      "未知修正",
+    );
+  });
+});
+
+describe("關卡資訊's numbers", () => {
+  it("4-4: the four numbers on one line", () => {
+    expect(levelNumbers(loadFixtureLevel("level_main_04-04").options)).toBe(
+      "可部署人數 9 · 生命值 3 · 初始費用 10 · 費用上限 99",
+    );
   });
 });

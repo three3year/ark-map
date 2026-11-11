@@ -119,8 +119,8 @@ export const strings = {
   maxCost: "費用上限",
   modifiers: (variant: string) => `難度修正(${variant})`,
   noModifiers: "這個變體沒有難度修正",
-  modifierMovesEnemies: "計入移速",
-  modifierMovesEnemiesHint: "這條修正的移速倍率已套進時間軸",
+  /** Hint on a 難度修正's move speed that the timeline applies. */
+  modifierMovesEnemies: "已套用到地圖上的移動",
   modifierUnknown: "未知修正",
   /** 難度修正 names by key. */
   modifierKeys: {
