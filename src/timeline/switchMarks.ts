@@ -110,10 +110,13 @@ export function deviceSwitchMarks(
 }
 
 /**
- * The kinds of 開關標記 the wave's 敵人個體 carry, in mark order: what the legend lists. The whole
- * 基準時間軸 counts, not the enemies on field, so the list holds still during playback.
+ * The kinds of 開關標記 the wave's 敵人個體 and the devices it draws carry, in mark order: what
+ * the legend lists. The whole 基準時間軸 counts, not the second shown, so the list holds still
+ * during playback.
  */
 export function switchMarkKinds(timeline: Timeline): SwitchMarkKind[] {
-  const kinds = new Set(timeline.individuals.flatMap((i) => i.marks.map((m) => m.kind)));
+  const kinds = new Set(
+    [...timeline.individuals, ...timeline.listedDevices].flatMap((x) => x.marks.map((m) => m.kind)),
+  );
   return [...kinds].sort((a, b) => kindRank[a] - kindRank[b]);
 }

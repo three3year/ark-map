@@ -21,6 +21,7 @@ import {
   enemyOnMap,
   rowOf,
   seek,
+  selectWave,
   shownOpacity,
   siteLevel,
   siteStage,
@@ -240,6 +241,9 @@ test("DS-2: the legend lists the mark kinds of the wave's enemies, whatever the 
   await expect.poll(() => legendKinds(page)).toEqual(["conditional"]);
   await seek(page, 5);
   expect(await legendKinds(page)).toEqual(["conditional"]);
+  const legend = page.getByRole("list", { name: "圖例" });
+  expect(await marksIn(legend)).toEqual(["conditional 1"]);
+  await expect(legend.locator("[data-switch-mark]")).toHaveText("1");
 });
 
 /** ISW-NO 公害: its 開關 activate devices; the 隨機出兵組 t1 picks one of three, 寶箱 first. */
@@ -288,6 +292,33 @@ test("公害: a device a 開關 activates carries that 開關's mark, as in the 
   const chestOnMap = deviceByIndex(page, chest.index);
   expect(await marksIn(chestOnMap)).toEqual(["random 1"]);
   expect(await fillOf(chestOnMap)).toEqual(await fillOf(panelItem(page, chest.marks[0]!)));
+});
+
+test("ISW-NO 第 2 波: the legend lists the kind only a device carries, its box a 1 in the map mark's colour", async ({
+  page,
+}) => {
+  const stage = "ro2_n_5_5";
+  const level = siteLevel(stage);
+  const difficulty = siteStage(stage).variants[0]!.difficulty;
+  const secondWave = { waveIndex: 1, difficulty };
+  const switches = { picks: { 0: 1 } };
+  const timeline = buildTimeline(level, { ...secondWave, switches });
+  expect(timeline.individuals.flatMap((i) => i.marks)).toEqual([]);
+  expect(switchMarkKinds(buildTimeline(level, secondWave))).toEqual([]);
+  expect(switchMarkKinds(timeline)).toEqual(["random"]);
+  const box = deviceShowing(stage, "trap_065_normbox#1", { waveIndex: 1, switches });
+  const legend = page.getByRole("list", { name: "圖例" });
+
+  await page.goto(`#/level/${stage}?v=normal`);
+  await selectWave(page, 1);
+  await expect(legend).toBeVisible();
+  expect(await legendKinds(page)).toEqual([]);
+
+  await page.locator('select[data-random-group="0"]').selectOption("1");
+  await expect.poll(() => legendKinds(page)).toEqual(["random"]);
+  expect(await marksIn(legend)).toEqual(["random 1"]);
+  await expect(legend.locator("[data-switch-mark]")).toHaveText("1");
+  expect(await fillOf(legend)).toEqual(await fillOf(deviceByIndex(page, box.index)));
 });
 
 test("BD-1: a device's mark lets clicks and right-clicks through to it; removed, it keeps the mark and fades", async ({
