@@ -1,6 +1,13 @@
 // 作用範圍: the cells a device's effect covers, from the CN character and range tables.
 import type { Cell, Direction, LevelMap } from "../src/level/index.ts";
-import type { RawCharacterTable, RawEnum, RawRangeTable, RawTokenInst } from "./raw.ts";
+import type {
+  RawCharacter,
+  RawCharacterTable,
+  RawEnum,
+  RawRangeTable,
+  RawTalentCandidate,
+  RawTokenInst,
+} from "./raw.ts";
 
 /** The CN tables 作用範圍 come from. */
 export interface EffectTables {
@@ -21,8 +28,24 @@ function phaseIndex(phase: RawEnum | undefined): number {
 }
 
 /**
+ * The range id of each talent, in the character table's order: of its candidates, the last
+ * one unlocked at the device's 階段 and 等級 (a lower 階段, or the same 階段 at no higher 等級).
+ */
+function talentRangeIds(character: RawCharacter, token: RawTokenInst): (string | null)[] {
+  const phase = phaseIndex(token.inst.phase);
+  const level = token.inst.level ?? 1;
+  const unlocked = ({ unlockCondition: c }: RawTalentCandidate) => {
+    const at = phaseIndex(c.phase);
+    return at < phase || (at === phase && c.level <= level);
+  };
+  return (character.talents ?? []).map(
+    (talent) => (talent.candidates ?? []).filter(unlocked).at(-1)?.rangeId ?? null,
+  );
+}
+
+/**
  * The range ids a device may take its 作用範圍 from, in the order they are tried: the
- * character table's 階段 first.
+ * character table's 階段, then its talents.
  */
 function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string | null)[] {
   const character = tables.characters[token.inst.characterKey];
@@ -30,7 +53,7 @@ function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string |
   const phases = character.phases ?? [];
   // The 階段 of the device; past the last 階段 the table lists, the last one.
   const phase = phases[phaseIndex(token.inst.phase)] ?? phases.at(-1);
-  return [phase?.rangeId ?? null];
+  return [phase?.rangeId ?? null, ...talentRangeIds(character, token)];
 }
 
 /** The device's range offsets: the first candidate covering a cell besides its own. */
