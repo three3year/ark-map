@@ -27,6 +27,7 @@ const stone: Device = {
   name: "碎石",
   description: null,
   image: null,
+  effectCells: [],
 };
 
 const action = (fields: Partial<Action>): Action => ({

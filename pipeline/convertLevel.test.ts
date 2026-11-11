@@ -4,6 +4,7 @@ import {
   affectsMovement,
   isWalkable,
   tileAt,
+  type Cell,
   withNames,
   type NameTable,
 } from "../src/level/index.ts";
@@ -15,6 +16,7 @@ import {
   rawEnemyDatabase,
   rawEnemyHandbook,
   rawCharacterTables,
+  rawRangeTable,
   rawFixture,
 } from "../test-fixtures/load.ts";
 import {
@@ -388,7 +390,12 @@ describe("名稱表: 裝置", () => {
   it("a device kind neither character table has keeps its key as its name in the level file", () => {
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
     const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
-    const file = siteLevelFile(level, enemyCatalog(), names, buildDeviceCatalog(new Set(), {}, {}));
+    const file = siteLevelFile(
+      level,
+      enemyCatalog(),
+      names,
+      buildDeviceCatalog(new Set(), {}, {}, {}),
+    );
     expect(names.devices).toEqual({});
     expect(file.devices[0]).toMatchObject({ name: "trap_001_crate", description: null });
     expect(withNames(file, names)).toEqual(level);
@@ -615,7 +622,7 @@ describe("裝置", () => {
     const controllers = controllerKeys([tb1, other, rawFixture("level_act16d5_ex06")]);
     expect([...controllers]).toEqual(["trap_050_blizzard"]);
     const level = convertLevel("TB-1", tb1, enemyCatalog(), {
-      devices: buildDeviceCatalog(controllers, {}, {}),
+      devices: buildDeviceCatalog(controllers, {}, {}, {}),
     });
     expect(level.devices.filter((d) => d.key === "trap_050_blizzard")).toEqual([]);
     expect(level.devices.filter((d) => d.key === "trap_027_stone")).toHaveLength(9);
@@ -674,10 +681,116 @@ describe("裝置", () => {
     const { cn, tw } = rawCharacterTables();
     delete tw["trap_001_crate"];
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw),
+      devices: buildDeviceCatalog(new Set(), cn, tw, {}),
     });
     expect(level.devices.map((d) => [d.name, d.description])[0]).toEqual(["障碍物", null]);
     const unnamed = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
     expect(unnamed.devices[0]!.name).toBe("trap_001_crate");
+  });
+});
+
+describe("作用範圍", () => {
+  const sorted = (cells: Cell[]) => [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
+  const effectOf = (levelName: string, alias: string) =>
+    sorted(loadFixtureLevel(levelName).devices.find((d) => d.alias === alias)!.effectCells);
+  /** The cells of `rows` x `cols`, row by row. */
+  const block = (rows: number[], cols: number[]) =>
+    rows.flatMap((row) => cols.map((col) => ({ row, col })));
+  /** PRTS x-2: the 5 x 5 square around `center` without its four corners. */
+  const squareWithoutCorners = ({ row, col }: Cell) =>
+    sorted(
+      block([-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2])
+        .filter((d) => Math.abs(d.row) + Math.abs(d.col) < 4)
+        .map((d) => ({ row: row + d.row, col: col + d.col })),
+    );
+
+  it("16-2: the 嚴重汙染設施 at (4, 4) covers the 21 cells of x-2 around it, its own cell included", () => {
+    const cells = effectOf("level_main_16-02", "trap_271_fowstn#1");
+    expect(cells).toHaveLength(21);
+    expect(cells).toEqual(squareWithoutCorners({ row: 4, col: 4 }));
+  });
+
+  it("TB-1: a 留聲機 takes x-2 from the character table", () => {
+    expect(effectOf("level_act10mini_01", "trap_014_tower#1")).toEqual(
+      squareWithoutCorners({ row: 4, col: 6 }),
+    );
+  });
+
+  it("TB-1: the cells past the map's edge are cut: the 留聲機 at (1, 6) keeps 18", () => {
+    const cells = effectOf("level_act10mini_01", "trap_014_tower#3");
+    expect(cells).toHaveLength(18);
+    expect(cells).toEqual(squareWithoutCorners({ row: 1, col: 6 }).filter((c) => c.row >= 0));
+  });
+
+  it("5-1 (集成戰略): a 樹叢 covers its own cell and the four beside it (x-5)", () => {
+    expect(effectOf("level_rogue6_5-1", "trap_218_fttree#1")).toEqual(
+      sorted([
+        { row: 6, col: 2 },
+        { row: 7, col: 2 },
+        { row: 5, col: 2 },
+        { row: 6, col: 1 },
+        { row: 6, col: 3 },
+      ]),
+    );
+  });
+
+  it("a 碎石, with a range of only its own cell everywhere, has none", () => {
+    const stones = loadFixtureLevel("level_act10mini_01").devices.filter(
+      (d) => d.key === "trap_027_stone",
+    );
+    expect(stones.map((d) => d.effectCells)).toEqual(stones.map(() => []));
+  });
+
+  it("a 火灶, whose range the game gives as a radius, has none", () => {
+    const stove = loadFixtureLevel("level_act40side_03").devices.find(
+      (d) => d.key === "trap_211_cjgtow",
+    )!;
+    expect(stove.effectCells).toEqual([]);
+  });
+
+  /** 16-2 converted with `phases` as the 嚴重汙染設施's 階段, and its insts at `phase`. */
+  function facilityAt(phases: { rangeId: string | null }[], phase: string) {
+    const { cn, tw } = rawCharacterTables();
+    cn["trap_271_fowstn"]!.phases = phases;
+    const raw = rawFixture("level_main_16-02");
+    for (const token of raw.predefines!.tokenInsts!) token.inst.phase = phase;
+    const level = convertLevel("16-2", raw, enemyCatalog(), {
+      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable()),
+    });
+    return sorted(level.devices.find((d) => d.alias === "trap_271_fowstn#1")!.effectCells);
+  }
+
+  it("a device past the last 階段 the character table lists takes the last one", () => {
+    expect(facilityAt([{ rangeId: "0-1" }, { rangeId: "x-2" }], "PHASE_2")).toEqual(
+      squareWithoutCorners({ row: 4, col: 4 }),
+    );
+  });
+
+  it("a 階段 with no range id gives none, though another 階段 has one", () => {
+    expect(facilityAt([{ rangeId: null }, { rangeId: "x-2" }], "PHASE_0")).toEqual([]);
+  });
+
+  it("the site's level file keeps each device's 作用範圍", () => {
+    const level = loadFixtureLevel("level_main_16-02");
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
+    expect(file.devices.map((d) => d.effectCells)).toEqual(level.devices.map((d) => d.effectCells));
+    expect(file.devices.some((d) => d.effectCells.length === 21)).toBe(true);
+  });
+
+  it("warns about a range id the range table lacks, and gives that device none", () => {
+    const { cn, tw } = rawCharacterTables();
+    cn["trap_271_fowstn"]!.phases = [{ rangeId: "x-404" }];
+    const unknown: [string, string][] = [];
+    const level = convertLevel("16-2", rawFixture("level_main_16-02"), enemyCatalog(), {
+      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable()),
+      onUnknownRangeId: (rangeId, key) => unknown.push([rangeId, key]),
+    });
+    expect(unknown).toEqual([
+      ["x-404", "trap_271_fowstn"],
+      ["x-404", "trap_271_fowstn"],
+    ]);
+    const facilities = level.devices.filter((d) => d.key === "trap_271_fowstn");
+    expect(facilities.map((d) => d.effectCells)).toEqual([[], []]);
   });
 });

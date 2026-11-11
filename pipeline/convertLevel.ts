@@ -26,6 +26,12 @@ import type {
   Route,
 } from "../src/level/index.ts";
 import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
+import {
+  effectCells,
+  noEffectTables,
+  type EffectTables,
+  type UnknownRangeIdHandler,
+} from "./effectCells.ts";
 import { plainText } from "./plainText.ts";
 import type {
   RawAction,
@@ -36,6 +42,7 @@ import type {
   RawEnemyHandbookTable,
   RawEnum,
   RawLevel,
+  RawRangeTable,
   RawRoute,
   RawRune,
   Slot,
@@ -317,9 +324,14 @@ function convertModifier(raw: RawRune, onUnknown: UnknownEnumHandler): Modifier 
 export interface DeviceCatalog {
   controllers: ReadonlySet<string>;
   info: Map<string, DeviceInfo>;
+  effects: EffectTables;
 }
 
-const noDevices: DeviceCatalog = { controllers: new Set(), info: new Map() };
+const noDevices: DeviceCatalog = {
+  controllers: new Set(),
+  info: new Map(),
+  effects: noEffectTables,
+};
 
 export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): Set<string> {
   const counts = new Map<string, { atOrigin: number; total: number }>();
@@ -335,17 +347,19 @@ export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): 
   return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
 }
 
+/** Names come from the TW character table, else CN; 作用範圍 from the CN tables only. */
 export function buildDeviceCatalog(
   controllers: ReadonlySet<string>,
   cn: RawCharacterTable,
   tw: RawCharacterTable,
+  ranges: RawRangeTable,
 ): DeviceCatalog {
   const info = new Map<string, DeviceInfo>();
   for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
     const { name, description } = tw[key] ?? cn[key]!;
     info.set(key, { name, description: description && plainText(description) });
   }
-  return { controllers, info };
+  return { controllers, info, effects: { characters: cn, ranges } };
 }
 
 export type UnknownDeviceHandler = (key: string) => void;
@@ -355,15 +369,20 @@ const warnUnknownDevice: UnknownDeviceHandler = (key) =>
 
 function convertDevices(
   raw: RawLevel,
+  map: LevelMap,
   devices: DeviceCatalog,
   decode: Decode,
   onUnknownDevice: UnknownDeviceHandler,
+  onUnknownRangeId: UnknownRangeIdHandler,
 ): Device[] {
   const tokens = (raw.predefines?.tokenInsts ?? []).filter(
     (t) => !devices.controllers.has(t.inst.characterKey),
   );
   const unknown = new Set<string>();
-  return tokens.map(({ alias, inst: { characterKey: key }, position, direction, hidden }) => {
+  return tokens.map((token) => {
+    const { alias, inst, position, hidden } = token;
+    const key = inst.characterKey;
+    const direction = decode("direction", token.direction);
     const blocker = blockerKeys.has(key);
     if (!blocker && !nonBlockerKeys.has(key) && !unknown.has(key)) {
       unknown.add(key);
@@ -374,20 +393,26 @@ function convertDevices(
       alias,
       key,
       cell: { row: position.row, col: position.col },
-      direction: decode("direction", direction),
+      direction,
       hidden,
       blocker,
       name: info?.name ?? key,
       description: info?.description ?? null,
       image: null,
+      effectCells: effectCells(devices.effects, token, direction, map, onUnknownRangeId),
     };
   });
 }
+
+const warnUnknownRangeId: UnknownRangeIdHandler = (rangeId, key) =>
+  console.warn(`裝置 ${key} 的範圍 ${rangeId} 不在範圍表,當作沒有作用範圍`);
 
 export interface ConvertOptions {
   devices?: DeviceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
+  /** Called for each device naming a range id the range table lacks. */
+  onUnknownRangeId?: UnknownRangeIdHandler;
 }
 
 /** Numeric enums come out as names; a number with no known name goes to `onUnknownEnum`. */
@@ -399,6 +424,7 @@ export function convertLevel(
     devices = noDevices,
     onUnknownEnum = warnUnknownEnum,
     onUnknownDevice = warnUnknownDevice,
+    onUnknownRangeId = warnUnknownRangeId,
   }: ConvertOptions = {},
 ): Level {
   const decode = enumDecoder(onUnknownEnum);
@@ -421,11 +447,12 @@ export function convertLevel(
     .flatMap((b) => b.phases.flatMap((p) => p.actions))
     .filter((a) => isSpawn(a) && !listed.has(a.key) && catalog.levels.has(a.key))
     .map((a): RawEnemyDbRef => ({ useDb: true, id: a.key, level: 0, overwrittenData: null }));
+  const map = convertMap(raw.mapData, decode);
   return {
     levelId,
     options: { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier },
     modifiers: (raw.runes ?? []).map((r) => convertModifier(r, onUnknownEnum)),
-    map: convertMap(raw.mapData, decode),
+    map,
     routes: (raw.routes ?? []).map(route),
     extraRoutes: (raw.extraRoutes ?? []).map(route),
     waves: raw.waves.map((w) => ({
@@ -438,7 +465,7 @@ export function convertLevel(
     enemies: Object.fromEntries(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
-    devices: convertDevices(raw, devices, decode, onUnknownDevice),
+    devices: convertDevices(raw, map, devices, decode, onUnknownDevice, onUnknownRangeId),
   };
 }
 

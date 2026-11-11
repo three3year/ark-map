@@ -35,6 +35,7 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRangeTable,
   RawRoguelikeTopicTable,
   RawStageTable,
   RawZoneTable,
@@ -215,6 +216,7 @@ const devices = buildDeviceCatalog(
   controllers,
   await table<RawCharacterTable>(sources.cn, cnExcel, "character_table"),
   await table<RawCharacterTable>(sources.tw, twExcel, "character_table"),
+  await table<RawRangeTable>(sources.cn, cnExcel, "range_table"),
 );
 log(`控制器 ${controllers.size} 種:${[...controllers].sort().join("、")}`);
 const facts = new Map<string, LevelFacts>();
@@ -227,6 +229,8 @@ const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
 const unknownEnums = new Map<string, Set<string>>();
 const unknownDevices = new Map<string, Set<string>>();
+/** Range ids the range table lacks -> the device kinds naming them. */
+const unknownRangeIds = new Map<string, Set<string>>();
 const deviceKeys = new Set<string>();
 const record = (seen: Map<string, Set<string>>, key: string, levelPath: string) => {
   if (!seen.has(key)) seen.set(key, new Set());
@@ -243,6 +247,7 @@ await forEachLimit(wanted, 8, async (levelPath) => {
         devices,
         onUnknownEnum: (field, value) => record(unknownEnums, `${field} = ${value}`, levelPath),
         onUnknownDevice: (key) => record(unknownDevices, key, levelPath),
+        onUnknownRangeId: (rangeId, key) => record(unknownRangeIds, rangeId, key),
       });
       // Level-local enemies are drawn as their prefab, a database enemy.
       const prefabs = new Map(
@@ -322,6 +327,10 @@ if (unknownDevices.size > 0) {
     const sample = [...levels].slice(0, 3).join("、");
     console.warn(`  ${key}:${levels.size} 個關卡檔,例如 ${sample}`);
   }
+}
+
+for (const [rangeId, keys] of unknownRangeIds) {
+  console.warn(`[資料管線] 範圍 ${rangeId} 不在範圍表,${[...keys].join("、")} 當作沒有作用範圍`);
 }
 
 if (unknownEnums.size > 0) {

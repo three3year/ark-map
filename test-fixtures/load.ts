@@ -17,6 +17,7 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRangeTable,
   RawRoguelikeTopicTable,
   RawStageTable,
   RawZoneTable,
@@ -68,6 +69,11 @@ export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterT
   };
 }
 
+/** The CN range table, subset to the range ids the CN character table names. */
+export function rawRangeTable(): RawRangeTable {
+  return readJson<RawRangeTable>("range_table.json");
+}
+
 let deviceCatalog: DeviceCatalog | undefined;
 
 export function fixtureDeviceCatalog(): DeviceCatalog {
@@ -76,6 +82,7 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
     controllerKeys(fixtureLevelNames().map(rawFixture)),
     cn,
     tw,
+    rawRangeTable(),
   ));
 }
 
