@@ -327,4 +327,22 @@ describe("the wave's mark kinds, for the legend", () => {
   it("are none when no enemy comes from a 開關: ro2_n_2_6's 第 1 波", () => {
     expect(switchMarkKinds(buildTimeline(loadFixtureLevel("level_rogue2_2-6")))).toEqual([]);
   });
+
+  describe("ro2_n_5_5's 第 2 波: no enemy has a mark, only the box 隨機出兵組 1 puts down", () => {
+    const level = loadFixtureLevel("level_rogue2_5-5");
+    const secondWave = (picks: Record<number, number>) =>
+      buildTimeline(level, { waveIndex: 1, switches: { picks } });
+
+    it("count the kinds of the devices drawn in the wave: whichever box is picked, 隨機出兵組", () => {
+      for (const box of [1, 2, 3]) {
+        const timeline = secondWave({ 0: box });
+        expect(timeline.individuals.every((i) => i.marks.length === 0)).toBe(true);
+        expect(switchMarkKinds(timeline)).toEqual(["random"]);
+      }
+    });
+
+    it("leave out devices never drawn: the default candidate puts no box down", () => {
+      expect(switchMarkKinds(secondWave({}))).toEqual([]);
+    });
+  });
 });

@@ -73,7 +73,7 @@
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
     view: MapViewMode;
-    /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
+    /** The 開關標記 kinds the legend lists: those the wave's enemies and drawn devices carry. */
     markKinds: SwitchMarkKind[];
   }
   let {
