@@ -223,7 +223,6 @@ const rogueStageKeys: (keyof RawRoguelikeStage)[] = [
   "levelReplaceIds",
   "code",
   "name",
-  "eliteDesc",
   "difficulty",
 ];
 

@@ -443,13 +443,7 @@ function roguelikeAreas(
         difficulty: roguelikeDifficulty(source),
       });
       const variants = [variant("normal", stage, basePath!)];
-      if (emergency) {
-        const condition = twDetail?.stages[emergency.id]?.eliteDesc ?? emergency.eliteDesc;
-        variants.push({
-          ...variant("emergency", emergency, basePath!),
-          ...(condition ? { emergencyCondition: condition } : {}),
-        });
-      }
+      if (emergency) variants.push(variant("emergency", emergency, basePath!));
       const expansions = expansionPaths.flatMap((path): Expansion[] => {
         const number = expansionNumber(path);
         if (number === null) {

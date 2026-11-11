@@ -196,8 +196,6 @@ export interface Variant {
   /** Site-relative path of the level JSON. */
   levelFile: string;
   difficulty: Difficulty;
-  /** The game's 附加條件說明, on a 緊急作戰 only. */
-  emergencyCondition?: string;
 }
 
 /** One stage in the site's stage index. */
