@@ -538,7 +538,8 @@
   .level-page {
     max-width: 960px;
     margin: 0 auto;
-    --drawer-button-height: 74px;
+    /* Three characters, the button's padding and its borders. */
+    --drawer-button-height: calc(3em + 2 * 12px + 2 * 1px);
     --drawer-button-gap: 16px;
   }
   .level-page.drawer-mode {
