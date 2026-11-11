@@ -97,6 +97,14 @@ for (const [id, buttons] of [
   });
 }
 
+test("a lone 原版 button is rounded on both ends", async ({ page }) => {
+  await page.goto("#/level/ro4_n_1_5");
+  const button = expansionSwitch(page).getByRole("button");
+  await expect(button).toHaveCount(1);
+  await expect(button).toHaveCSS("border-top-left-radius", "999px");
+  await expect(button).toHaveCSS("border-top-right-radius", "999px");
+});
+
 test("the home page and a stage list have no view button", async ({ page }) => {
   await page.goto("#/");
   await expect(page.locator("main a[href^='#/area/']").first()).toBeVisible();
