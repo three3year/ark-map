@@ -1,5 +1,5 @@
 import { hiddenGroupSwitch, type HiddenGroupSource } from "../src/level/index.ts";
-import type { RawRoguelikeTopic, RawRoguelikeTopicTable } from "./raw.ts";
+import { topicLevelIds, type RawRoguelikeTopic, type RawRoguelikeTopicTable } from "./raw.ts";
 
 export interface SourceCatalog {
   /** Level file name (no directory, lower case) -> the id of the theme whose stages use it. */
@@ -51,11 +51,7 @@ export function buildSourceCatalog(
   for (const theme of new Set([...Object.keys(cn.details), ...Object.keys(tw.details)])) {
     const [cnTopic, twTopic] = [cn.details[theme], tw.details[theme]];
     byTheme.set(theme, themeSources(cnTopic, twTopic));
-    for (const stage of Object.values(cnTopic?.stages ?? {})) {
-      for (const id of [stage.levelId, ...stage.levelReplaceIds]) {
-        themeOfLevel.set(fileName(id), theme);
-      }
-    }
+    for (const id of cnTopic ? topicLevelIds(cnTopic) : []) themeOfLevel.set(fileName(id), theme);
   }
   return { themeOfLevel, byTheme };
 }
