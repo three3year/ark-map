@@ -820,6 +820,21 @@ describe("作用範圍", () => {
     expect(facilities.map((d) => d.effectCells)).toEqual([[], []]);
   });
 
+  it("a device facing an unknown direction gets none, and the facing is warned about", () => {
+    const raw = rawFixture("level_main_05-10");
+    const token = raw.predefines!.tokenInsts!.find((t) => t.alias === "trap_007_ballis#8")!;
+    token.direction = 9;
+    const unknown: [string, number | string][] = [];
+    const level = convertLevel("5-10", raw, enemyCatalog(), {
+      devices: fixtureDeviceCatalog(),
+      onUnknownEnum: (field, value) => unknown.push([field, value]),
+    });
+    const ballista = level.devices.find((d) => d.alias === "trap_007_ballis#8")!;
+    expect(ballista.direction).toBe("UNKNOWN_9");
+    expect(ballista.effectCells).toEqual([]);
+    expect(unknown).toEqual([["direction", 9]]);
+  });
+
   it.each([
     ["a skill", "level_main_05-10", "trap_007_ballis"],
     ["a talent", "level_act39side_08", "trap_196_cnnon"],

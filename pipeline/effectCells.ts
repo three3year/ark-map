@@ -1,4 +1,4 @@
-import type { Cell, Direction, LevelMap } from "../src/level/index.ts";
+import { directions, type Cell, type Direction, type LevelMap } from "../src/level/index.ts";
 import type {
   RawCharacter,
   RawCharacterTable,
@@ -77,16 +77,21 @@ function chosenOffsets(
   return [];
 }
 
-function rotate({ row, col }: Cell, direction: Direction): Cell {
-  switch (direction) {
+type Facing = (typeof directions)[number];
+
+const isFacing = (direction: Direction): direction is Facing =>
+  (directions as readonly string[]).includes(direction);
+
+function rotate({ row, col }: Cell, facing: Facing): Cell {
+  switch (facing) {
+    case "RIGHT":
+      return { row, col };
     case "UP":
       return { row: col, col: -row };
     case "DOWN":
       return { row: -col, col: row };
     case "LEFT":
       return { row: -row, col: -col };
-    default:
-      return { row, col };
   }
 }
 
@@ -97,6 +102,7 @@ export function effectCells(
   map: Pick<LevelMap, "width" | "height">,
   onUnknownRangeId: UnknownRangeIdHandler,
 ): Cell[] {
+  if (!isFacing(direction)) return [];
   return chosenOffsets(tables, token, onUnknownRangeId)
     .map((offset) => rotate(offset, direction))
     .map((d) => ({ row: token.position.row + d.row, col: token.position.col + d.col }))
