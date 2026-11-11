@@ -13,7 +13,7 @@
 
 <style>
   .switch-mark {
-    --side-in-text-em: 1.45;
+    --side-in-text-em: 1.2;
     font-size: calc(1em * var(--side-in-text-em) * var(--switch-mark-font-ratio));
     --switch-mark-side: calc(1em / var(--switch-mark-font-ratio));
     display: inline-grid;
