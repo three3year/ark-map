@@ -116,6 +116,18 @@ describe("難度修正 lines", () => {
     expect(params).toContainEqual({ label: "enemy_avalanche_damage", value: "5000", hint: null });
   });
 
+  it("act49side_01: internal markers do not show", () => {
+    const labels = challengeParams("level_act49side_01", "env_system_new")!.map((p) => p.label);
+    expect(labels).not.toContain("ui_plugin_name");
+    expect(labels).toContain("print_sp");
+  });
+
+  it("act50side_ex03: an 環境機制 left with only internal markers has no line", () => {
+    expect(challenge("level_act50side_ex03").map((line) => line.key)).not.toContain(
+      "env_system_new",
+    );
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",

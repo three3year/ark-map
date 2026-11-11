@@ -86,6 +86,20 @@ function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): b
   return true;
 }
 
+/** Parameters the game reads for its own bookkeeping (UI plugins, aliases, ...): never shown. */
+const internalKeys = new Set([
+  "rune_alias",
+  "ui_plugin_name",
+  "ui_plugin_path",
+  "ui_plugin_position",
+  "camera_plugin_name",
+  "extra_load_bgm",
+  "disable_ui_hub",
+  "disable_click_character_info",
+  "at_root",
+  "include_predefined",
+]);
+
 /** 環境機制 and 環境全域效果: their `key` names the mechanism, shown only in the name's hint. */
 const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
 
@@ -150,7 +164,10 @@ function modifierLine(
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
   const entries = modifier.blackboard.filter(
-    (entry) => !(environment && entry.key === "key") && hasEffect(modifier.key, entry),
+    (entry) =>
+      !internalKeys.has(entry.key) &&
+      !(environment && entry.key === "key") &&
+      hasEffect(modifier.key, entry),
   );
   if (entries.every((entry) => targetKeys.has(entry.key))) return null;
   const name = isKnownModifierKey(modifier.key)
