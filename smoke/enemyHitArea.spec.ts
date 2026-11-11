@@ -214,3 +214,28 @@ test("4-10: 停留 bars are drawn over every enemy and 等 N 秒 label, faded wi
   await expect(enemyOnMap(page, individual.id)).toHaveAttribute("data-filtered-out");
   expect(await shownOpacity(bar.locator(".stay-track"))).toBeCloseTo(0.4, 2);
 });
+
+test("4-10: no text on the map can be selected, 停留 seconds included", async ({ page }) => {
+  const level = siteLevel("main_04-10");
+  const timeline = buildTimeline(level);
+  const t = Array.from({ length: 300 }, (_, i) => i).find((s) =>
+    takeSnapshot(timeline, s).onField.some((e) => e.stay && e.stay.start <= s - 1),
+  );
+  expect(t, "4-10 has an enemy standing still").toBeDefined();
+  const { individual } = takeSnapshot(timeline, t!).onField.find(
+    (e) => e.stay && e.stay.start <= t! - 1,
+  )!;
+
+  await page.goto("#/level/main_04-10?v=normal");
+  await seek(page, t!);
+  await enemyOnMap(page, individual.id).press("Enter");
+  await expect(stayBarOf(page, individual.id).locator("text")).toHaveCount(1);
+  await expect(page.locator("svg.map text", { hasText: /^等 [\d.]+ 秒$/ }).first()).toBeVisible();
+
+  const selectable = await page.evaluate(() =>
+    [...document.querySelectorAll("svg.map text")]
+      .filter((e) => getComputedStyle(e).userSelect !== "none")
+      .map((e) => e.textContent),
+  );
+  expect(selectable).toEqual([]);
+});
