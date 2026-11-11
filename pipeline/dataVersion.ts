@@ -15,11 +15,15 @@ export interface DataVersionInput {
 
 /** The server's 資料版本; its version is null when the 版號 file gives none. */
 export function dataVersion({ listing, body, cachedAt, now }: DataVersionInput): DataVersion {
-  const listed = !listing || listing.has(versionFile);
   return {
-    version: listed && body !== null ? parseVersion(body) : null,
+    version: versionFileListed(listing) && body !== null ? parseVersion(body) : null,
     checkedAt: confirmedAt(listing, cachedAt, now).toISOString(),
   };
+}
+
+/** Whether to read the 版號 file: without a listing the cache is trusted; with one, only if listed. */
+export function versionFileListed(listing: ReadonlyMap<string, string> | null): boolean {
+  return !listing || listing.has(versionFile);
 }
 
 /**

@@ -18,7 +18,7 @@ import {
   convertLevel,
   siteLevelFile,
 } from "./convertLevel.ts";
-import { dataVersion, versionFile } from "./dataVersion.ts";
+import { dataVersion, versionFile, versionFileListed } from "./dataVersion.ts";
 import {
   fetchCached,
   fetchJson,
@@ -106,7 +106,9 @@ async function gameTables(source: RepoSource, listing: TreeListing | null): Prom
 async function readDataVersion(server: Server, listing: TreeListing | null): Promise<DataVersion> {
   const source = sources[server];
   const file = `excel/${versionFile}`;
-  const body = await fetchCached(source, file, listing?.get(versionFile));
+  const body = versionFileListed(listing)
+    ? await fetchCached(source, file, listing?.get(versionFile))
+    : null;
   const cachedAt = await stat(path.join(sourceCacheDir(source), file)).then(
     (s) => s.mtime,
     () => null,
