@@ -4,9 +4,12 @@ import {
   isKnownModifierKey,
   type DataVersion,
   type NameTable,
+  type Server,
+  type ServerVersions,
   type StageIndex,
 } from "../src/level/index.ts";
 import { sources, type RepoSource } from "../src/dataSources.ts";
+import { strings } from "../src/ui/strings.ts";
 import { outDir, rawCacheDir } from "./config.ts";
 import {
   buildDeviceCatalog,
@@ -100,11 +103,8 @@ async function gameTables(source: RepoSource, listing: TreeListing | null): Prom
   };
 }
 
-async function readDataVersion(
-  name: string,
-  source: RepoSource,
-  listing: TreeListing | null,
-): Promise<DataVersion> {
+async function readDataVersion(server: Server, listing: TreeListing | null): Promise<DataVersion> {
+  const source = sources[server];
   const file = `excel/${versionFile}`;
   const body = await fetchCached(source, file, listing?.get(versionFile));
   const cachedAt = await stat(path.join(sourceCacheDir(source), file)).then(
@@ -118,18 +118,20 @@ async function readDataVersion(
     now: runAt,
   });
   if (version.version === null) {
-    console.warn(`[資料管線] 讀不到${name}的版號(${file} 的 dataVersion),頁尾只顯示確認時間`);
+    console.warn(
+      `[資料管線] 讀不到${strings.servers[server]}的版號(${file} 的 dataVersion),頁尾只顯示確認時間`,
+    );
   }
   return version;
 }
 
-const versions: StageIndex["versions"] = {
-  cn: await readDataVersion("陸服", sources.cn, cnExcel),
-  tw: await readDataVersion("台服", sources.tw, twExcel),
+const versions: ServerVersions = {
+  cn: await readDataVersion("cn", cnExcel),
+  tw: await readDataVersion("tw", twExcel),
 };
-log(
-  `資料版本: 陸服 ${versions.cn.version ?? "(無版號)"}、台服 ${versions.tw.version ?? "(無版號)"}`,
-);
+const versionText = (server: Server) =>
+  `${strings.servers[server]} ${versions[server].version ?? "(無版號)"}`;
+log(`資料版本: ${versionText("cn")}、${versionText("tw")}`);
 
 const tables = {
   cn: await gameTables(sources.cn, cnExcel),

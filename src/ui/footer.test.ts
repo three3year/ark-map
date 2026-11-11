@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { StageIndex } from "../level/index.ts";
+import type { ServerVersions } from "../level/index.ts";
 import { footerItems } from "./footer.ts";
 
-const versions: StageIndex["versions"] = {
+const versions: ServerVersions = {
   cn: { version: "79.2.0", checkedAt: "2026-11-11T06:30:00.000Z" },
   tw: { version: "52.0.0", checkedAt: "2026-10-18T17:05:30Z" },
 };

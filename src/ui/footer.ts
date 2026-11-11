@@ -1,5 +1,5 @@
 import { repoUrl, sources, type RepoSource } from "../dataSources.ts";
-import type { DataVersion, StageIndex } from "../level/index.ts";
+import type { DataVersion, Server, ServerVersions } from "../level/index.ts";
 import { strings } from "./strings.ts";
 
 export interface FooterItem {
@@ -24,19 +24,19 @@ function taiwanTime(iso: string): string {
   );
 }
 
-function serverItem(label: string, source: RepoSource, data: DataVersion): FooterItem {
+function serverItem(server: Server, data: DataVersion): FooterItem {
   return {
-    ...sourceItem(label, source),
+    ...sourceItem(strings.servers[server], sources[server]),
     version: data.version,
     checkedAt: taiwanTime(data.checkedAt),
   };
 }
 
-export function footerItems(versions: StageIndex["versions"]): FooterItem[] {
+export function footerItems(versions: ServerVersions): FooterItem[] {
   const labels = strings.footerLabels;
   return [
-    serverItem(labels.cn, sources.cn, versions.cn),
-    serverItem(labels.tw, sources.tw, versions.tw),
+    serverItem("cn", versions.cn),
+    serverItem("tw", versions.tw),
     sourceItem(labels.images, sources.avatars),
     { label: labels.prts, url: "https://prts.wiki/w/作战机制", hint: strings.footerPrtsHint },
     { label: labels.prtsMap, url: "https://map.ark-nights.com", hint: strings.footerPrtsMapHint },
