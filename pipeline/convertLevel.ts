@@ -11,6 +11,7 @@ import {
   type Direction,
   type LevelFile,
   type NameTable,
+  type UnknownEnum,
 } from "../src/level/index.ts";
 import type {
   Action,
@@ -29,6 +30,7 @@ import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
 import {
   effectCells,
   noEffectTables,
+  type EffectContext,
   type EffectTables,
   type UnknownRangeIdHandler,
 } from "./effectCells.ts";
@@ -105,19 +107,26 @@ const numericEnums = {
   // reads 0 / UP 33 times, 1 / RIGHT twice and 3 / LEFT once (ballistae aiming along their lane);
   // 2 is DOWN, the one left in the game's UP, RIGHT, DOWN, LEFT order.
   direction: { 0: "UP", 1: "RIGHT", 2: "DOWN", 3: "LEFT" },
+  // Evidence: 0 is the only number (384 devices); all 29 kinds placed with it read PHASE_0, and
+  // never another 階段, in the newer files.
+  phase: { 0: "PHASE_0" },
 } satisfies Record<string, Record<number, string>>;
 
-/** Fields whose names the level model types: any other name is unknown too. */
+const phases = ["PHASE_0", "PHASE_1", "PHASE_2"] as const;
+
+/** Fields with a closed list of names: any other name is unknown too. */
 const knownNames: { [F in keyof Named]: readonly string[] } = {
   actionType: actionTypes,
   checkpointType: checkpointTypes,
   direction: directions,
+  phase: phases,
 };
 
 interface Named {
   actionType: ActionType;
   checkpointType: CheckpointType;
   direction: Direction;
+  phase: (typeof phases)[number] | UnknownEnum;
 }
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */
@@ -380,6 +389,15 @@ function convertDevices(
     (t) => !devices.controllers.has(t.inst.characterKey),
   );
   const unknown = new Set<string>();
+  const effects: EffectContext = {
+    tables: devices.effects,
+    map,
+    phaseIndex: (phase) => {
+      const index = (phases as readonly string[]).indexOf(decode("phase", phase));
+      return index < 0 ? undefined : index;
+    },
+    onUnknownRangeId,
+  };
   return tokens.map((token) => {
     const { alias, inst, position, hidden } = token;
     const key = inst.characterKey;
@@ -400,7 +418,7 @@ function convertDevices(
       name: info?.name ?? key,
       description: info?.description ?? null,
       image: null,
-      effectCells: effectCells(devices.effects, token, direction, map, onUnknownRangeId),
+      effectCells: effectCells(effects, token, direction),
     };
   });
 }

@@ -19,33 +19,46 @@ export const noEffectTables: EffectTables = { characters: {}, skills: {}, ranges
 
 export type UnknownRangeIdHandler = (rangeId: string, key: string) => void;
 
-function phaseIndex(phase: RawEnum | undefined): number {
-  if (phase === undefined) return 0;
-  if (typeof phase === "number") return phase;
-  return Number(phase.replace("PHASE_", "")) || 0;
+/** A 階段 as its index; undefined for a 階段 with no known name. */
+export type PhaseIndex = (phase: RawEnum) => number | undefined;
+
+export interface EffectContext {
+  tables: EffectTables;
+  map: Pick<LevelMap, "width" | "height">;
+  phaseIndex: PhaseIndex;
+  onUnknownRangeId: UnknownRangeIdHandler;
 }
 
-function talentRangeIds(character: RawCharacter, token: RawTokenInst): (string | null)[] {
-  const phase = phaseIndex(token.inst.phase);
+function talentRangeIds(
+  character: RawCharacter,
+  token: RawTokenInst,
+  phase: number,
+  phaseIndex: PhaseIndex,
+): (string | null)[] {
   const level = token.inst.level ?? 1;
   const unlocked = ({ unlockCondition: c }: RawTalentCandidate) => {
     const at = phaseIndex(c.phase);
-    return at < phase || (at === phase && c.level <= level);
+    return at !== undefined && (at < phase || (at === phase && c.level <= level));
   };
   return (character.talents ?? []).map(
     (talent) => (talent.candidates ?? []).filter(unlocked).at(-1)?.rangeId ?? null,
   );
 }
 
-function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string | null)[] {
+function rangeIdCandidates(
+  { tables, phaseIndex }: EffectContext,
+  token: RawTokenInst,
+): (string | null)[] {
   const character = tables.characters[token.inst.characterKey];
   if (!character) return [];
+  const phase = phaseIndex(token.inst.phase ?? "PHASE_0");
+  if (phase === undefined) return [];
   const phases = character.phases ?? [];
-  const phase = phases[phaseIndex(token.inst.phase)] ?? phases.at(-1);
+  const phaseRange = phases[phase] ?? phases.at(-1);
   return [
-    phase?.rangeId ?? null,
+    phaseRange?.rangeId ?? null,
     skillRangeId(tables.skills, character, token),
-    ...talentRangeIds(character, token),
+    ...talentRangeIds(character, token, phase, phaseIndex),
   ];
 }
 
@@ -60,12 +73,9 @@ function skillRangeId(
   return (levels[mainSkillLvl - 1] ?? levels.at(-1))?.rangeId ?? null;
 }
 
-function chosenOffsets(
-  tables: EffectTables,
-  token: RawTokenInst,
-  onUnknownRangeId: UnknownRangeIdHandler,
-): Cell[] {
-  for (const id of rangeIdCandidates(tables, token)) {
+function chosenOffsets(context: EffectContext, token: RawTokenInst): Cell[] {
+  const { tables, onUnknownRangeId } = context;
+  for (const id of rangeIdCandidates(context, token)) {
     if (id === null) continue;
     const range = tables.ranges[id];
     if (!range) {
@@ -96,14 +106,13 @@ function rotate({ row, col }: Cell, facing: Facing): Cell {
 }
 
 export function effectCells(
-  tables: EffectTables,
+  context: EffectContext,
   token: RawTokenInst,
   direction: Direction,
-  map: Pick<LevelMap, "width" | "height">,
-  onUnknownRangeId: UnknownRangeIdHandler,
 ): Cell[] {
+  const { map } = context;
   if (!isFacing(direction)) return [];
-  return chosenOffsets(tables, token, onUnknownRangeId)
+  return chosenOffsets(context, token)
     .map((offset) => rotate(offset, direction))
     .map((d) => ({ row: token.position.row + d.row, col: token.position.col + d.col }))
     .filter(({ row, col }) => row >= 0 && row < map.height && col >= 0 && col < map.width);

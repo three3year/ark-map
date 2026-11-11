@@ -820,6 +820,22 @@ describe("作用範圍", () => {
     expect(facilities.map((d) => d.effectCells)).toEqual([[], []]);
   });
 
+  it.each([5, "PHASE_5"])(
+    "a device at an unknown 階段 (%s) gets none, and the 階段 is warned about",
+    (phase) => {
+      const raw = rawFixture("level_main_16-02");
+      for (const token of raw.predefines!.tokenInsts!) token.inst.phase = phase;
+      const unknown: [string, number | string][] = [];
+      const level = convertLevel("16-2", raw, enemyCatalog(), {
+        devices: fixtureDeviceCatalog(),
+        onUnknownEnum: (field, value) => unknown.push([field, value]),
+      });
+      expect(level.devices.map((d) => d.effectCells)).toEqual(level.devices.map(() => []));
+      expect(unknown.length).toBeGreaterThan(0);
+      expect(unknown).toEqual(unknown.map(() => ["phase", phase]));
+    },
+  );
+
   it("a device facing an unknown direction gets none, and the facing is warned about", () => {
     const raw = rawFixture("level_main_05-10");
     const token = raw.predefines!.tokenInsts!.find((t) => t.alias === "trap_007_ballis#8")!;
