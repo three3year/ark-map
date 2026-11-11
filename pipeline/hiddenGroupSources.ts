@@ -1,4 +1,4 @@
-import type { HiddenGroupSource } from "../src/level/index.ts";
+import { hiddenGroupSwitch, type HiddenGroupSource } from "../src/level/index.ts";
 import type { RawRoguelikeTopic, RawRoguelikeTopicTable } from "./raw.ts";
 
 export interface SourceCatalog {
@@ -13,8 +13,6 @@ export const noSources: SourceCatalog = { themeOfLevel: new Map(), byTheme: new 
 /** Theme tables name levels in mixed case ("Obt/Roguelike/RO4/level_rogue4_1-2"). */
 const fileName = (levelId: string) => levelId.toLowerCase().replace(/^.*\//, "");
 
-const switchBuff = /^level_hidden_group_(enable|disable)$/;
-
 function themeSources(
   cn: RawRoguelikeTopic | undefined,
   tw: RawRoguelikeTopic | undefined,
@@ -25,15 +23,15 @@ function themeSources(
     const relic = cn?.relics[item] ?? tw!.relics[item]!;
     const info = tw?.items[item] ?? cn?.items[item];
     for (const buff of relic.buffs) {
-      const opens = switchBuff.exec(buff.key)?.[1];
-      if (!opens) continue;
+      const switched = hiddenGroupSwitch(buff.key);
+      if (!switched) continue;
       const tags = buff.blackboard
         .filter((b) => b.key === "key")
         .flatMap((b) => (b.valueStr ?? "").split("|"));
       for (const tag of tags) {
         const source: HiddenGroupSource = {
           item,
-          opens: opens === "enable",
+          opens: switched === "open",
           name: info?.name ?? item,
           kind: info?.type ?? "",
         };

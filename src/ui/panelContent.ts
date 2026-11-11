@@ -1,6 +1,7 @@
 import {
   affectsMovement,
   deviceActionKind,
+  hiddenGroupSwitch,
   isKnownModifierKey,
   isSpawn,
   type Action,
@@ -316,8 +317,6 @@ const internalKeys = new Set([
 
 const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
 
-const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_group_disable"]);
-
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
 function entryValue(
@@ -384,8 +383,8 @@ function modifierLine(
   context: ModifierContext,
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
-  const opensGroups = hiddenGroupKeys.has(modifier.key);
-  const ownsKey = environment || opensGroups;
+  const switchesGroups = hiddenGroupSwitch(modifier.key) !== null;
+  const ownsKey = environment || switchesGroups;
   const target = ownsKey
     ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
     : null;
@@ -396,7 +395,7 @@ function modifierLine(
       hasEffect(modifier.key, entry),
   );
   const hiddenGroups =
-    opensGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
+    switchesGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
   if (hiddenGroups.length === 0 && entries.every((entry) => targetKeys.has(entry.key))) {
     return null;
   }

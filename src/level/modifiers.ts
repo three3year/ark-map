@@ -87,6 +87,21 @@ export function isKnownModifierKey(key: string): key is KnownModifierKey {
   return (knownModifierKeys as readonly string[]).includes(key);
 }
 
+/**
+ * What a 難度修正 or 集成戰略 item buff with this key does to the 隱藏組 its `key` entry names:
+ * opens or closes them; null when it does neither.
+ */
+export function hiddenGroupSwitch(key: string): "open" | "close" | null {
+  switch (key) {
+    case "level_hidden_group_enable":
+      return "open";
+    case "level_hidden_group_disable":
+      return "close";
+    default:
+      return null;
+  }
+}
+
 /** A variant = the level file + the modifiers whose mask matches its difficulty. */
 export function variantModifiers(modifiers: Modifier[], difficulty: Difficulty): Modifier[] {
   return modifiers.filter((m) => m.difficulties.includes(difficulty));
