@@ -110,6 +110,17 @@ export interface EnemyRef {
   maxHp: number;
   atk: number;
   def: number;
+  magicResistance: number;
+  /** 攻擊間隔, seconds. */
+  baseAttackTime: number;
+  /** 攻速 */
+  attackSpeed: number;
+  /** 攻擊範圍, cells. */
+  rangeRadius: number;
+  /** 重量 */
+  massLevel: number;
+  /** 關卡生命: life points lost when it gets through. */
+  lifePointReduce: number;
   notCountInTotal: boolean;
   /** TW handbook code, e.g. "B1"; shown in place of a missing avatar. */
   code: string | null;

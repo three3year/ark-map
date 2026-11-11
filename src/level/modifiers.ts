@@ -106,11 +106,14 @@ export function affectsMovement(modifier: Modifier): boolean {
 }
 
 /** The blackboard's `enemy` list narrows a modifier to those enemies; `enemy_exclude` removes some. */
-function movesEnemy(modifier: Modifier, enemyId: string): boolean {
-  if (!affectsMovement(modifier)) return false;
+export function targetsEnemy(modifier: Modifier, enemyId: string): boolean {
   const only = enemyList(modifier, "enemy");
   if (only && !only.includes(enemyId)) return false;
   return !enemyList(modifier, "enemy_exclude")?.includes(enemyId);
+}
+
+function movesEnemy(modifier: Modifier, enemyId: string): boolean {
+  return affectsMovement(modifier) && targetsEnemy(modifier, enemyId);
 }
 
 /** Product of the `move_speed` factors the variant's modifiers give `enemyId`; 1 when none do. */
