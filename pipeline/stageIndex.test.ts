@@ -6,22 +6,24 @@ import { buildStageIndex, indexedLevelPaths, levelFacts, type LevelFacts } from 
 
 const tables = rawTables();
 
+type Index = Omit<StageIndex, "versions">;
+
 /** Every level file the index asks for exists and has no difficulty modifiers. */
 function allFilesPresent(): Map<string, LevelFacts> {
   return new Map(indexedLevelPaths(tables).map((p) => [p, { difficulties: [] }]));
 }
 
-function build(facts = allFilesPresent()): StageIndex {
+function build(facts = allFilesPresent()): Index {
   return buildStageIndex(tables, facts).index;
 }
 
-function allStages(index: StageIndex): StageEntry[] {
+function allStages(index: Index): StageEntry[] {
   return index.areas.flatMap((a) => a.sections.flatMap((s) => s.stages));
 }
 
-const stageIds = (index: StageIndex) => allStages(index).map((s) => s.id);
+const stageIds = (index: Index) => allStages(index).map((s) => s.id);
 
-function stageByCode(index: StageIndex, areaId: string, code: string): StageEntry {
+function stageByCode(index: Index, areaId: string, code: string): StageEntry {
   const area = index.areas.find((a) => a.id === areaId);
   const stage = area?.sections.flatMap((s) => s.stages).find((s) => s.code === code);
   if (!stage) throw new Error(`no ${code} in ${areaId}`);
@@ -184,7 +186,7 @@ describe("stage index", () => {
 });
 
 describe("stage index: 集成戰略", () => {
-  function stageById(index: StageIndex, id: string): StageEntry {
+  function stageById(index: Index, id: string): StageEntry {
     const stage = allStages(index).find((s) => s.id === id);
     if (!stage) throw new Error(`no ${id}`);
     return stage;

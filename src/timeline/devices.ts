@@ -100,6 +100,10 @@ export function removedAt(device: DevicePresence, t: number): boolean {
   return valueAt(device.presence, t) && removedBy(device, t);
 }
 
+export function onFieldOrRemovedAtSomeSecond(device: DevicePresence): boolean {
+  return device.presence.initial || device.presence.changes.some((c) => c.value);
+}
+
 export function presenceChanges(devices: DevicePresence[]): number[] {
   const seconds = devices.flatMap((d) => [
     ...d.presence.changes.map((c) => c.from),

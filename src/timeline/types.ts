@@ -2,7 +2,7 @@
 import type { EnemyRef, IndexedDevice, Route } from "../level/index.ts";
 import type { IndividualId } from "./identity.ts";
 import type { Trajectory } from "./movement.ts";
-import type { SwitchMark } from "./switchMarks.ts";
+import type { DeviceSwitchMark, SwitchMark } from "./switchMarks.ts";
 
 /** One 敵人個體: who it is plus its {@link Trajectory}, whose 路徑 is drawn when it is selected. */
 export interface Individual extends IndividualId, Trajectory {
@@ -17,8 +17,14 @@ export interface Individual extends IndividualId, Trajectory {
   marks: SwitchMark[];
 }
 
+export interface TimelineDevice extends IndexedDevice {
+  /** 開關標記 of every 開關 acting on it: the same whatever the second, 開關狀態 or 移除. */
+  marks: DeviceSwitchMark[];
+}
+
 export interface Timeline {
   individuals: Individual[];
-  devicesAt(t: number): IndexedDevice[];
-  removedAt(t: number): IndexedDevice[];
+  devicesAt(t: number): TimelineDevice[];
+  removedAt(t: number): TimelineDevice[];
+  devicesOnFieldOrRemovedAtSomeSecond: TimelineDevice[];
 }

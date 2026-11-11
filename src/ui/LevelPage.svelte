@@ -36,9 +36,10 @@
     type RouteEndpoint,
     type SpawnRow,
     type SpawnSwitches,
+    type TimelineDevice,
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
-  import MapView, { type DeviceMark } from "./MapView.svelte";
+  import MapView, { type DrawnDevice } from "./MapView.svelte";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
@@ -57,6 +58,7 @@
      * Its argument goes at the end of the title's row.
      */
     siteTitle: Snippet<[Snippet]>;
+    footer: Snippet;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -81,6 +83,7 @@
   }
   let {
     siteTitle,
+    footer,
     area,
     stage,
     variant,
@@ -135,12 +138,12 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
-  const deviceMark =
+  const drawnDevice =
     (removed: boolean) =>
-    (d: IndexedDevice): DeviceMark => ({ ...d, removed, removal: removals.get(d.index) ?? null });
-  const deviceMarks = $derived([
-    ...timeline.removedAt(t).map(deviceMark(true)),
-    ...timeline.devicesAt(t).map(deviceMark(false)),
+    (d: TimelineDevice): DrawnDevice => ({ ...d, removed, removal: removals.get(d.index) ?? null });
+  const drawnDevices = $derived([
+    ...timeline.removedAt(t).map(drawnDevice(true)),
+    ...timeline.devicesAt(t).map(drawnDevice(false)),
   ]);
   const endpoints = $derived(routeEndpoints(timeline));
 
@@ -270,7 +273,7 @@
   });
   /** A device selected on another wave of the view stays selected while it is drawn here. */
   const drawnOnThisWave = (s: Selection & { kind: "device" }) =>
-    sameView(s.view, view) && deviceMarks.some((m) => m.index === s.index);
+    sameView(s.view, view) && drawnDevices.some((d) => d.index === s.index);
   $effect(() => {
     const s = selection;
     if (s?.kind !== "device" || (sameView(s.view, view) && s.wave === waveIndex)) return;
@@ -413,7 +416,7 @@
       view={mapView}
       map={level.map}
       {terrain}
-      devices={deviceMarks}
+      devices={drawnDevices}
       selectedDevice={selectedDevice?.index ?? null}
       onSelectDevice={selectDevice}
       onToggleRemoval={toggleDeviceRemoval}
@@ -488,6 +491,7 @@
       variantName={variantLabel(variant.id)}
       enemies={level.enemies}
     />
+    {@render footer()}
   </div>
   <!--
     Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the
@@ -534,6 +538,14 @@
   .level-page {
     max-width: 960px;
     margin: 0 auto;
+    /* Three characters, the button's padding and its borders. */
+    --drawer-button-height: calc(3em + 2 * 12px + 2 * 1px);
+    --drawer-button-gap: 16px;
+  }
+  .level-page.drawer-mode {
+    padding-bottom: calc(
+      var(--drawer-button-height) + var(--drawer-button-gap) + env(safe-area-inset-bottom)
+    );
   }
   .level-page:not(.drawer-mode) {
     max-width: none;
@@ -604,8 +616,10 @@
   }
   .level-page.drawer-mode .drawer-button {
     position: absolute;
-    bottom: 16px;
+    bottom: calc(var(--drawer-button-gap) + env(safe-area-inset-bottom));
     right: 100%;
+    box-sizing: border-box;
+    height: var(--drawer-button-height);
     writing-mode: vertical-rl;
     padding: 12px 6px;
     border: 1px solid var(--border);

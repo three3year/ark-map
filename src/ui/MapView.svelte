@@ -1,9 +1,8 @@
 <script lang="ts" module>
-  import type { IndexedDevice } from "../level/index.ts";
-  import type { RemovalMoment } from "../timeline/index.ts";
+  import type { RemovalMoment, TimelineDevice } from "../timeline/index.ts";
 
   /** A device drawn on the map at the playback position. */
-  export interface DeviceMark extends IndexedDevice {
+  export interface DrawnDevice extends TimelineDevice {
     /** Drawn as removed: a dashed frame. */
     removed: boolean;
     /** Its 移除時刻, if it has one. */
@@ -16,6 +15,7 @@
     cellKey,
     isWalkable,
     type DeviceIndex,
+    type IndexedDevice,
     type LevelMap,
     type TerrainTable,
     type Tile,
@@ -28,8 +28,8 @@
     type Individual,
     type RouteEndpoint,
     type Snapshot,
+    type DeviceSwitchMark,
     type Stay,
-    type SwitchMark,
     type SwitchMarkKind,
   } from "../timeline/index.ts";
   import {
@@ -43,13 +43,14 @@
   import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
   import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
+  import SwitchMark from "./SwitchMark.svelte";
   import TerrainIcon from "./TerrainIcon.svelte";
 
   interface Props {
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
-    devices: DeviceMark[];
+    devices: DrawnDevice[];
     selectedDevice: DeviceIndex | null;
     /** Clicking the selected device again passes null. */
     onSelectDevice: (index: DeviceIndex | null) => void;
@@ -73,7 +74,7 @@
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
     view: MapViewMode;
-    /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
+    /** The 開關標記 kinds the legend lists: those the wave's enemies and drawn devices carry. */
     markKinds: SwitchMarkKind[];
   }
   let {
@@ -102,14 +103,15 @@
   const markGap = 0.024;
   const markDigitWidth = 0.08;
   const markPadding = 0.064;
-  const markWidth = ({ number }: SwitchMark) =>
+  const deviceHalfSide = 0.3;
+  const markWidth = ({ number }: DeviceSwitchMark) =>
     Math.max(markSide, markDigitWidth * String(number).length + markPadding);
-  function placedMarks(marks: SwitchMark[]) {
-    let right = ringOuter;
+  function placedMarks(marks: DeviceSwitchMark[], bottomRight: Vec2) {
+    let right = bottomRight.x;
     return marks.map((mark) => {
       const width = markWidth(mark);
       right -= width + markGap;
-      return { mark, width, x: right + markGap };
+      return { mark, width, x: right + markGap, y: bottomRight.y - markSide };
     });
   }
 
@@ -219,6 +221,20 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
+{#snippet switchMarks(marks: DeviceSwitchMark[], bottomRight: Vec2)}
+  {#each placedMarks(marks, bottomRight) as { mark, width, x, y } (`${mark.kind} ${mark.number}`)}
+    <g
+      class="switch-mark"
+      data-switch-mark={mark.kind}
+      data-switch-mark-number={mark.number}
+      transform="translate({x} {y})"
+    >
+      <rect {width} height={markSide} />
+      <text x={width / 2} y={markSide / 2}>{mark.number}</text>
+    </g>
+  {/each}
+{/snippet}
+
 {#snippet enemyMark({ individual, position, invisible }: OnField, faded: boolean)}
   <g
     class="enemy"
@@ -265,17 +281,7 @@
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
-      {#each placedMarks(individual.marks) as { mark, width, x } (`${mark.kind} ${mark.number}`)}
-        <g
-          class="switch-mark"
-          data-switch-mark={mark.kind}
-          data-switch-mark-number={mark.number}
-          transform="translate({x} {ringOuter - markSide})"
-        >
-          <rect {width} height={markSide} />
-          <text x={width / 2} y={markSide / 2}>{mark.number}</text>
-        </g>
-      {/each}
+      {@render switchMarks(individual.marks, { x: ringOuter, y: ringOuter })}
     </g>
   </g>
 {/snippet}
@@ -369,7 +375,7 @@
         {/if}
       {/each}
 
-      {#each devices as { index, device, removed, removal } (index)}
+      {#each devices as { index, device, marks, removed, removal } (index)}
         <g
           class="device"
           class:removed
@@ -396,9 +402,23 @@
           <g class="billboard">
             <title>{device.name}</title>
             {#if removed}
-              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-frame"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
             {:else}
-              <rect class="device-bg" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-bg"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
               {#if shows(device.image)}
                 <image
                   href={device.image}
@@ -411,7 +431,14 @@
               {:else}
                 <text class="device-initial">{[...device.name][0]}</text>
               {/if}
-              <rect class="device-frame" x="-0.3" y="-0.3" width="0.6" height="0.6" rx="0.045" />
+              <rect
+                class="device-frame"
+                x={-deviceHalfSide}
+                y={-deviceHalfSide}
+                width={2 * deviceHalfSide}
+                height={2 * deviceHalfSide}
+                rx="0.045"
+              />
               {#if removal}
                 <g class="removal-clock" transform="translate(-0.225 -0.225)">
                   <title>{strings.removalMoment(removal.wave, removal.t)}</title>
@@ -420,6 +447,7 @@
                 </g>
               {/if}
             {/if}
+            {@render switchMarks(marks, { x: deviceHalfSide, y: deviceHalfSide })}
           </g>
         </g>
       {/each}
@@ -550,7 +578,7 @@
     {/each}
     {#each markKinds as kind (kind)}
       <li>
-        <span class="swatch switch-mark" data-switch-mark={kind}></span>
+        <SwitchMark {kind} number={1} />
         <span>{strings.legendSwitchMark[kind]}</span>
       </li>
     {/each}
@@ -908,12 +936,6 @@
   }
   .swatch.device.blocker {
     border: 3px solid var(--device-blocker);
-  }
-  .swatch.switch-mark {
-    --switch-mark-side: 12px;
-    border: none;
-    border-radius: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
-    background: var(--switch-mark-fill);
   }
   .swatch.dot {
     width: 10px;

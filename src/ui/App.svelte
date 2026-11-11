@@ -15,6 +15,8 @@
   import type { SpawnSwitches } from "../timeline/index.ts";
   import { adjacentStages } from "./adjacentStages.ts";
   import ExpansionSwitch from "./ExpansionSwitch.svelte";
+  import Footer from "./Footer.svelte";
+  import { footerItems } from "./footer.ts";
   import Home from "./Home.svelte";
   import { legacyRedirect } from "./legacyRedirect.ts";
   import LevelPage from "./LevelPage.svelte";
@@ -80,6 +82,8 @@
     (i) => (index = i),
     (e: unknown) => (error = String(e)),
   );
+
+  const footer = $derived(index ? footerItems(index.versions) : []);
 
   const stages: Record<string, { area: Area; stage: StageEntry }> = $derived(
     Object.fromEntries(
@@ -192,10 +196,15 @@
   </div>
 {/snippet}
 
+{#snippet siteFooter()}
+  <Footer items={footer} />
+{/snippet}
+
 <main class:level={route.page === "level"}>
   {#if levelPage}
     <LevelPage
       {siteTitle}
+      footer={siteFooter}
       area={levelPage.area}
       stage={levelPage.stage}
       variant={levelPage.variant}
@@ -235,6 +244,9 @@
       <p>{strings.variantNotFound(route.variant ?? "")}</p>
     {:else}
       <p>{strings.loading}</p>
+    {/if}
+    {#if index}
+      {@render siteFooter()}
     {/if}
   {/if}
 </main>
