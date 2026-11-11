@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixtureNameTable, loadFixtureLevel } from "../../test-fixtures/load.ts";
-import { spawnPlan } from "../timeline/index.ts";
+import { markedSwitches, spawnPlan } from "../timeline/index.ts";
 import { variantModifiers, type Level, type Modifier } from "../level/index.ts";
 import { branchLabel, candidateLabel, levelNumbers, modifierLines } from "./panelContent.ts";
 
@@ -54,6 +54,7 @@ describe("難度修正 lines", () => {
         name: "關卡生命值",
         hint: "gbuff_lifepoint",
         value: "1",
+        hiddenGroups: [],
         params: [],
       },
       {
@@ -61,6 +62,7 @@ describe("難度修正 lines", () => {
         name: "敵人屬性倍率",
         hint: "ebuff_attribute",
         value: null,
+        hiddenGroups: [],
         params: [{ label: "移速", value: "×2", hint: "已套用到地圖上的移動" }],
       },
     ]);
@@ -126,6 +128,22 @@ describe("難度修正 lines", () => {
     expect(challenge("level_act50side_ex03").map((line) => line.key)).not.toContain(
       "env_system_new",
     );
+  });
+
+  it("rogue3_4-2 突襲: a 隱藏組 it opens is its 開關標記, numbered as in the 開關面板", () => {
+    const level = loadFixtureLevel("level_rogue3_4-2");
+    const panel = markedSwitches(level, spawnPlan(level, "FOUR_STAR")).hidden;
+    const raid = panel.find(({ group }) => group.name === "raid")!.number;
+    const line = challenge("level_rogue3_4-2").find((l) => l.key === "level_hidden_group_enable")!;
+    expect(line.hiddenGroups).toEqual([{ name: "raid", number: raid }]);
+    expect(line.params).toEqual([]);
+  });
+
+  it("act50side_ex03 突襲: a 隱藏組 with no action in the level shows nothing, so no line", () => {
+    expect(challenge("level_act50side_ex03").map((line) => line.key)).toEqual([
+      "global_lifepoint",
+      "enemy_attribute_mul",
+    ]);
   });
 
   it("names a key it does not know 未知修正", () => {

@@ -14,7 +14,12 @@ import {
   type Modifier,
   type NameTable,
 } from "../level/index.ts";
-import { actionAt, type RandomCandidate, type SpawnPlan } from "../timeline/index.ts";
+import {
+  actionAt,
+  markedSwitches,
+  type RandomCandidate,
+  type SpawnPlan,
+} from "../timeline/index.ts";
 import { strings } from "./strings.ts";
 
 function deviceName(level: Level, alias: string): string {
@@ -68,11 +73,19 @@ export interface ModifierLine {
   /** The modifier's raw key. */
   key: string;
   name: string;
-  /** The name's mouse-over text: the raw key. */
+  /** The name's mouse-over text: the raw key, and an 環境機制's target. */
   hint: string;
   /** The lone `value` that reads straight after the name; `params` is then empty. */
   value: string | null;
+  /** The 隱藏組 the modifier opens or closes, drawn as their 開關標記 after the name. */
+  hiddenGroups: HiddenGroupMark[];
   params: ModifierParam[];
+}
+
+/** A 隱藏組 by its 開關標記's number, which the 開關面板 gives it. */
+export interface HiddenGroupMark {
+  name: string;
+  number: number;
 }
 
 const multiplies = (modifierKey: string) =>
@@ -103,6 +116,8 @@ const internalKeys = new Set([
 /** 環境機制 and 環境全域效果: their `key` names the mechanism, shown only in the name's hint. */
 const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
 
+const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_group_disable"]);
+
 /** Parameters naming whom a modifier applies to; alone, they change nothing. */
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
@@ -128,6 +143,15 @@ export interface ModifierContext {
   names: NameTable;
   /** The variant's spawn plan: 隱藏組 marks number as the 開關面板 does. */
   plan: SpawnPlan;
+}
+
+/** The 隱藏組 "a|b" names; one with no action in the level is left out, as switching it is moot. */
+function hiddenGroupMarks(level: Level, names: string, plan: SpawnPlan): HiddenGroupMark[] {
+  const marked = markedSwitches(level, plan).hidden;
+  return names.split("|").flatMap((name) => {
+    const number = marked.find(({ group }) => group.name === name)?.number;
+    return number === undefined ? [] : [{ name, number }];
+  });
 }
 
 /**
@@ -163,21 +187,28 @@ function modifierLine(
   context: ModifierContext,
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
+  const opensGroups = hiddenGroupKeys.has(modifier.key);
+  // An 環境機制's or 隱藏組 modifier's `key` names its target: no parameter of its own.
+  const ownsKey = environment || opensGroups;
+  const target = ownsKey
+    ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
+    : null;
   const entries = modifier.blackboard.filter(
     (entry) =>
       !internalKeys.has(entry.key) &&
-      !(environment && entry.key === "key") &&
+      !(ownsKey && entry.key === "key") &&
       hasEffect(modifier.key, entry),
   );
-  if (entries.every((entry) => targetKeys.has(entry.key))) return null;
+  const hiddenGroups =
+    opensGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
+  if (hiddenGroups.length === 0 && entries.every((entry) => targetKeys.has(entry.key))) {
+    return null;
+  }
   const name = isKnownModifierKey(modifier.key)
     ? strings.modifierKeys[modifier.key]
     : strings.modifierUnknown;
-  const target = environment
-    ? modifier.blackboard.find((entry) => entry.key === "key")?.valueStr
-    : null;
-  const hint = target ? `${modifier.key} · ${target}` : modifier.key;
-  const line = { key: modifier.key, name, hint };
+  const hint = environment && target !== null ? `${modifier.key} · ${target}` : modifier.key;
+  const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
     return { ...line, value: entryValue(modifier.key, first, level.enemies), params: [] };
