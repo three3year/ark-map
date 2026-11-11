@@ -415,12 +415,13 @@ describe("難度修正 lines", () => {
     ]);
   });
 
-  it("act18mini_02: a tile parameter reads 地形 and the 地形表's name, each name once", () => {
+  it("act18mini_02: a tile parameter reads 地形 and each tile's name in the 地形表, repeats kept", () => {
     const level = loadFixtureLevel("level_act18mini_02");
     const params = lines(level, variantModifiers(level.modifiers, "NORMAL")).find(
       (line) => line.key === "map_tile_blackb_assign",
     )!.params;
-    expect(params[0]).toEqual({ label: "地形", value: "蘆葦叢", hint: null });
+    // tile_reed|tile_reedf|tile_reedw: three tiles the 地形表 all names 蘆葦叢.
+    expect(params[0]).toEqual({ label: "地形", value: "蘆葦叢、蘆葦叢、蘆葦叢", hint: null });
   });
 
   it("names a 地形 the 地形表 lacks by its key", () => {

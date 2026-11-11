@@ -362,12 +362,13 @@ function entryValue(
   }
   const parts = valueStr.split("|");
   if (key === "location") return parts.join("、");
-  const shown = parts.map((part) =>
-    key === "tile"
-      ? (names.terrain[part]?.name ?? part)
-      : (level.enemies[part]?.name ?? names.enemies[part] ?? names.devices[part]?.name ?? part),
-  );
-  return [...new Set(shown)].join("、");
+  return parts
+    .map((part) =>
+      key === "tile"
+        ? (names.terrain[part]?.name ?? part)
+        : (level.enemies[part]?.name ?? names.enemies[part] ?? names.devices[part]?.name ?? part),
+    )
+    .join("、");
 }
 
 export interface ModifierContext {
