@@ -263,6 +263,14 @@ describe("裝置", () => {
     }
   });
 
+  it("a device a 隱藏組 activates carries that group's mark: ro3_n_5_5's npcsld#1, in 隱藏組 totem2", () => {
+    const level = loadFixtureLevel("level_rogue3_5-5");
+    const timeline = buildTimeline(level, { switches: { hiddenOn: ["totem2"] } });
+    expect(onField(timeline, "trap_024_npcsld#1").marks).toEqual([
+      { kind: "hiddenGroup", number: 1, name: "totem2" },
+    ]);
+  });
+
   it("a device on the field from the start carries the mark of the 隱藏組 that withdraws it, on or off: act21mini_01's sheltr#5", () => {
     const level = loadFixtureLevel("level_act21mini_01");
     for (const hiddenOn of [[], ["normal"]]) {
