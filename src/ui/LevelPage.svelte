@@ -58,6 +58,8 @@
      * Its argument goes at the end of the title's row.
      */
     siteTitle: Snippet<[Snippet]>;
+    /** The 頁尾, drawn last in the left column: below everything there, never under the spawn table. */
+    footer: Snippet;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -82,6 +84,7 @@
   }
   let {
     siteTitle,
+    footer,
     area,
     stage,
     variant,
@@ -489,6 +492,7 @@
       variantName={variantLabel(variant.id)}
       enemies={level.enemies}
     />
+    {@render footer()}
   </div>
   <!--
     Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the
@@ -535,6 +539,21 @@
   .level-page {
     max-width: 960px;
     margin: 0 auto;
+    /*
+     * The drawer's button: its height (three characters, padding and borders) and its gap above
+     * the window's bottom.
+     */
+    --drawer-button-height: 74px;
+    --drawer-button-gap: 16px;
+  }
+  /*
+   * Past the page's own 32px bottom padding, room for the drawer's button: scrolled to the
+   * bottom, the 頁尾 ends above it.
+   */
+  .level-page.drawer-mode {
+    padding-bottom: calc(
+      var(--drawer-button-height) + var(--drawer-button-gap) + env(safe-area-inset-bottom)
+    );
   }
   .level-page:not(.drawer-mode) {
     max-width: none;
@@ -605,8 +624,10 @@
   }
   .level-page.drawer-mode .drawer-button {
     position: absolute;
-    bottom: 16px;
+    bottom: calc(var(--drawer-button-gap) + env(safe-area-inset-bottom));
     right: 100%;
+    box-sizing: border-box;
+    height: var(--drawer-button-height);
     writing-mode: vertical-rl;
     padding: 12px 6px;
     border: 1px solid var(--border);

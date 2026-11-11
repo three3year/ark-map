@@ -196,10 +196,15 @@
   </div>
 {/snippet}
 
+{#snippet siteFooter()}
+  <Footer items={footer} />
+{/snippet}
+
 <main class:level={route.page === "level"}>
   {#if levelPage}
     <LevelPage
       {siteTitle}
+      footer={siteFooter}
       area={levelPage.area}
       stage={levelPage.stage}
       variant={levelPage.variant}
@@ -241,7 +246,7 @@
       <p>{strings.loading}</p>
     {/if}
     {#if index}
-      <Footer items={footer} />
+      {@render siteFooter()}
     {/if}
   {/if}
 </main>
