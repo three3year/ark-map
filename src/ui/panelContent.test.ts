@@ -146,6 +146,12 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("act10mini_02 突襲: forbidden cells read as 格 (row,col) in the file's order", () => {
+    expect(challengeParams("level_act10mini_02", "global_forbid_location")).toEqual([
+      { label: "格", value: "(5,4)、(5,5)、(5,6)、(3,5)、(3,6)、(3,7)、(3,3)", hint: null },
+    ]);
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",

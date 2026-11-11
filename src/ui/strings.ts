@@ -218,6 +218,7 @@ export const strings = {
     tile: "格",
     token_key: "裝置",
     skill: "技能序號",
+    location: "格",
     duration: "持續時間",
     ep_damage: "元素傷害",
     damage_scale: "傷害倍率",

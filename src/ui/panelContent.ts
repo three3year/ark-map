@@ -128,13 +128,11 @@ function entryValue(
   enemies: Record<string, EnemyRef>,
 ): string {
   if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
+  const parts = valueStr.split("|");
   if (key === "enemy" || key === "enemy_exclude") {
-    return valueStr
-      .split("|")
-      .map((id) => enemies[id]?.name ?? id)
-      .join("、");
+    return parts.map((id) => enemies[id]?.name ?? id).join("、");
   }
-  return valueStr;
+  return parts.join("、");
 }
 
 /** What 難度修正 lines are worked out against besides the level. */
