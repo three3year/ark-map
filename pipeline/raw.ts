@@ -1,5 +1,7 @@
 // Shapes of the raw game-data files, limited to the fields the pipeline reads.
 
+import type { ApplyWay } from "../src/level/index.ts";
+
 /** An enum field: a name, or a number in older activity files (decoded in convertLevel.ts). */
 export type RawEnum = string | number;
 
@@ -84,6 +86,7 @@ export interface RawEnemyData {
     massLevel?: Slot<number>;
   };
   rangeRadius?: Slot<number>;
+  applyWay?: Slot<ApplyWay>;
   lifePointReduce?: Slot<number>;
   motion?: Slot<RawEnum>;
   levelType?: Slot<RawEnum>;

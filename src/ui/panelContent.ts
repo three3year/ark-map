@@ -261,6 +261,17 @@ export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAt
   });
 }
 
+/**
+ * The radius of the 攻擊範圍 the map draws around `enemy`: its 攻擊範圍 屬性 under
+ * `modifiers`, the number the selection card shows. Null (not drawn) unless it attacks RANGED
+ * or ALL and the radius is above 0.
+ */
+export function attackRadius(enemy: EnemyRef, modifiers: Modifier[]): number | null {
+  if (enemy.applyWay !== "RANGED" && enemy.applyWay !== "ALL") return null;
+  const radius = enemyAttributes(enemy, modifiers).find((a) => a.key === "rangeRadius")!.value;
+  return radius > 0 ? radius : null;
+}
+
 /** One 難度修正 parameter: "移速 ×2". `hint` is its mouse-over text. */
 export interface ModifierParam {
   label: string;
