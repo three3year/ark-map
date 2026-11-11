@@ -82,14 +82,14 @@ export const strings = {
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
   hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
-  sourceKinds: {
+  hiddenGroupSourceKinds: {
     RELIC: "收藏品",
     COPPER_BUFF: "通寶",
     TOTEM_EFFECT: "密文板效果",
     FEATURE: "機制",
   } satisfies Record<HiddenGroupSourceKind, string>,
   hiddenGroupSource: (kind: HiddenGroupSourceKind, name: string, opens: boolean) =>
-    `${strings.sourceKinds[kind]}「${name}」${opens ? "開啟" : "關閉"}`,
+    `${strings.hiddenGroupSourceKinds[kind]}「${name}」${opens ? "開啟" : "關閉"}`,
   hiddenGroupSources: (sources: string[]) => `由${sources.join("、")}`,
   hiddenGroupNote: (parts: string[]) => parts.join(","),
   onInVariants: (variants: string[]) => `${variants.join("、")}時開`,

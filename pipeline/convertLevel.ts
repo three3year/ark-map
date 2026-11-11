@@ -35,7 +35,11 @@ import {
   type EffectTables,
   type UnknownRangeIdHandler,
 } from "./effectCells.ts";
-import { levelSources, noSources, type SourceCatalog } from "./hiddenGroupSources.ts";
+import {
+  levelHiddenGroupSources,
+  noHiddenGroupSources,
+  type HiddenGroupSourceCatalog,
+} from "./hiddenGroupSources.ts";
 import { plainText } from "./plainText.ts";
 import type {
   RawAction,
@@ -449,7 +453,7 @@ function hiddenGroupTags(raw: RawLevel): Set<string> {
 
 export interface ConvertOptions {
   devices?: DeviceCatalog;
-  sources?: SourceCatalog;
+  hiddenGroupSources?: HiddenGroupSourceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
   onUnknownRangeId?: UnknownRangeIdHandler;
@@ -462,7 +466,7 @@ export function convertLevel(
   catalog: EnemyCatalog,
   {
     devices = noDevices,
-    sources = noSources,
+    hiddenGroupSources = noHiddenGroupSources,
     onUnknownEnum = warnUnknownEnum,
     onUnknownDevice = warnUnknownDevice,
     onUnknownRangeId = warnUnknownRangeId,
@@ -507,7 +511,7 @@ export function convertLevel(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
     devices: convertDevices(raw, map, devices, decode, onUnknownDevice, onUnknownRangeId),
-    hiddenGroupSources: levelSources(sources, levelId, hiddenGroupTags(raw)),
+    hiddenGroupSources: levelHiddenGroupSources(hiddenGroupSources, levelId, hiddenGroupTags(raw)),
   };
 }
 
@@ -536,7 +540,7 @@ export function siteLevelFile(
     if (info) names.devices[key] = info;
   }
   for (const { item, name, kind } of Object.values(level.hiddenGroupSources).flat()) {
-    names.sources[item] = { name, kind };
+    names.hiddenGroupSources[item] = { name, kind };
   }
   return withoutNames(level, names);
 }

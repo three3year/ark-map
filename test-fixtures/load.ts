@@ -26,7 +26,10 @@ import type {
   RawZoneTable,
 } from "../pipeline/raw.ts";
 import type { EffectTables } from "../pipeline/effectCells.ts";
-import { buildSourceCatalog, type SourceCatalog } from "../pipeline/hiddenGroupSources.ts";
+import {
+  buildHiddenGroupSourceCatalog,
+  type HiddenGroupSourceCatalog,
+} from "../pipeline/hiddenGroupSources.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level, NameTable } from "../src/level/index.ts";
 
@@ -96,17 +99,17 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
   ));
 }
 
-let sourceCatalog: SourceCatalog | undefined;
+let hiddenGroupSourceCatalog: HiddenGroupSourceCatalog | undefined;
 
-export function fixtureSourceCatalog(): SourceCatalog {
+export function fixtureHiddenGroupSourceCatalog(): HiddenGroupSourceCatalog {
   const { cn, tw } = rawTables();
-  return (sourceCatalog ??= buildSourceCatalog(cn.roguelike, tw.roguelike));
+  return (hiddenGroupSourceCatalog ??= buildHiddenGroupSourceCatalog(cn.roguelike, tw.roguelike));
 }
 
 export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {
   return convertLevel(levelId, raw, buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()), {
     devices: fixtureDeviceCatalog(),
-    sources: fixtureSourceCatalog(),
+    hiddenGroupSources: fixtureHiddenGroupSourceCatalog(),
   });
 }
 
@@ -130,8 +133,8 @@ export function fixtureNameTable(): NameTable {
     enemies,
     terrain: terrainTable(tileKeys, cn.stage, tw.stage),
     devices: Object.fromEntries(fixtureDeviceCatalog().info),
-    sources: Object.fromEntries(
-      [...fixtureSourceCatalog().byTheme.values()]
+    hiddenGroupSources: Object.fromEntries(
+      [...fixtureHiddenGroupSourceCatalog().byTheme.values()]
         .flatMap((byTag) => [...byTag.values()].flat())
         .map(({ item, name, kind }) => [item, { name, kind }]),
     ),

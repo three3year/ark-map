@@ -18,7 +18,7 @@ export interface DeviceInfo {
   description: string | null;
 }
 
-export type SourceInfo = Pick<HiddenGroupSource, "name" | "kind">;
+export type HiddenGroupSourceInfo = Pick<HiddenGroupSource, "name" | "kind">;
 
 export interface NameTable {
   /** Enemy id -> TW handbook name, else the CN database's name. */
@@ -26,7 +26,7 @@ export interface NameTable {
   terrain: TerrainTable;
   devices: Record<string, DeviceInfo>;
   /** 隱藏組來源 item id -> TW name and kind, else CN. */
-  sources: Record<string, SourceInfo>;
+  hiddenGroupSources: Record<string, HiddenGroupSourceInfo>;
 }
 
 /** An 敵人 as written to a level file: `name` only when the name table lacks it or differs. */
@@ -34,7 +34,8 @@ export type EnemyFile = Omit<EnemyRef, "name"> & { name?: string };
 
 export type DeviceFile = Omit<Device, "name" | "description"> & Partial<DeviceInfo>;
 
-export type HiddenGroupSourceFile = Omit<HiddenGroupSource, "name" | "kind"> & Partial<SourceInfo>;
+export type HiddenGroupSourceFile = Omit<HiddenGroupSource, "name" | "kind"> &
+  Partial<HiddenGroupSourceInfo>;
 
 /** A level as written to the site. */
 export type LevelFile = Omit<Level, "enemies" | "devices" | "hiddenGroupSources"> & {
@@ -66,7 +67,7 @@ export function withoutNames(level: Level, names: NameTable): LevelFile {
   });
   const hiddenGroupSources = mapValues(level.hiddenGroupSources, (sources) =>
     sources.map(({ name, kind, ...source }): HiddenGroupSourceFile => {
-      const info = names.sources[source.item];
+      const info = names.hiddenGroupSources[source.item];
       return {
         ...source,
         ...(info?.name === name ? {} : { name }),
@@ -97,7 +98,7 @@ export function withNames(file: LevelFile, names: NameTable): Level {
   // out one of an unknown kind.
   const hiddenGroupSources = mapValues(file.hiddenGroupSources, (sources) =>
     sources.flatMap(({ name, kind, ...source }): HiddenGroupSource[] => {
-      const info = names.sources[source.item];
+      const info = names.hiddenGroupSources[source.item];
       const known = kind ?? info?.kind;
       return known ? [{ ...source, name: name ?? info?.name ?? source.item, kind: known }] : [];
     }),

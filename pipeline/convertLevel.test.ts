@@ -29,7 +29,7 @@ import {
   type DeviceTables,
 } from "./convertLevel.ts";
 import { noEffectTables } from "./effectCells.ts";
-import { buildSourceCatalog } from "./hiddenGroupSources.ts";
+import { buildHiddenGroupSourceCatalog } from "./hiddenGroupSources.ts";
 import type { RawEnemyData, RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
 
 const enemyCatalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
@@ -435,7 +435,7 @@ describe("名稱表", () => {
 
   it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_main_01-07");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, catalog(), names);
     expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
     expect(names.enemies).toMatchObject({
@@ -447,7 +447,7 @@ describe("名稱表", () => {
   });
 
   it("one table serves every level; a name only one level gives stays in its level file", () => {
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
     const raw = rawFixture("level_main_01-07");
     // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.
@@ -481,7 +481,7 @@ describe("名稱表", () => {
 describe("名稱表: 裝置", () => {
   it("TB-1: the level file names and describes no device; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_act10mini_01");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
     expect(file.devices.filter((d) => "name" in d || "description" in d)).toEqual([]);
     expect(names.devices).toEqual({
@@ -493,7 +493,7 @@ describe("名稱表: 裝置", () => {
 
   it("a device kind neither character table has keeps its key as its name in the level file", () => {
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(
       level,
       enemyCatalog(),
@@ -517,12 +517,12 @@ describe("隱藏組來源", () => {
 
   it("公害: the level file names no source; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_rogue4_1-2");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
     expect(file.hiddenGroupSources).toEqual({
       cargo: [{ item: "rogue_4_relic_explore_5", opens: true }],
     });
-    expect(names.sources).toEqual({
+    expect(names.hiddenGroupSources).toEqual({
       rogue_4_relic_explore_5: { name: "牧馱人的搖鈴", kind: "RELIC" },
     });
     expect(withNames(file, names)).toEqual(level);
@@ -544,11 +544,11 @@ describe("隱藏組來源", () => {
       table.details["rogue_4"]!.items["rogue_4_relic_explore_5"]!.type = "MADE_UP";
     }
     const unknown: string[] = [];
-    const catalog = buildSourceCatalog(cn.roguelike, tw.roguelike, (item, kind) =>
+    const catalog = buildHiddenGroupSourceCatalog(cn.roguelike, tw.roguelike, (item, kind) =>
       unknown.push(`${item} ${kind}`),
     );
     const level = convertLevel("level_rogue4_1-2", rawFixture("level_rogue4_1-2"), enemyCatalog(), {
-      sources: catalog,
+      hiddenGroupSources: catalog,
     });
     expect(unknown).toEqual(["rogue_4_relic_explore_5 MADE_UP"]);
     expect(level.hiddenGroupSources["cargo"]).toBeUndefined();
@@ -953,7 +953,7 @@ describe("作用範圍", () => {
 
   it("the site's level file keeps each device's 作用範圍", () => {
     const level = loadFixtureLevel("level_main_16-02");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, sources: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
     expect(file.devices.map((d) => d.effectCells)).toEqual(level.devices.map((d) => d.effectCells));
     expect(file.devices.some((d) => d.effectCells.length === 21)).toBe(true);

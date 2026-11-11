@@ -5,44 +5,48 @@ import {
 } from "../src/level/index.ts";
 import { topicLevelIds, type RawRoguelikeTopic, type RawRoguelikeTopicTable } from "./raw.ts";
 
-export interface SourceCatalog {
+export interface HiddenGroupSourceCatalog {
   /** Level file name (no directory, lower case) -> the id of the theme whose stages use it. */
   themeOfLevel: Map<string, string>;
   /** Theme id -> 隱藏組 tag -> its sources, in theme-table order. */
   byTheme: Map<string, Map<string, HiddenGroupSource[]>>;
 }
 
-export const noSources: SourceCatalog = { themeOfLevel: new Map(), byTheme: new Map() };
+export const noHiddenGroupSources: HiddenGroupSourceCatalog = {
+  themeOfLevel: new Map(),
+  byTheme: new Map(),
+};
 
 /** Theme tables name levels in mixed case ("Obt/Roguelike/RO4/level_rogue4_1-2"). */
 const fileName = (levelId: string) => levelId.toLowerCase().replace(/^.*\//, "");
 
 /** Called once per item that switches a 隱藏組 but has no kind the site knows; it is left out. */
-export type UnknownSourceKindHandler = (item: string, kind: string | null) => void;
+export type UnknownHiddenGroupSourceKindHandler = (item: string, kind: string | null) => void;
 
-export const warnUnknownSourceKind: UnknownSourceKindHandler = (item, kind) =>
+export const warnUnknownHiddenGroupSourceKind: UnknownHiddenGroupSourceKindHandler = (item, kind) =>
   console.warn(`[資料管線] 隱藏組來源 ${item} 的種類 ${kind ?? "(無)"} 不在已知清單,略過`);
 
-const sourceKinds: readonly string[] = [
+const hiddenGroupSourceKinds: readonly string[] = [
   "RELIC",
   "COPPER_BUFF",
   "TOTEM_EFFECT",
   "FEATURE",
 ] satisfies HiddenGroupSourceKind[];
 
-const isSourceKind = (kind: string): kind is HiddenGroupSourceKind => sourceKinds.includes(kind);
+const isHiddenGroupSourceKind = (kind: string): kind is HiddenGroupSourceKind =>
+  hiddenGroupSourceKinds.includes(kind);
 
 function themeSources(
   cn: RawRoguelikeTopic | undefined,
   tw: RawRoguelikeTopic | undefined,
-  onUnknownKind: UnknownSourceKindHandler,
+  onUnknownKind: UnknownHiddenGroupSourceKindHandler,
 ): Map<string, HiddenGroupSource[]> {
   const byTag = new Map<string, HiddenGroupSource[]>();
   const ids = new Set([...Object.keys(cn?.relics ?? {}), ...Object.keys(tw?.relics ?? {})]);
   for (const item of ids) {
     const relic = cn?.relics[item] ?? tw!.relics[item]!;
     const info = tw?.items[item] ?? cn?.items[item];
-    if (!info || !isSourceKind(info.type)) {
+    if (!info || !isHiddenGroupSourceKind(info.type)) {
       if (relic.buffs.some((b) => hiddenGroupSwitch(b.key)))
         onUnknownKind(item, info?.type ?? null);
       continue;
@@ -63,11 +67,11 @@ function themeSources(
   return byTag;
 }
 
-export function buildSourceCatalog(
+export function buildHiddenGroupSourceCatalog(
   cn: RawRoguelikeTopicTable,
   tw: RawRoguelikeTopicTable,
-  onUnknownKind: UnknownSourceKindHandler = warnUnknownSourceKind,
-): SourceCatalog {
+  onUnknownKind: UnknownHiddenGroupSourceKindHandler = warnUnknownHiddenGroupSourceKind,
+): HiddenGroupSourceCatalog {
   const themeOfLevel = new Map<string, string>();
   const byTheme = new Map<string, Map<string, HiddenGroupSource[]>>();
   for (const theme of new Set([...Object.keys(cn.details), ...Object.keys(tw.details)])) {
@@ -79,8 +83,8 @@ export function buildSourceCatalog(
 }
 
 /** The sources of `tags` in the theme of the level `levelId` names; tags without one are absent. */
-export function levelSources(
-  catalog: SourceCatalog,
+export function levelHiddenGroupSources(
+  catalog: HiddenGroupSourceCatalog,
   levelId: string,
   tags: Iterable<string>,
 ): Record<string, HiddenGroupSource[]> {
