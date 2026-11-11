@@ -39,7 +39,7 @@
     type TimelineDevice,
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
-  import MapView, { type DeviceMark } from "./MapView.svelte";
+  import MapView, { type DrawnDevice } from "./MapView.svelte";
   import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
@@ -138,12 +138,12 @@
   const end = $derived(Math.ceil(timelineEnd(timeline)));
   const stop = $derived(playbackStop(timeline));
   const snapshot = $derived(takeSnapshot(timeline, t));
-  const deviceMark =
+  const drawnDevice =
     (removed: boolean) =>
-    (d: TimelineDevice): DeviceMark => ({ ...d, removed, removal: removals.get(d.index) ?? null });
-  const deviceMarks = $derived([
-    ...timeline.removedAt(t).map(deviceMark(true)),
-    ...timeline.devicesAt(t).map(deviceMark(false)),
+    (d: TimelineDevice): DrawnDevice => ({ ...d, removed, removal: removals.get(d.index) ?? null });
+  const drawnDevices = $derived([
+    ...timeline.removedAt(t).map(drawnDevice(true)),
+    ...timeline.devicesAt(t).map(drawnDevice(false)),
   ]);
   const endpoints = $derived(routeEndpoints(timeline));
 
@@ -273,7 +273,7 @@
   });
   /** A device selected on another wave of the view stays selected while it is drawn here. */
   const drawnOnThisWave = (s: Selection & { kind: "device" }) =>
-    sameView(s.view, view) && deviceMarks.some((m) => m.index === s.index);
+    sameView(s.view, view) && drawnDevices.some((d) => d.index === s.index);
   $effect(() => {
     const s = selection;
     if (s?.kind !== "device" || (sameView(s.view, view) && s.wave === waveIndex)) return;
@@ -416,7 +416,7 @@
       view={mapView}
       map={level.map}
       {terrain}
-      devices={deviceMarks}
+      devices={drawnDevices}
       selectedDevice={selectedDevice?.index ?? null}
       onSelectDevice={selectDevice}
       onToggleRemoval={toggleDeviceRemoval}

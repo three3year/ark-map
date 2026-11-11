@@ -116,7 +116,9 @@ export function deviceSwitchMarks(
  */
 export function switchMarkKinds(timeline: Timeline): SwitchMarkKind[] {
   const kinds = new Set(
-    [...timeline.individuals, ...timeline.listedDevices].flatMap((x) => x.marks.map((m) => m.kind)),
+    [...timeline.individuals, ...timeline.devicesOnFieldOrRemovedAtSomeSecond].flatMap((x) =>
+      x.marks.map((m) => m.kind),
+    ),
   );
   return [...kinds].sort((a, b) => kindRank[a] - kindRank[b]);
 }

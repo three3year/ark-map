@@ -2,7 +2,7 @@
   import type { RemovalMoment, TimelineDevice } from "../timeline/index.ts";
 
   /** A device drawn on the map at the playback position. */
-  export interface DeviceMark extends TimelineDevice {
+  export interface DrawnDevice extends TimelineDevice {
     /** Drawn as removed: a dashed frame. */
     removed: boolean;
     /** Its 移除時刻, if it has one. */
@@ -50,7 +50,7 @@
     map: LevelMap;
     /** The 名稱表's 地形表, naming the structures drawn on the map. */
     terrain: TerrainTable;
-    devices: DeviceMark[];
+    devices: DrawnDevice[];
     selectedDevice: DeviceIndex | null;
     /** Clicking the selected device again passes null. */
     onSelectDevice: (index: DeviceIndex | null) => void;
@@ -106,12 +106,12 @@
   const deviceHalfSide = 0.3;
   const markWidth = ({ number }: DeviceSwitchMark) =>
     Math.max(markSide, markDigitWidth * String(number).length + markPadding);
-  function placedMarks(marks: DeviceSwitchMark[], corner: Vec2) {
-    let right = corner.x;
+  function placedMarks(marks: DeviceSwitchMark[], bottomRight: Vec2) {
+    let right = bottomRight.x;
     return marks.map((mark) => {
       const width = markWidth(mark);
       right -= width + markGap;
-      return { mark, width, x: right + markGap, y: corner.y - markSide };
+      return { mark, width, x: right + markGap, y: bottomRight.y - markSide };
     });
   }
 
@@ -221,8 +221,8 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
-{#snippet switchMarks(marks: DeviceSwitchMark[], corner: Vec2)}
-  {#each placedMarks(marks, corner) as { mark, width, x, y } (`${mark.kind} ${mark.number}`)}
+{#snippet switchMarks(marks: DeviceSwitchMark[], bottomRight: Vec2)}
+  {#each placedMarks(marks, bottomRight) as { mark, width, x, y } (`${mark.kind} ${mark.number}`)}
     <g
       class="switch-mark"
       data-switch-mark={mark.kind}
