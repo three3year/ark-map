@@ -86,3 +86,23 @@ test.describe("wide screen", () => {
     expect(box.x + box.width, "left of the spawn table's column").toBeLessThanOrEqual(side.x);
   });
 });
+
+test.describe("phone", () => {
+  test.use({ viewport: phoneWindow });
+
+  test("scrolled to the bottom of a level page, the 頁尾 ends above the drawer's button", async ({
+    page,
+  }) => {
+    // Taller than the window: the page scrolls.
+    await page.goto("#/level/main_15-12?v=normal");
+    await expect(page.locator("svg.map")).toBeVisible();
+    await expectFooter(page);
+
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+
+    expect(await page.evaluate(() => scrollY), "the page scrolls").toBeGreaterThan(0);
+    const footer = (await page.locator("footer").boundingBox())!;
+    const button = (await drawerButton(page).boundingBox())!;
+    expect(footer.y + footer.height).toBeLessThanOrEqual(button.y);
+  });
+});
