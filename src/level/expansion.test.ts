@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shownExpansion, shownLevelFile } from "./expansion.ts";
+import { shownExpansion, shownLevelFile, variantsShowing } from "./expansion.ts";
 import type { StageEntry, Variant } from "./types.ts";
 
 describe("which 內容拓展 shows", () => {
@@ -34,5 +34,33 @@ describe("which 內容拓展 shows", () => {
     };
     expect(shownLevelFile(stage, emergency, 1)).toBe("base.json");
     expect(shownLevelFile(stage, emergency, 3)).toBe("dlc2.json");
+  });
+});
+
+describe("the variants that show a level file", () => {
+  const variant = (id: Variant["id"], levelFile: string): Variant => ({
+    id,
+    sourceStageId: id,
+    levelFile,
+    difficulty: "NORMAL",
+  });
+  const normal = variant("normal", "base.json");
+  const challenge = variant("challenge", "base.json");
+  const tough = variant("tough", "tough.json");
+  const stage: StageEntry = {
+    id: "s",
+    code: "",
+    name: "",
+    variants: [normal, challenge, tough],
+    expansions: [{ number: 1, levelFile: "dlc1.json" }],
+  };
+
+  it("a variant's own file: the variants sharing it", () => {
+    expect(variantsShowing(stage, "base.json")).toEqual([normal, challenge]);
+    expect(variantsShowing(stage, "tough.json")).toEqual([tough]);
+  });
+
+  it("a 內容拓展's file: every variant shows it", () => {
+    expect(variantsShowing(stage, "dlc1.json")).toEqual([normal, challenge, tough]);
   });
 });
