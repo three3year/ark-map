@@ -55,9 +55,9 @@
     /**
      * The site's title, drawn atop the left column: the spawn table's column beside it then starts
      * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
-     * Its argument goes at the end of the title's row.
+     * Its first argument goes right after the title, its second at the end of the title's row.
      */
-    siteTitle: Snippet<[Snippet]>;
+    siteTitle: Snippet<[Snippet, Snippet]>;
     footer: Snippet;
     area: Area;
     stage: StageEntry;
@@ -358,6 +358,12 @@
   }
 </script>
 
+{#snippet backToArea()}
+  <nav>
+    <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
+  </nav>
+{/snippet}
+
 {#snippet viewToggle()}
   <button
     type="button"
@@ -376,36 +382,30 @@
   style:--column-gap="{columnGap}px"
 >
   <div class="main-column">
-    {@render siteTitle(viewToggle)}
-    <nav>
-      <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
-    </nav>
+    {@render siteTitle(backToArea, viewToggle)}
     <div class="title-line">
       {#if prev}
-        <a href={prev.href} data-adjacent="prev">‹ {stageLabel(prev.stage)}</a>
+        <a href={prev.href} data-adjacent="prev">‹ {prev.stage.name}</a>
       {/if}
       <h2>{stageLabel(stage)}</h2>
+      {#if stage.variants.length > 1}
+        <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
+          {#each stage.variants as v (v.id)}
+            <button
+              type="button"
+              aria-pressed={v.id === variant.id}
+              data-variant={v.id}
+              onclick={() => onVariant(v.id)}
+            >
+              {variantLabel(v.id)}
+            </button>
+          {/each}
+        </div>
+      {/if}
       {#if next}
-        <a href={next.href} data-adjacent="next">{stageLabel(next.stage)} ›</a>
+        <a href={next.href} data-adjacent="next">{next.stage.name} ›</a>
       {/if}
     </div>
-    {#if stage.variants.length > 1}
-      <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
-        {#each stage.variants as v (v.id)}
-          <button
-            type="button"
-            aria-pressed={v.id === variant.id}
-            data-variant={v.id}
-            onclick={() => onVariant(v.id)}
-          >
-            {variantLabel(v.id)}
-          </button>
-        {/each}
-      </div>
-    {/if}
-    {#if variant.emergencyCondition}
-      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
-    {/if}
     <div class="map-controls">
       {#if level.waves.length > 1}
         <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
@@ -664,18 +664,13 @@
   .title-line {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: 4px 16px;
-    margin: 8px 0 12px;
+    margin: 0 0 12px;
   }
   h2 {
     margin: 0;
     font-size: 1.4rem;
-  }
-  .condition {
-    margin: 0 0 12px;
-    padding-left: 8px;
-    border-left: 3px solid var(--accent);
   }
   .selection,
   .stowed,
@@ -718,9 +713,6 @@
     color: var(--fg);
     font: inherit;
     cursor: pointer;
-  }
-  .variants {
-    margin-bottom: 12px;
   }
   .map-controls {
     margin-bottom: 12px;

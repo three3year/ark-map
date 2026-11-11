@@ -186,13 +186,14 @@
   );
 </script>
 
-{#snippet siteTitle(extra?: Snippet)}
+{#snippet siteTitle(afterTitle?: Snippet, atEnd?: Snippet)}
   <div class="title-row">
     <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
+    {@render afterTitle?.()}
     {#if expansionSwitch}
       <ExpansionSwitch {...expansionSwitch} />
     {/if}
-    {@render extra?.()}
+    {@render atEnd?.()}
   </div>
 {/snippet}
 
