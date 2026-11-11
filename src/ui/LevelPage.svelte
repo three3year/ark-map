@@ -49,7 +49,7 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { enemyAttributes } from "./panelContent.ts";
+  import { attackRadius, enemyAttributes } from "./panelContent.ts";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
 
   interface Props {
@@ -431,6 +431,7 @@
       enemies={drawn}
       {t}
       {selected}
+      attackRadius={selected ? attackRadius(selected.enemy, modifiers) : null}
       onSelect={select}
       filter={filtered}
       onFilter={toggleFilter}

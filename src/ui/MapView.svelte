@@ -65,6 +65,8 @@
     t: number;
     /** The selected individual, whose 路徑 is drawn; it may be off the field right now. */
     selected: Individual | null;
+    /** Radius of the selected individual's 攻擊範圍; null when it has none to draw. */
+    attackRadius: number | null;
     /** Clicking the selected individual again passes null. */
     onSelect: (individual: Individual | null) => void;
     /**
@@ -91,6 +93,7 @@
     enemies,
     t,
     selected,
+    attackRadius,
     onSelect,
     filter,
     onFilter,
@@ -144,6 +147,13 @@
   const checkpointMarks = $derived(
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
+
+  /** Where the selected individual's 攻擊範圍 is centred: drawn, and not 隱形. Null for none. */
+  const attackCentre = $derived.by(() => {
+    if (attackRadius === null || !selected) return null;
+    const drawn = enemies.find((e) => e.individual.id === selected.id);
+    return drawn && !drawn.invisible ? drawn.position : null;
+  });
 
   let brokenImages = $state(new Set<string>());
   function markBroken(image: string) {
@@ -495,6 +505,16 @@
         </g>
       {/each}
 
+      {#if attackCentre && attackRadius !== null}
+        <circle
+          class="attack-range"
+          cx={attackCentre.x}
+          cy={svgY(attackCentre.y)}
+          r={attackRadius}
+          data-attack-range={selected?.id}
+        />
+      {/if}
+
       {#if path.length > 0}
         <g class="path" data-path={selected?.id}>
           {#each path as leg, i (i)}
@@ -609,6 +629,9 @@
     {/each}
     {#if effectCells.length > 0}
       <li><span class="swatch effect"></span>{strings.legendEffectCells}</li>
+    {/if}
+    {#if attackCentre}
+      <li><span class="swatch attack-range"></span>{strings.legendAttackRange}</li>
     {/if}
     {#if selected}
       <li><span class="swatch line walk"></span>{strings.legendPath}</li>
@@ -843,6 +866,14 @@
     stroke: var(--path);
   }
 
+  .attack-range {
+    fill: var(--enemy-ring);
+    fill-opacity: 0.15;
+    stroke: var(--enemy-ring);
+    stroke-width: 0.03;
+    pointer-events: none;
+  }
+
   .path {
     pointer-events: none;
   }
@@ -975,6 +1006,11 @@
   }
   .swatch.effect {
     background: repeating-linear-gradient(135deg, var(--effect-stripe) 0 2px, transparent 2px 4px);
+  }
+  .swatch.attack-range {
+    border-radius: 50%;
+    border: 1px solid var(--enemy-ring);
+    background: color-mix(in srgb, var(--enemy-ring) 15%, transparent);
   }
   .swatch.dot {
     width: 10px;
