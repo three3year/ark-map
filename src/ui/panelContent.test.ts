@@ -6,9 +6,11 @@ import {
   attackRadius,
   branchLabel,
   candidateLabel,
-  enemyAttributes,
+  conditionalText,
+  hiddenGroupText,
   levelNumbers,
   modifierLines,
+  enemyAttributes,
   type EnemyAttribute,
 } from "./panelContent.ts";
 
@@ -30,6 +32,78 @@ describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
       "鴨爵 × 1",
       "高普尼克 × 1",
     ]);
+  });
+});
+
+describe("隱藏組", () => {
+  it("17-04's raid: on by default in 六星 only", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const variants = [
+      { id: "normal", difficulty: "NORMAL" },
+      { id: "sixStar", difficulty: "SIX_STAR" },
+    ] as const;
+    const text = hiddenGroupText(level, "raid", variants);
+    expect(text.note).toBe("六星時開");
+    expect(text.badge).toBe("隱藏組・六星時開");
+  });
+
+  it("is named by what all its actions put on the field; its tag is the hint", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const text = hiddenGroupText(level, "raid", []);
+    expect(text.name).toBe("實驗樣本A-000 × 1、破石草 × 1");
+    expect(text.hint).toBe("raid");
+  });
+
+  it("公害's calamity is named by the device it activates", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    expect(hiddenGroupText(level, "calamity", []).name).toBe("裝置 年代之刺");
+  });
+
+  it("on in every variant that shows the file: 各變體都開", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const text = hiddenGroupText(level, "raid", [{ id: "sixStar", difficulty: "SIX_STAR" }]);
+    expect(text.note).toBe("各變體都開");
+  });
+
+  it("公害's calamity: no variant switches it on, so no 說明 and a bare badge", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    const text = hiddenGroupText(level, "calamity", [
+      { id: "normal", difficulty: "NORMAL" },
+      { id: "emergency", difficulty: "FOUR_STAR" },
+    ]);
+    expect(text.note).toBeNull();
+    expect(text.badge).toBe("隱藏組");
+  });
+
+  it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
+    const level = loadFixtureLevel("level_rogue2_1-1");
+    expect(hiddenGroupText(level, "allydonq", []).name).toBe("裝置 獵潮的騎士");
+  });
+});
+
+describe("條件出兵", () => {
+  const branch = (name: string, key: string) => {
+    const level = loadFixtureLevel(name);
+    return conditionalText(
+      level,
+      level.branches.find((b) => b.key === key)!,
+    );
+  };
+
+  it("level_rogue2_1-1's trap_068_badbox#1, a device's alias, reads as that device", () => {
+    expect(branch("level_rogue2_1-1", "trap_068_badbox#1")).toEqual({
+      device: "裝置 箱形恐魚",
+      hint: "trap_068_badbox#1",
+      source: "條件出兵 裝置 箱形恐魚",
+    });
+  });
+
+  it("公害's mbx1, not a device's alias, shows no key, only the hint has it", () => {
+    expect(branch("level_rogue4_1-2", "mbx1")).toEqual({
+      device: null,
+      hint: "mbx1",
+      source: "條件出兵",
+    });
   });
 });
 
