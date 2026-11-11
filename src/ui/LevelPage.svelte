@@ -498,6 +498,15 @@
     page, its button sticking out in the bottom-right corner. Either way .side-column scrolls the
     table.
   -->
+  {#if drawerMode.current && drawerOpen}
+    <!--
+      Under the open drawer, over the rest of the page: a click outside the drawer closes it and
+      reaches nothing below, so a dot under it cannot reopen the drawer at once. The drawer's
+      button does the same for the keyboard.
+    -->
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="drawer-backdrop" onclick={() => setDrawerOpen(false)}></div>
+  {/if}
   <div class="side" class:open={drawerOpen}>
     <button
       type="button"
@@ -600,6 +609,11 @@
   .level-page.drawer-mode .side.open {
     transform: none;
     box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
+  }
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
   }
   /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
   .level-page.drawer-mode .side-column {
