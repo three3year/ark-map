@@ -58,6 +58,8 @@
      * Its argument goes at the end of the title's row.
      */
     siteTitle: Snippet<[Snippet]>;
+    /** The 頁尾, drawn last in the left column: below everything there, never under the spawn table. */
+    footer: Snippet;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -82,6 +84,7 @@
   }
   let {
     siteTitle,
+    footer,
     area,
     stage,
     variant,
@@ -489,6 +492,7 @@
       variantName={variantLabel(variant.id)}
       enemies={level.enemies}
     />
+    {@render footer()}
   </div>
   <!--
     Wide screens: a column beside the map that stays on screen. Narrow screens: a drawer over the

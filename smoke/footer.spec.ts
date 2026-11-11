@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { StageIndex } from "../src/level/index.ts";
+import { drawerButton, phoneWindow, wideWindow } from "./levelPage.ts";
 
 const dist = path.resolve(import.meta.dirname, "..", "dist");
 const index = JSON.parse(readFileSync(path.join(dist, "data", "index.json"), "utf8")) as StageIndex;
@@ -53,4 +54,35 @@ test("an area page ends with the 頁尾", async ({ page }) => {
   await page.goto(`#/area/${index.areas[0]!.id}`);
   await expect(page.locator("a[data-stage]").first()).toBeVisible();
   await expectFooter(page);
+});
+
+test.describe("wide screen", () => {
+  test.use({ viewport: wideWindow });
+
+  test("a level page ends its left column with the 頁尾, left of the spawn table's column", async ({
+    page,
+  }) => {
+    await page.goto("#/level/main_01-07?v=normal");
+    await expect(page.locator("svg.map")).toBeVisible();
+    await expectFooter(page);
+    const footer = page.locator("footer");
+
+    // The map's column: the 頁尾 comes last in it, under everything else there.
+    const column = await footer.evaluate((f) => {
+      const parent = f.parentElement!;
+      const others = [...parent.children].filter((c) => c !== f);
+      return {
+        holdsMap: parent.querySelector("svg.map") !== null,
+        last: parent.lastElementChild === f,
+        othersBottom: Math.max(...others.map((c) => c.getBoundingClientRect().bottom)),
+      };
+    });
+    const box = (await footer.boundingBox())!;
+    expect(column.holdsMap, "in the map's column").toBe(true);
+    expect(column.last, "last in it").toBe(true);
+    expect(box.y, "under the rest of the column").toBeGreaterThanOrEqual(column.othersBottom);
+
+    const side = (await page.locator("#spawn-table-drawer").boundingBox())!;
+    expect(box.x + box.width, "left of the spawn table's column").toBeLessThanOrEqual(side.x);
+  });
 });
