@@ -15,11 +15,13 @@
     endpointRows,
     sameAction,
     type Individual,
+    type RandomRowInfo,
     type RouteEndpoint,
     type SpawnRow,
     type WaveEnd,
   } from "../timeline/index.ts";
   import { endpointName, strings } from "./strings.ts";
+  import SwitchMark from "./SwitchMark.svelte";
 
   interface Props {
     rows: SpawnRow[];
@@ -32,8 +34,6 @@
     onJump: (row: SpawnRow) => void;
     /** 切換 on a candidate row that is not picked. */
     onPick: (group: number, candidate: number) => void;
-    /** 條件出兵 keys by branch index, for the rows' markers. */
-    branchKeys: string[];
     /** The 端點篩選: an endpoint of the selected wave's timeline, or null to list every row. */
     filter: RouteEndpoint | null;
     onClearFilter: () => void;
@@ -47,7 +47,6 @@
     selected,
     onJump,
     onPick,
-    branchKeys,
     filter,
     onClearFilter,
     rowStow,
@@ -59,6 +58,14 @@
     const numbered = rows.map((row, i) => ({ ...row, number: i + 1 }));
     return filter ? endpointRows(numbered, wave, filter) : numbered;
   });
+
+  /** The row has 切換: its first 隨機出兵組 does not pick its candidate. */
+  const showsPick = (r: SpawnRow): r is SpawnRow & { random: RandomRowInfo } =>
+    r.random !== null && !r.random.picked;
+  /** Over every row, filtered out or not, so the 切換 column holds still as the filter changes. */
+  const tableHasPick = $derived(rows.some(showsPick));
+  const columnsBesidePick = 8;
+  const columnCount = $derived(columnsBesidePick + (tableHasPick ? 1 : 0));
 
   const hasStowBox = (r: SpawnRow) => r.firstOrder !== null;
   const listedWithBox = $derived(shown.filter(hasStowBox));
@@ -106,6 +113,9 @@
           </th>
           <th>{strings.spawnTableNumber}</th>
           <th>{strings.spawnTableEnemy}</th>
+          {#if tableHasPick}
+            <th></th>
+          {/if}
           <th>{strings.spawnTableOrder}</th>
           <th>{strings.spawnTableInterval}</th>
           <th>{strings.spawnTableWaveTime}</th>
@@ -118,7 +128,7 @@
           {@const stow = hasStowBox(row) ? rowStow(row) : null}
           {#if multiWave && (i === 0 || shown[i - 1]!.waveIndex !== row.waveIndex)}
             <tr class="wave-head" class:current={row.waveIndex === wave}>
-              <th colspan="8" scope="rowgroup">{strings.wave(row.waveIndex)}</th>
+              <th colspan={columnCount} scope="rowgroup">{strings.wave(row.waveIndex)}</th>
             </tr>
           {/if}
           <!-- Keyboard users jump through the enemy-name button, whose click bubbles up here. -->
@@ -126,7 +136,7 @@
             onclick={() => onJump(row)}
             class:current={multiWave && row.waveIndex === wave}
             class:selected={isSelected(row)}
-            class:unpicked={row.random && !row.random.picked}
+            class:unpicked={!row.picked}
             data-wave={row.waveIndex}
             data-action={actionKey(row)}
             data-hidden-group={row.hiddenGroup}
@@ -173,43 +183,48 @@
                 {/if}
               </button>
             </td>
+            {#if tableHasPick}
+              <td class="pick-cell">
+                {#if showsPick(row)}
+                  {@const random = row.random}
+                  <button
+                    type="button"
+                    class="pick"
+                    title={strings.pickCandidateHint}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      onPick(random.group, random.candidate);
+                    }}
+                  >
+                    {strings.pickCandidate}
+                  </button>
+                {/if}
+              </td>
+            {/if}
             <td class="num">{order(row)}</td>
             <td class="num">{seconds(row.interval)} {strings.seconds}</td>
             <td class="num">{seconds(row.waveTime)} {strings.seconds}</td>
             <td class="num">{seconds(row.absoluteTime)} {strings.seconds}</td>
             <td class="markers"
               ><span class="marker-list">
-                {#if row.branchIndex !== null}
-                  <span class="badge conditional"
-                    >{strings.conditionalBadge(branchKeys[row.branchIndex] ?? "")}</span
+                {#each row.marks as mark (`${mark.kind}-${mark.number}`)}
+                  <span
+                    class="badge {mark.kind}"
+                    class:unpicked={mark.kind === "random" && !mark.picked}
                   >
-                {/if}
-                {#if row.hiddenGroup}
-                  <span class="badge hidden-group">{strings.hiddenGroupBadge(row.hiddenGroup)}</span
-                  >
-                {/if}
-                {#if row.random}
-                  {@const random = row.random}
-                  <span class="badge random">
-                    {strings.randomGroup(random.group)} ・ {strings.candidateWeight(
-                      random.weight,
-                      random.share,
-                    )}
+                    <SwitchMark kind={mark.kind} number={mark.number} />
+                    {#if mark.kind === "conditional"}
+                      {strings.conditionalBadge(mark.key)}
+                    {:else if mark.kind === "hiddenGroup"}
+                      {strings.hiddenGroupBadge(mark.name)}
+                    {:else}
+                      {strings.randomGroup(mark.group)} ・ {strings.candidateWeight(
+                        mark.weight,
+                        mark.share,
+                      )}
+                    {/if}
                   </span>
-                  {#if !random.picked}
-                    <button
-                      type="button"
-                      class="pick"
-                      title={strings.pickCandidateHint}
-                      onclick={(event) => {
-                        event.stopPropagation();
-                        onPick(random.group, random.candidate);
-                      }}
-                    >
-                      {strings.pickCandidate}
-                    </button>
-                  {/if}
-                {/if}
+                {/each}
                 {#if row.waveEnd}
                   <span class="badge wave-end">{waveEndLabel(row.waveEnd)}</span>
                 {/if}
@@ -345,6 +360,9 @@
     color: var(--muted);
   }
   .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 1px 6px;
     border-radius: 4px;
     font-size: 0.8rem;
@@ -353,8 +371,8 @@
     background: color-mix(in srgb, #2e9e5b 18%, transparent);
     color: #2e9e5b;
   }
-  tr.unpicked td:not(.markers),
-  tr.unpicked .badge.random {
+  tr.unpicked td:not(.markers, .pick-cell),
+  .badge.unpicked {
     opacity: var(--dimmed);
   }
   .marker-list {
@@ -363,7 +381,10 @@
     align-items: center;
     gap: 4px;
   }
-  .hidden-group {
+  .badge:is(.conditional, .hiddenGroup, .random) {
+    padding-left: 1px;
+  }
+  .hiddenGroup {
     background: color-mix(in srgb, #8e5bd6 18%, transparent);
     color: #8e5bd6;
   }

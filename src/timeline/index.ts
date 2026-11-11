@@ -24,6 +24,7 @@ import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
 import type { Stepwise } from "./stepwise.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
+import { switchMarks } from "./switchMarks.ts";
 import type { Individual, Timeline } from "./types.ts";
 
 export {
@@ -39,6 +40,7 @@ export * from "./movement.ts";
 export * from "./spawnTable.ts";
 export type * from "./stepwise.ts";
 export * from "./switches.ts";
+export * from "./switchMarks.ts";
 export type * from "./types.ts";
 
 export interface TimelineOptions {
@@ -103,6 +105,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
     const enemy = level.enemies[action.key];
     if (!route || route.motionMode === "E_NUM" || !enemy) continue;
     const speed = theoreticalSpeed(enemy, level.options, moveSpeedFactor(modifiers, enemy.id));
+    const marks = switchMarks(level, plan, ref);
     for (let k = 0; k < action.count; k++) {
       const spawnTime = start + k * action.interval;
       const trajectory = movement({ route, speed, spawnTime, fragmentStart, nextNode });
@@ -119,6 +122,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
         route,
         spawnTime,
         harmless: action.harmless,
+        marks,
         leakTime: trajectory.leakTime,
         remainingPathAt: trajectory.remainingPathAt,
         stateAt: trajectory.stateAt,

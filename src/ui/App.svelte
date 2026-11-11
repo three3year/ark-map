@@ -13,8 +13,9 @@
     type TerrainTable,
   } from "../level/index.ts";
   import type { SpawnSwitches } from "../timeline/index.ts";
-  import AreaList from "./AreaList.svelte";
+  import { adjacentStages } from "./adjacentStages.ts";
   import ExpansionSwitch from "./ExpansionSwitch.svelte";
+  import Home from "./Home.svelte";
   import { legacyRedirect } from "./legacyRedirect.ts";
   import LevelPage from "./LevelPage.svelte";
   import { levelView, sameView } from "./levelView.ts";
@@ -22,6 +23,7 @@
   import { formatHash, parseHash, type LevelRoute, type Route } from "./route.ts";
   import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
+  import type { Snippet } from "svelte";
 
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
@@ -114,6 +116,8 @@
 
   let expansionChoice = $state<ExpansionChoice>(null);
 
+  let searchQuery = $state("");
+
   $effect(() => {
     if (route.page === "level" && inExpansionTheme) expansionChoice = route.expansion;
   });
@@ -166,14 +170,25 @@
       ? { route, ...found, variant, view, level: loaded.level, terrain: loaded.terrain }
       : null,
   );
+
+  const adjacentLinks = $derived(
+    index && levelPage
+      ? adjacentStages(index, {
+          stageId: levelPage.stage.id,
+          variant: levelPage.variant.id,
+          expansion: levelPage.route.expansion,
+        })
+      : { prev: null, next: null },
+  );
 </script>
 
-{#snippet siteTitle()}
+{#snippet siteTitle(extra?: Snippet)}
   <div class="title-row">
     <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
     {#if expansionSwitch}
       <ExpansionSwitch {...expansionSwitch} />
     {/if}
+    {@render extra?.()}
   </div>
 {/snippet}
 
@@ -187,6 +202,8 @@
       view={levelPage.view}
       level={levelPage.level}
       terrain={levelPage.terrain}
+      prev={adjacentLinks.prev}
+      next={adjacentLinks.next}
       wave={position.wave}
       t={position.t}
       {switches}
@@ -205,10 +222,10 @@
     {:else if index.areas.length === 0}
       <p>{strings.noStages}</p>
     {:else if route.page === "home"}
-      <AreaList {index} />
+      <Home {index} expansion={expansionChoice} bind:query={searchQuery} />
     {:else if route.page === "area"}
       {#if area}
-        <StageList {area} expansion={inExpansionTheme ? expansionChoice : null} />
+        <StageList {area} expansion={expansionChoice} />
       {:else}
         <p>{strings.areaNotFound(route.areaId)}</p>
       {/if}

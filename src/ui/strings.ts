@@ -1,5 +1,5 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, VariantId } from "../level/index.ts";
+import type { AreaKind, KnownModifierKey, StageEntry, VariantId } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
@@ -14,6 +14,9 @@ export const strings = {
   variantNotFound: (id: string) => `這個關卡沒有變體 ${id}`,
   noStages: "沒有可顯示的關卡,請先執行資料管線(pnpm data)",
   backToAreas: "所有區域",
+  stageSearch: "搜尋關卡",
+  stageSearchPlaceholder: "關卡代號或名稱,例如 6-16",
+  noSearchHits: "找不到符合的關卡",
   areaKinds: {
     MAINLINE: "主線",
     ACTIVITY: "活動",
@@ -41,9 +44,6 @@ export const strings = {
   emptyWaveNote: "本波沒有敵人",
   playbackSpeed: "播放速度",
   speedLabel: (speed: number) => `${speed}x`,
-  countPending: "未出現",
-  countOnField: "在場",
-  countLeaked: "已進點",
   mapLabel: "關卡地圖",
   waveSelect: "波次",
   wave: (index: number) => `第 ${index + 1} 波`,
@@ -217,6 +217,7 @@ export const strings = {
     skill: "技能序號",
   } as Partial<Record<string, string>>,
   legendDevice: { device: "裝置", blocker: "擋路裝置" },
+  legendSwitchMark: { conditional: "條件出兵", hiddenGroup: "隱藏組", random: "隨機出兵組" },
   legendPath: "路徑",
   legendTeleport: "傳送",
   waitSeconds: (seconds: number) => `等 ${seconds} 秒`,
@@ -246,3 +247,7 @@ export function endpointName({ kind, cell }: EndpointPlace): string {
 export function variantLabel(id: VariantId): string {
   return strings.variants[id];
 }
+
+/** A 關卡 by its code and name, e.g. 6-16 凜冬之心; by its name alone when its code is blank. */
+export const stageLabel = ({ code, name }: StageEntry): string =>
+  code.trim() ? `${code} ${name}` : name;

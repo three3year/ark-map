@@ -10,6 +10,7 @@
     type Variant,
     type VariantId,
   } from "../level/index.ts";
+  import type { StageLink } from "./adjacentStages.ts";
   import LevelInfo from "./LevelInfo.svelte";
   import {
     actionKey,
@@ -23,6 +24,7 @@
     spawnTable,
     switchConditional,
     switchHidden,
+    switchMarkKinds,
     switchPick,
     takeSnapshot,
     timelineEnd,
@@ -37,6 +39,7 @@
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView, { type DeviceMark } from "./MapView.svelte";
+  import { browserStorage, loadMapView, saveMapView } from "./mapViewPreference.ts";
   import { afterStop, playbackStop } from "./playback.ts";
   import { sameView, type LevelView } from "./levelView.ts";
   import { formatHash } from "./route.ts";
@@ -45,14 +48,15 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { strings, variantLabel } from "./strings.ts";
+  import { stageLabel, strings, variantLabel } from "./strings.ts";
 
   interface Props {
     /**
      * The site's title, drawn atop the left column: the spawn table's column beside it then starts
      * at the page's top edge, so a column as tall as the window fits in it at every page scroll.
+     * Its argument goes at the end of the title's row.
      */
-    siteTitle: Snippet;
+    siteTitle: Snippet<[Snippet]>;
     area: Area;
     stage: StageEntry;
     variant: Variant;
@@ -60,6 +64,9 @@
     level: Level;
     /** The 名稱表's 地形表. */
     terrain: TerrainTable;
+    /** 上一關 and 下一關 in the area; null at its ends. */
+    prev: StageLink | null;
+    next: StageLink | null;
     /** 0-based wave index; out-of-range indices show the first wave. */
     wave: number;
     t: number;
@@ -80,6 +87,8 @@
     view,
     level,
     terrain,
+    prev,
+    next,
     wave,
     t,
     switches,
@@ -89,6 +98,12 @@
     onJump,
     onSwitches,
   }: Props = $props();
+
+  let mapView = $state(loadMapView(browserStorage()));
+  function toggleMapView() {
+    mapView = mapView === "tilted" ? "flat" : "tilted";
+    saveMapView(browserStorage(), mapView);
+  }
 
   const difficulty = $derived(variant.difficulty);
   const waveIndex = $derived(wave < level.waves.length ? wave : 0);
@@ -281,8 +296,19 @@
     if (endpointFilter && !filtered) endpointFilter = null;
   });
 
-  /** The breakpoint, in px: the styles' first comment lists every place that repeats it. */
-  const breakpoint = 1472;
+  const widestSpawnTable = 922;
+  const tableBorders = 2;
+  const columnScrollbar = 15;
+  const sideColumnWidth = widestSpawnTable + tableBorders + columnScrollbar;
+  /**
+   * An enemy icon (0.68 cell) on a 13-cell-wide map (95% of levels are no wider) stays at least
+   * as large as the spawn table's 28px avatars.
+   */
+  const narrowestMap = 540;
+  const columnGap = 24;
+  const pageSidePadding = 32;
+  const pageScrollbar = 17;
+  const breakpoint = narrowestMap + columnGap + sideColumnWidth + pageSidePadding + pageScrollbar;
   /**
    * Below the breakpoint the spawn table is in a drawer over the page, closed on every visit to
    * the level page.
@@ -329,16 +355,37 @@
   }
 </script>
 
-<div class="level-page">
+{#snippet viewToggle()}
+  <button
+    type="button"
+    class="view-toggle"
+    aria-pressed={mapView === "flat"}
+    onclick={toggleMapView}
+  >
+    {mapView === "tilted" ? strings.viewFlat : strings.viewTilted}
+  </button>
+{/snippet}
+
+<div
+  class="level-page"
+  class:drawer-mode={drawerMode.current}
+  style:--side-column-width="{sideColumnWidth}px"
+  style:--column-gap="{columnGap}px"
+>
   <div class="main-column">
-    {@render siteTitle()}
+    {@render siteTitle(viewToggle)}
     <nav>
       <a href={formatHash({ page: "area", areaId: area.id })}>← {area.code ?? ""} {area.name}</a>
     </nav>
-    <h2>{stage.code} {stage.name}</h2>
-    {#if variant.emergencyCondition}
-      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
-    {/if}
+    <div class="title-line">
+      {#if prev}
+        <a href={prev.href} data-adjacent="prev">‹ {stageLabel(prev.stage)}</a>
+      {/if}
+      <h2>{stageLabel(stage)}</h2>
+      {#if next}
+        <a href={next.href} data-adjacent="next">{stageLabel(next.stage)} ›</a>
+      {/if}
+    </div>
     {#if stage.variants.length > 1}
       <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
         {#each stage.variants as v (v.id)}
@@ -353,7 +400,17 @@
         {/each}
       </div>
     {/if}
+    {#if variant.emergencyCondition}
+      <p class="condition" data-emergency-condition>{variant.emergencyCondition}</p>
+    {/if}
+    <div class="map-controls">
+      {#if level.waves.length > 1}
+        <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
+      {/if}
+      <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
+    </div>
     <MapView
+      view={mapView}
       map={level.map}
       {terrain}
       devices={deviceMarks}
@@ -368,6 +425,7 @@
       filter={filtered}
       onFilter={toggleFilter}
       onToggleStow={toggleStow}
+      markKinds={switchMarkKinds(timeline)}
     />
     {#if selected && selectedState}
       <p class="selection" data-selected={selected.id}>
@@ -398,24 +456,6 @@
         </span>
       </div>
     {/if}
-    {#if level.waves.length > 1}
-      <WaveSelect count={level.waves.length} wave={waveIndex} onSelect={onSelectWave} />
-    {/if}
-    <TimelineBar {t} {end} {stop} {emptyWave} {onSeek} onReachStop={playbackReachedStop} />
-    <dl class="counts" aria-live="polite">
-      <div>
-        <dt>{strings.countPending}</dt>
-        <dd data-count="pending">{snapshot.counts.pending}</dd>
-      </div>
-      <div>
-        <dt>{strings.countOnField}</dt>
-        <dd data-count="onField">{snapshot.counts.onField}</dd>
-      </div>
-      <div>
-        <dt>{strings.countLeaked}</dt>
-        <dd data-count="leaked">{snapshot.counts.leaked}</dd>
-      </div>
-    </dl>
     <div aria-live="polite">
       {#if stowedCount > 0}
         <p class="stowed" data-stowed-count={stowedCount}>
@@ -472,7 +512,6 @@
         {selected}
         onJump={jumpTo}
         onPick={pick}
-        branchKeys={level.branches.map((b) => b.key)}
         filter={filtered}
         onClearFilter={() => (endpointFilter = null)}
         {rowStow}
@@ -485,56 +524,48 @@
 <style>
   /*
    * Wide screens: the map beside a column holding the spawn table.
-   * - The column is --side-column-width, 857px: the widest spawn table of any level, measured in
-   *   Chrome with its 標記 wrapping (840px, ISW-NO ro6_b_1_b_dlc1), + 2px border + 15px for the
-   *   column's scrollbar. A fixed width keeps the map from resizing as a 端點篩選 or a switch
-   *   changes the rows. Below the breakpoint the drawer is as wide, room allowing.
-   * - The map keeps at least 540px: an enemy icon (0.68 cell) on a 13-cell-wide map (95% of
-   *   levels are no wider) stays at least as large as the spawn table's 28px avatars.
-   * - Breakpoint: 540 + 24px gap + 857 + 32px page padding + 17px page scrollbar = 1470px, so
-   *   1472px. CSS cannot put a variable in a media query: keep in step `breakpoint` in the script
-   *   above and the two `@media` rules below.
+   * - The column is --side-column-width. A fixed width keeps the map from resizing as a 端點篩選
+   *   or a switch changes the rows. Below the breakpoint the drawer is as wide, room allowing.
+   * - The map keeps at least the script's `narrowestMap`.
+   * - Which side of the breakpoint the window is on: `.drawer-mode`, set by the script.
    * - Above the breakpoint the page has no width cap: the map takes the width the column leaves.
    */
   /* Below the breakpoint: one column, as wide as the other pages. */
   .level-page {
-    --side-column-width: 857px;
     max-width: 960px;
     margin: 0 auto;
   }
-  @media (min-width: 1472px) {
-    .level-page {
-      max-width: none;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--side-column-width);
-      gap: 24px;
-      align-items: start;
-      /*
-       * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
-       * so with the padding below the row it slid 32px up off screen at the bottom of the page.
-       */
-      margin-bottom: -32px;
-    }
-    .main-column {
-      padding-bottom: 32px;
-    }
+  .level-page:not(.drawer-mode) {
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--side-column-width);
+    gap: var(--column-gap);
+    align-items: start;
     /*
-     * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
-     * page's top edge, the site title being in the left column, so the column, as tall as the
-     * window, lies wholly inside the window at every page scroll.
+     * Take the page's 32px bottom padding into the row: the sticky column cannot leave its row,
+     * so with the padding below the row it slid 32px up off screen at the bottom of the page.
      */
-    .side {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-    }
-    .side-column {
-      height: 100%;
-      overflow-y: auto;
-    }
-    .drawer-button {
-      display: none;
-    }
+    margin-bottom: -32px;
+  }
+  .level-page:not(.drawer-mode) .main-column {
+    padding-bottom: 32px;
+  }
+  /*
+   * Stays on screen as the page scrolls; the spawn table scrolls inside it. Its row starts at the
+   * page's top edge, the site title being in the left column, so the column, as tall as the
+   * window, lies wholly inside the window at every page scroll.
+   */
+  .level-page:not(.drawer-mode) .side {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .level-page:not(.drawer-mode) .side-column {
+    height: 100%;
+    overflow-y: auto;
+  }
+  .level-page:not(.drawer-mode) .drawer-button {
+    display: none;
   }
   /*
    * Below the breakpoint: a drawer sliding out from the right over the page, so the map keeps its
@@ -542,73 +573,79 @@
    * corner while it is closed, where it covers less of the map than halfway up the right edge.
    * The 48px left uncovered keeps the button on screen while the drawer is open.
    */
-  @media (width < 1472px) {
-    .side {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 10;
-      width: min(var(--side-column-width), calc(100% - 48px));
-      transform: translateX(100%);
-      transition: transform 0.2s ease;
-      background: var(--bg);
-      border-left: 1px solid var(--border);
-    }
-    .side.open {
-      transform: none;
-      box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
-    }
-    /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
-    .side-column {
-      box-sizing: border-box;
-      height: 100%;
-      padding: 0 12px 12px;
-      overflow-y: auto;
-      visibility: hidden;
-      transition: visibility 0s 0.2s;
-    }
-    .side.open .side-column {
-      visibility: visible;
-      transition-delay: 0s;
-    }
-    .drawer-button {
-      position: absolute;
-      bottom: 16px;
-      right: 100%;
-      writing-mode: vertical-rl;
-      padding: 12px 6px;
-      border: 1px solid var(--border);
-      border-right: none;
-      border-radius: 8px 0 0 8px;
-      background: var(--panel);
-      color: var(--fg);
-      font: inherit;
-      cursor: pointer;
-      box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
-    }
-    .drawer-button[aria-expanded="true"] {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
+  .level-page.drawer-mode .side {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    width: min(var(--side-column-width), calc(100% - 48px));
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+  }
+  .level-page.drawer-mode .side.open {
+    transform: none;
+    box-shadow: -4px 0 16px rgb(0 0 0 / 0.2);
+  }
+  /* Hidden once closed, so the table is out of the tab order and the accessibility tree. */
+  .level-page.drawer-mode .side-column {
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 12px 12px;
+    overflow-y: auto;
+    visibility: hidden;
+    transition: visibility 0s 0.2s;
+  }
+  .level-page.drawer-mode .side.open .side-column {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .level-page.drawer-mode .drawer-button {
+    position: absolute;
+    bottom: 16px;
+    right: 100%;
+    writing-mode: vertical-rl;
+    padding: 12px 6px;
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+    box-shadow: -2px 0 6px rgb(0 0 0 / 0.15);
+  }
+  .level-page.drawer-mode .drawer-button[aria-expanded="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
   }
   /* Only the drawer has transitions to drop. */
   @media (prefers-reduced-motion: reduce) {
-    .side,
-    .side-column {
+    .level-page.drawer-mode .side,
+    .level-page.drawer-mode .side-column {
       transition: none;
     }
   }
-  nav a {
+  nav a,
+  .title-line a {
     color: var(--accent);
   }
-  h2 {
+  .title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
     margin: 8px 0 12px;
+  }
+  h2 {
+    margin: 0;
     font-size: 1.4rem;
   }
   .condition {
-    margin: -6px 0 12px;
+    margin: 0 0 12px;
     padding-left: 8px;
     border-left: 3px solid var(--accent);
   }
@@ -657,26 +694,17 @@
   .variants {
     margin-bottom: 12px;
   }
-  .counts {
-    display: flex;
-    gap: 8px;
-    margin: 12px 0 0;
+  .map-controls {
+    margin-bottom: 12px;
   }
-  .counts div {
-    flex: 1;
-    background: var(--panel);
+  .view-toggle {
+    padding: 4px 10px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    min-width: 0;
-    padding: 8px 12px;
-  }
-  dt {
-    color: var(--muted);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
     font-size: 0.85rem;
-  }
-  dd {
-    margin: 0;
-    font-size: 1.5rem;
-    font-variant-numeric: tabular-nums;
+    cursor: pointer;
   }
 </style>
