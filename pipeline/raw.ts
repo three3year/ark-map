@@ -274,6 +274,11 @@ export interface RawRoguelikeItem {
   type: string;
 }
 
+/** The level ids `topic`'s stages use: each stage's own, then its 內容拓展 files. */
+export function topicLevelIds(topic: RawRoguelikeTopic): string[] {
+  return Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds]);
+}
+
 /** 集成戰略: themes (主題) with their zones and stages. */
 export interface RawRoguelikeTopicTable {
   topics: Record<string, { id: string; name: string; sort: number }>;

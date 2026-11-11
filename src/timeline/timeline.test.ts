@@ -10,6 +10,7 @@ import {
   type Modifier,
 } from "../level/index.ts";
 import { buildTimeline, takeSnapshot, type Individual, type Stay } from "./index.ts";
+import { testEnemy } from "../../test-fixtures/enemy.ts";
 
 /** PRTS.Map's 1-7 spawn table: the "时间点" column of its 24 rows, in its order. */
 const prts107 = [
@@ -198,27 +199,7 @@ describe("movement model v0", () => {
         },
       ],
       enemies: {
-        enemy_test: {
-          id: "enemy_test",
-          level: 0,
-          name: "測試",
-          code: null,
-          moveSpeed,
-          motion: "WALK",
-          levelType: "NORMAL",
-          maxHp: 1,
-          atk: 0,
-          def: 0,
-          magicResistance: 0,
-          baseAttackTime: 0,
-          attackSpeed: 100,
-          rangeRadius: 0,
-          applyWay: "NONE",
-          massLevel: 0,
-          lifePointReduce: 1,
-          notCountInTotal: false,
-          avatar: null,
-        },
+        enemy_test: testEnemy({ moveSpeed }),
       },
     };
   }

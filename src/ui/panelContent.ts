@@ -1,6 +1,7 @@
 import {
   affectsMovement,
   deviceActionKind,
+  hiddenGroupSwitch,
   isKnownModifierKey,
   isSpawn,
   type Action,
@@ -25,36 +26,47 @@ import {
 } from "../timeline/index.ts";
 import { strings, variantLabel } from "./strings.ts";
 
-function deviceName(level: Level, alias: string): string {
-  const kind = alias.replace(/#\d+$/, "");
-  const device =
-    level.devices.find((d) => d.alias === alias) ?? level.devices.find((d) => d.key === kind);
-  return device?.name ?? kind;
+const aliasedDevice = (level: Level, alias: string) => level.devices.find((d) => d.alias === alias);
+
+/**
+ * A device by its alias: the level's device with that alias, else the 名稱表's name for its kind
+ * (the alias without `#n`), else the alias as is.
+ */
+function deviceName(level: Level, names: NameTable, alias: string): string {
+  return (
+    aliasedDevice(level, alias)?.name ?? names.devices[alias.replace(/#\d+$/, "")]?.name ?? alias
+  );
 }
 
-function actionsLabel(level: Level, actions: Action[]): string {
+function actionsLabel(level: Level, names: NameTable, actions: Action[]): string {
   const parts = actions.flatMap((action) => {
     if (!isSpawn(action)) {
       const kind = deviceActionKind(action);
       if (kind === null || !action.key) return [];
-      const name = deviceName(level, action.key);
+      const name = deviceName(level, names, action.key);
       return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
     }
     if (!action.key) return [];
-    return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];
+    return [strings.enemyCount(level.enemies[action.key]?.name ?? action.key, action.count)];
   });
-  return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
+  return parts.length > 0 ? strings.list([...new Set(parts)]) : strings.noSpawn;
 }
 
-export const candidateLabel = (level: Level, candidate: RandomCandidate): string =>
+export const candidateLabel = (
+  level: Level,
+  names: NameTable,
+  candidate: RandomCandidate,
+): string =>
   actionsLabel(
     level,
+    names,
     candidate.actions.map((ref) => actionAt(level, ref)),
   );
 
-export const branchLabel = (level: Level, branch: Branch): string =>
+export const branchLabel = (level: Level, names: NameTable, branch: Branch): string =>
   actionsLabel(
     level,
+    names,
     branch.phases.flatMap((p) => p.actions),
   );
 
@@ -68,18 +80,20 @@ export interface ConditionalText {
 }
 
 export function conditionalText(level: Level, branch: Branch): ConditionalText {
-  const named = level.devices.find((d) => d.alias === branch.key);
+  const named = aliasedDevice(level, branch.key);
   const device = named ? strings.device(named.name) : null;
   return { device, hint: branch.key, source: strings.conditionalSource(device) };
 }
 
-export interface SiblingVariant {
+/** A 關卡變體 showing the level file on display (`variantsShowing`). */
+export interface FileVariant {
   id: VariantId;
   difficulty: Difficulty;
 }
 
 export interface HiddenGroupText {
-  name: string;
+  /** What its actions put on the field, e.g. "源石蟲 × 3、裝置 碎石". */
+  content: string;
   /** Its tag in the level file, for the mouse-over hint. */
   hint: string;
   /** 說明: its 隱藏組來源, then its 變體說明; null when it has neither. */
@@ -90,41 +104,40 @@ export interface HiddenGroupText {
 function variantNote(
   level: Level,
   name: string,
-  variants: readonly SiblingVariant[],
+  fileVariants: readonly FileVariant[],
 ): string | null {
-  const on = variants.filter(
+  const on = fileVariants.filter(
     (v) => levelGroups(level, v.difficulty).hidden.find((g) => g.name === name)?.defaultOn,
   );
   if (on.length === 0) return null;
-  if (on.length === variants.length) return strings.onInEveryVariant;
+  if (on.length === fileVariants.length) return strings.onInEveryVariant;
   return strings.onInVariants(on.map((v) => variantLabel(v.id)));
 }
 
 export function hiddenGroupText(
   level: Level,
+  names: NameTable,
   name: string,
-  variants: readonly SiblingVariant[],
+  fileVariants: readonly FileVariant[],
 ): HiddenGroupText {
   const actions = [...allActions(level)].flatMap(({ action }) =>
     action.hiddenGroup === name ? [action] : [],
   );
   const sources = level.hiddenGroupSources[name] ?? [];
   const sourceTexts = unique(
-    sources.map((s) =>
-      strings.hiddenGroupSource(strings.sourceKinds[s.kind] ?? "", s.name, s.opens),
-    ),
+    sources.map((s) => strings.hiddenGroupSource(s.kind, s.name, s.opens)),
   );
-  const variant = variantNote(level, name, variants);
+  const variant = variantNote(level, name, fileVariants);
   const parts = [
     ...(sourceTexts.length > 0 ? [strings.hiddenGroupSources(sourceTexts)] : []),
     ...(variant ? [variant] : []),
   ];
   const openers = unique(sources.filter((s) => s.opens).map((s) => s.name));
   return {
-    name: actionsLabel(level, actions),
+    content: actionsLabel(level, names, actions),
     hint: name,
     note: parts.length > 0 ? strings.hiddenGroupNote(parts) : null,
-    badge: strings.hiddenGroupBadge(openers.length > 0 ? openers.join("、") : variant),
+    badge: strings.hiddenGroupBadge(openers.length > 0 ? strings.list(openers) : variant),
   };
 }
 
@@ -165,39 +178,58 @@ const blackboardAttributes: Record<string, EnemyAttributeKey> = {
   map_hp: "lifePointReduce",
 };
 
+type ModifierKind = "multiply" | "add";
+
+/** The `ebuff_` modifiers whose kind their key's ending does not tell. */
+const ebuffKinds: ReadonlyMap<string, ModifierKind> = new Map([
+  ["ebuff_attribute", "multiply"],
+  ["ebuff_attack_radius", "multiply"],
+  ["ebuff_weight", "add"],
+]);
+
+/**
+ * Whether a modifier's numbers multiply (written "×n", no effect at 1) or add (no effect at 0),
+ * by its key alone; null for any other.
+ */
+function modifierKind(modifierKey: string): ModifierKind | null {
+  const ebuff = ebuffKinds.get(modifierKey);
+  if (ebuff) return ebuff;
+  if (modifierKey.endsWith("_mul")) return "multiply";
+  if (modifierKey.endsWith("_add")) return "add";
+  return null;
+}
+
+/** The 敵人屬性 a modifier's blackboard entry changes, by the modifier's key. */
+function changedAttribute(modifierKey: string, entryKey: string): EnemyAttributeKey | undefined {
+  switch (modifierKey) {
+    case "ebuff_attribute":
+    case "enemy_attribute_mul":
+    case "enemy_attribute_add":
+      return blackboardAttributes[entryKey.toLowerCase()];
+    case "enemy_attackradius_mul":
+    case "ebuff_attack_radius":
+      return entryKey === "scale" || entryKey === "range_scale" ? "rangeRadius" : undefined;
+    case "enemy_weight_add":
+    case "ebuff_weight":
+      return entryKey === "value" ? "massLevel" : undefined;
+    default:
+      return undefined;
+  }
+}
+
 interface AttributeChange {
   attribute: EnemyAttributeKey;
-  kind: "multiply" | "add";
+  kind: ModifierKind;
   value: number;
 }
 
 function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
-  const changes = (
-    kind: AttributeChange["kind"],
-    attributeOf: (entryKey: string) => EnemyAttributeKey | undefined,
-  ) =>
-    blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
-      const attribute = valueStr === null ? attributeOf(entryKey) : undefined;
-      return attribute ? [{ attribute, kind, value }] : [];
-    });
-  const byTable = (entryKey: string) => blackboardAttributes[entryKey.toLowerCase()];
-  switch (key) {
-    case "ebuff_attribute":
-    case "enemy_attribute_mul":
-      return changes("multiply", byTable);
-    case "enemy_attribute_add":
-      return changes("add", byTable);
-    case "enemy_attackradius_mul":
-    case "ebuff_attack_radius":
-      return changes("multiply", (k) =>
-        k === "scale" || k === "range_scale" ? "rangeRadius" : undefined,
-      );
-    case "enemy_weight_add":
-    case "ebuff_weight":
-      return changes("add", (k) => (k === "value" ? "massLevel" : undefined));
-    default:
-      return [];
-  }
+  const kind = modifierKind(key);
+  if (kind === null) return [];
+  return blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
+    const attribute = valueStr === null ? changedAttribute(key, entryKey) : undefined;
+    return attribute ? [{ attribute, kind, value }] : [];
+  });
 }
 
 export interface EnemyAttribute {
@@ -271,19 +303,26 @@ export interface ModifierParam {
   hint: string | null;
 }
 
-/**
- * One line of the 關卡資訊's 難度修正 list: "名稱 — 參數、參數", or "名稱 值" when all that is
- * left is a lone `value`.
- */
-export interface ModifierLine {
+interface ModifierLineHead {
   key: string;
   name: string;
   /** The name's mouse-over text: the raw key, and an 環境機制's target. */
   hint: string;
-  value: string | null;
   hiddenGroups: HiddenGroupMark[];
+}
+
+/** "名稱 值": all that is left is a lone `value`. */
+export interface ValueModifierLine extends ModifierLineHead {
+  value: string;
+}
+
+/** "名稱 — 參數、參數". */
+export interface ParamsModifierLine extends ModifierLineHead {
   params: ModifierParam[];
 }
+
+/** One line of the 關卡資訊's 難度修正 list. */
+export type ModifierLine = ValueModifierLine | ParamsModifierLine;
 
 /** A 隱藏組 by its 開關標記's number, which the 開關面板 gives it. */
 export interface HiddenGroupMark {
@@ -291,14 +330,16 @@ export interface HiddenGroupMark {
   number: number;
 }
 
-const multiplies = (modifierKey: string) =>
-  modifierKey === "ebuff_attribute" || modifierKey.endsWith("_mul");
-
 function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): boolean {
   if (valueStr !== null) return true;
-  if (multiplies(modifierKey)) return value !== 1;
-  if (modifierKey.endsWith("_add")) return value !== 0;
-  return true;
+  switch (modifierKind(modifierKey)) {
+    case "multiply":
+      return value !== 1;
+    case "add":
+      return value !== 0;
+    case null:
+      return true;
+  }
 }
 
 const internalKeys = new Set([
@@ -316,8 +357,6 @@ const internalKeys = new Set([
 
 const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
 
-const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_group_disable"]);
-
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
 function entryValue(
@@ -326,19 +365,18 @@ function entryValue(
   { key, value, valueStr }: BlackboardEntry,
   { names }: ModifierContext,
 ): string {
-  if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
+  if (valueStr === null) {
+    return modifierKind(modifierKey) === "multiply" ? strings.multiplier(value) : String(value);
+  }
   const parts = valueStr.split("|");
-  if (key === "location") return parts.join("、");
-  const shown = parts.map((part) =>
-    key === "tile"
-      ? (names.terrain[part]?.name ?? part)
-      : (level.enemies[part]?.name ??
-        names.enemies[part] ??
-        level.devices.find((d) => d.key === part)?.name ??
-        names.devices[part]?.name ??
-        part),
+  if (key === "location") return strings.list(parts);
+  return strings.list(
+    parts.map((part) =>
+      key === "tile"
+        ? (names.terrain[part]?.name ?? part)
+        : (level.enemies[part]?.name ?? names.enemies[part] ?? names.devices[part]?.name ?? part),
+    ),
   );
-  return [...new Set(shown)].join("、");
 }
 
 export interface ModifierContext {
@@ -362,9 +400,7 @@ function presetDeviceParams(
 ): ModifierParam[] {
   const counts = new Map<string, { name: string; on: boolean; count: number }>();
   for (const { key, value } of entries) {
-    const kind = key.replace(/#\d+$/, "");
-    const name =
-      level.devices.find((d) => d.alias === key)?.name ?? names.devices[kind]?.name ?? key;
+    const name = deviceName(level, names, key);
     const on = value !== 0;
     const id = `${on}:${name}`;
     const seen = counts.get(id);
@@ -373,7 +409,7 @@ function presetDeviceParams(
   }
   return [...counts.values()].map(({ name, on, count }) => ({
     label: name,
-    value: `${count > 1 ? `× ${count} ` : ""}${on ? strings.deviceOn : strings.deviceOff}`,
+    value: strings.presetDeviceState(count, on),
     hint: null,
   }));
 }
@@ -384,38 +420,38 @@ function modifierLine(
   context: ModifierContext,
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
-  const opensGroups = hiddenGroupKeys.has(modifier.key);
-  const ownsKey = environment || opensGroups;
-  const target = ownsKey
+  const switchesGroups = hiddenGroupSwitch(modifier.key) !== null;
+  const keyNamesTarget = environment || switchesGroups;
+  const target = keyNamesTarget
     ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
     : null;
   const entries = modifier.blackboard.filter(
     (entry) =>
       !internalKeys.has(entry.key) &&
-      !(ownsKey && entry.key === "key") &&
+      !(keyNamesTarget && entry.key === "key") &&
       hasEffect(modifier.key, entry),
   );
   const hiddenGroups =
-    opensGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
+    switchesGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
   if (hiddenGroups.length === 0 && entries.every((entry) => targetKeys.has(entry.key))) {
     return null;
   }
   const name = isKnownModifierKey(modifier.key)
     ? strings.modifierKeys[modifier.key]
     : strings.modifierUnknown;
-  const hint = environment && target !== null ? `${modifier.key} · ${target}` : modifier.key;
+  const hint =
+    environment && target !== null ? strings.environmentHint(modifier.key, target) : modifier.key;
   const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
-    return { ...line, value: entryValue(level, modifier.key, first, context), params: [] };
+    return { ...line, value: entryValue(level, modifier.key, first, context) };
   }
   if (modifier.key === "level_predefines_enable") {
-    return { ...line, value: null, params: presetDeviceParams(level, entries, context) };
+    return { ...line, params: presetDeviceParams(level, entries, context) };
   }
   const moves = affectsMovement(modifier);
   return {
     ...line,
-    value: null,
     params: entries.map((entry) => ({
       label: strings.blackboardKeys[entry.key] ?? entry.key,
       value: entryValue(level, modifier.key, entry, context),
@@ -432,9 +468,9 @@ export const modifierLines = (
 ): ModifierLine[] => modifiers.flatMap((modifier) => modifierLine(level, modifier, context) ?? []);
 
 export const levelNumbers = (options: LevelOptions): string =>
-  [
-    `${strings.characterLimit} ${options.characterLimit}`,
-    `${strings.maxLifePoint} ${options.maxLifePoint}`,
-    `${strings.initialCost} ${options.initialCost}`,
-    `${strings.maxCost} ${options.maxCost}`,
-  ].join(" · ");
+  strings.levelNumbers([
+    [strings.characterLimit, options.characterLimit],
+    [strings.maxLifePoint, options.maxLifePoint],
+    [strings.initialCost, options.initialCost],
+    [strings.maxCost, options.maxCost],
+  ]);

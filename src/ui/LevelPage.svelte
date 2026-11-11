@@ -50,9 +50,8 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { attackRadius, enemyAttributes } from "./panelContent.ts";
+  import { attackRadius, enemyAttributes, hiddenGroupText } from "./panelContent.ts";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
-  import { hiddenGroupText } from "./panelContent.ts";
 
   interface Props {
     /**
@@ -126,8 +125,9 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
-  const siblings = $derived(variantsShowing(stage, view.shownFile));
-  const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, siblings).badge;
+  const fileVariants = $derived(variantsShowing(stage, view.shownFile));
+  const hiddenGroupBadge = (name: string) =>
+    hiddenGroupText(level, names, name, fileVariants).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
     onSwitches(switchHidden(level, difficulty, switches, name, on));
@@ -498,8 +498,9 @@
     </div>
     <SwitchPanel
       {level}
+      {names}
       {plan}
-      variants={siblings}
+      {fileVariants}
       conditional={switches.conditional ?? {}}
       wave={waveIndex}
       {t}

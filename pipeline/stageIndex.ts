@@ -23,6 +23,7 @@ import type {
   RawZone,
   RawZoneTable,
 } from "./raw.ts";
+import { topicLevelIds } from "./raw.ts";
 
 export interface GameTables {
   stage: RawStageTable;
@@ -169,7 +170,7 @@ export function indexedLevelPaths(tables: StageIndexTables): string[] {
 
 export function roguelikeLevelPaths(table: RawRoguelikeTopicTable): string[] {
   const paths = Object.values(table.details).flatMap((topic) =>
-    Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds].map(levelPath)),
+    topicLevelIds(topic).map(levelPath),
   );
   return [...new Set(paths)];
 }

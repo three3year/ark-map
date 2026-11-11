@@ -6,7 +6,8 @@ test.use({ viewport: wideWindow });
 
 const level = siteLevel("main_04-04");
 
-function walker(enemyId: string) {
+/** The first `enemyId` visible on the field for two whole seconds or more, and those seconds. */
+function visibleForTwoSeconds(enemyId: string) {
   for (const waveIndex of level.waves.keys()) {
     const timeline = buildTimeline(level, { waveIndex });
     for (const individual of timeline.individuals) {
@@ -36,7 +37,7 @@ async function centre(page: Page): Promise<{ x: number; y: number }> {
 test("4-4: a selected crossbowman's 攻擊範圍 is drawn around it and follows it", async ({
   page,
 }) => {
-  const { waveIndex, individual, seconds } = walker("enemy_1012_dcross");
+  const { waveIndex, individual, seconds } = visibleForTwoSeconds("enemy_1012_dcross");
   const first = seconds[0]!;
   const later = seconds.at(-1)!;
 
@@ -60,7 +61,7 @@ test("4-4: a selected crossbowman's 攻擊範圍 is drawn around it and follows 
 test("4-4: a selected soldier has no 攻擊範圍 and the legend does not list one", async ({
   page,
 }) => {
-  const { waveIndex, individual, seconds } = walker("enemy_1002_nsabr");
+  const { waveIndex, individual, seconds } = visibleForTwoSeconds("enemy_1002_nsabr");
 
   await page.goto("#/level/main_04-04?v=normal");
   await selectWave(page, waveIndex);

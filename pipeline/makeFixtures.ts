@@ -15,6 +15,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sources, type RepoSource } from "../src/dataSources.ts";
+import { hiddenGroupSwitch, mapValues } from "../src/level/index.ts";
 import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
@@ -167,10 +168,6 @@ function filterEntries<T>(record: Record<string, T>, keep: (key: string, value: 
   return Object.fromEntries(Object.entries(record).filter(([k, v]) => keep(k, v)));
 }
 
-function mapValues<T>(record: Record<string, T>, fn: (value: T) => T): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v)]));
-}
-
 const stageKeys: (keyof RawStage)[] = [
   "stageId",
   "levelId",
@@ -280,7 +277,7 @@ const rogueStageKeys: (keyof RawRoguelikeStage)[] = [
 ];
 
 const switchesHiddenGroup = (relic: RawRoguelikeRelic) =>
-  relic.buffs.some((b) => /^level_hidden_group_(enable|disable)$/.test(b.key));
+  relic.buffs.some((b) => hiddenGroupSwitch(b.key) !== null);
 
 async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<void> {
   const table = await fetchJson<RawRoguelikeTopicTable>(source, "excel/roguelike_topic_table.json");
