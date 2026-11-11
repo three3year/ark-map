@@ -108,6 +108,10 @@ export const clearAround = (timeline: Timeline, t: number, { row, col }: Cell) =
     ({ position }) => Math.hypot(position.x - col, position.y - row) > 1,
   );
 
+/** The index in `Level.devices` of the device named `alias`. */
+export const deviceIndex = (level: Level, alias: string) =>
+  level.devices.findIndex((d) => d.alias === alias);
+
 /** The device at `index` of `Level.devices` on the map. */
 export const deviceByIndex = (page: Page, index: number) =>
   page.locator(`svg.map g.device[data-device-index="${index}"]`);
