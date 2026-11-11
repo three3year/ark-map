@@ -50,9 +50,8 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
-  import { attackRadius, enemyAttributes } from "./panelContent.ts";
+  import { attackRadius, enemyAttributes, hiddenGroupText } from "./panelContent.ts";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
-  import { hiddenGroupText } from "./panelContent.ts";
 
   interface Props {
     /**
