@@ -237,6 +237,19 @@ export const strings = {
   restoreAll: "全部恢復",
   showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
   showListedRows: "顯示列出的所有列",
+  /** 頁尾 labels: the 資料來源 by server or kind, then the 參考來源. */
+  footerLabels: {
+    cn: "陸服",
+    tw: "台服",
+    images: "頭像與裝置圖",
+    prts: "參考 PRTS",
+    prtsMap: "參考 PRTS.Map",
+  },
+  footerSourceHint: (repo: string) => `資料來源:${repo}`,
+  footerPrtsHint: "擋路裝置清單參考 PRTS",
+  footerPrtsMapHint: "出兵表絕對時刻的算法參考 PRTS.Map",
+  footerSeparator: " · ",
+  footerNotice: "本站為非官方工具，遊戲內容版權屬於上海鷹角網路科技有限公司(Hypergryph)。",
 } as const;
 
 /** A 出生點 or 消失點 by its cell, e.g. 出生點(3, 8). */
