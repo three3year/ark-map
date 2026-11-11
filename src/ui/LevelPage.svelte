@@ -36,6 +36,7 @@
     type RouteEndpoint,
     type SpawnRow,
     type SpawnSwitches,
+    type TimelineDevice,
   } from "../timeline/index.ts";
   import SwitchPanel from "./SwitchPanel.svelte";
   import MapView, { type DeviceMark } from "./MapView.svelte";
@@ -137,7 +138,7 @@
   const snapshot = $derived(takeSnapshot(timeline, t));
   const deviceMark =
     (removed: boolean) =>
-    (d: IndexedDevice): DeviceMark => ({ ...d, removed, removal: removals.get(d.index) ?? null });
+    (d: TimelineDevice): DeviceMark => ({ ...d, removed, removal: removals.get(d.index) ?? null });
   const deviceMarks = $derived([
     ...timeline.removedAt(t).map(deviceMark(true)),
     ...timeline.devicesAt(t).map(deviceMark(false)),

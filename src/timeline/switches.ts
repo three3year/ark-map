@@ -86,7 +86,7 @@ function fragmentRuns(level: Level): FragmentRun[] {
   ];
 }
 
-function* allActions(level: Level): Generator<{ ref: ActionRef; action: Action }> {
+export function* allActions(level: Level): Generator<{ ref: ActionRef; action: Action }> {
   for (const run of fragmentRuns(level)) {
     for (const [fragmentIndex, fragment] of run.fragments.entries()) {
       for (const [actionIndex, action] of fragment.actions.entries()) {
