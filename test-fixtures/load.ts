@@ -8,6 +8,7 @@ import {
   buildEnemyCatalog,
   controllerKeys,
   convertLevel,
+  tableEnemyName,
   type DeviceCatalog,
 } from "../pipeline/convertLevel.ts";
 import { terrainTable } from "../pipeline/terrainTable.ts";
@@ -119,8 +120,8 @@ export function fixtureNameTable(): NameTable {
   if (nameTable) return nameTable;
   const catalog = buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
   const enemies: Record<string, string> = {};
-  for (const [id, levels] of catalog.levels) {
-    const name = catalog.twNames.get(id) ?? levels.get(0)?.name?.m_value;
+  for (const id of catalog.levels.keys()) {
+    const name = tableEnemyName(catalog, id);
     if (name) enemies[id] = name;
   }
   const { cn, tw } = rawTables();
