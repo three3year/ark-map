@@ -30,6 +30,7 @@ import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
 import {
   effectCells,
   noEffectTables,
+  warnUnknownRangeId,
   type EffectContext,
   type EffectTables,
   type UnknownRangeIdHandler,
@@ -422,9 +423,6 @@ function convertDevices(
     };
   });
 }
-
-const warnUnknownRangeId: UnknownRangeIdHandler = (rangeId, key) =>
-  console.warn(`裝置 ${key} 的範圍 ${rangeId} 不在範圍表,當作沒有作用範圍`);
 
 export interface ConvertOptions {
   devices?: DeviceCatalog;

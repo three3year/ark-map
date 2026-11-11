@@ -19,6 +19,9 @@ export const noEffectTables: EffectTables = { characters: {}, skills: {}, ranges
 
 export type UnknownRangeIdHandler = (rangeId: string, key: string) => void;
 
+export const warnUnknownRangeId: UnknownRangeIdHandler = (rangeId, key) =>
+  console.warn(`裝置 ${key} 的作用範圍 id ${rangeId} 不在範圍表,當作沒有作用範圍`);
+
 /** A 階段 as its index; undefined for a 階段 with no known name. */
 export type PhaseIndex = (phase: RawEnum) => number | undefined;
 
