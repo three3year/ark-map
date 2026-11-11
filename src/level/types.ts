@@ -97,6 +97,8 @@ export interface Branch {
   deviceOnly: boolean;
 }
 
+export type ApplyWay = "MELEE" | "RANGED" | "ALL" | "NONE";
+
 /** An 敵人 (kind + level) after level fallback and the level's `overwrittenData`. */
 export interface EnemyRef {
   id: string;
@@ -117,6 +119,8 @@ export interface EnemyRef {
   attackSpeed: number;
   /** 攻擊範圍, cells. */
   rangeRadius: number;
+  /** 攻擊方式: decides whether the 攻擊範圍 is drawn; not an 敵人屬性. */
+  applyWay: ApplyWay;
   /** 重量 */
   massLevel: number;
   /** 關卡生命: life points lost when it gets through. */

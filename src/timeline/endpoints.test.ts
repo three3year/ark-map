@@ -269,6 +269,7 @@ function corridorLevel(routes: Pick<Route, "start" | "end" | "checkpoints">[]): 
         baseAttackTime: 0,
         attackSpeed: 100,
         rangeRadius: 0,
+        applyWay: "NONE",
         massLevel: 0,
         lifePointReduce: 1,
         notCountInTotal: false,

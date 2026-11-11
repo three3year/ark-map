@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { spawnPlan } from "../timeline/index.ts";
-import { variantModifiers } from "../level/index.ts";
+import { variantModifiers, type Difficulty } from "../level/index.ts";
 import {
+  attackRadius,
   branchLabel,
   candidateLabel,
   conditionalText,
@@ -88,16 +89,16 @@ describe("隱藏組", () => {
     expect(text.badge).toBe("隱藏組・海潮的氣息");
   });
 
-  it("level_rogue5_1-1_dlc1's copper_r: two 通寶 named 花-鴨爵金幣 read as one", () => {
-    const level = loadFixtureLevel("level_rogue5_1-1_dlc1");
+  it("level_rogue5_2-1_dlc1's copper_r: two 通寶 named 花-鴨爵金幣 read as one", () => {
+    const level = loadFixtureLevel("level_rogue5_2-1_dlc1");
     expect(level.hiddenGroupSources["copper_r"]).toHaveLength(2);
     const text = hiddenGroupText(level, "copper_r", []);
     expect(text.note).toBe("由通寶「花-鴨爵金幣」開啟");
     expect(text.badge).toBe("隱藏組・花-鴨爵金幣");
   });
 
-  it("level_rogue5_1-1_dlc1's copper_d: its closing source, then its 變體說明, which names the badge", () => {
-    const level = loadFixtureLevel("level_rogue5_1-1_dlc1");
+  it("level_rogue5_2-1_dlc1's copper_d: its closing source, then its 變體說明, which names the badge", () => {
+    const level = loadFixtureLevel("level_rogue5_2-1_dlc1");
     const text = hiddenGroupText(level, "copper_d", [
       { id: "normal", difficulty: "NORMAL" },
       { id: "emergency", difficulty: "FOUR_STAR" },
@@ -312,5 +313,39 @@ describe("關卡資訊's numbers", () => {
     expect(levelNumbers(loadFixtureLevel("level_main_04-04").options)).toBe(
       "可部署人數 9 · 生命值 3 · 初始費用 10 · 費用上限 99",
     );
+  });
+});
+
+describe("攻擊範圍", () => {
+  /** The 攻擊範圍 radius drawn for `enemyId` in a variant of a fixture level. */
+  const radius = (name: string, enemyId: string, difficulty: Difficulty = "NORMAL") => {
+    const level = loadFixtureLevel(name);
+    return attackRadius(level.enemies[enemyId]!, variantModifiers(level.modifiers, difficulty));
+  };
+
+  it("4-4: the RANGED crossbowman's is drawn; the MELEE soldier's is not", () => {
+    expect(radius("level_main_04-04", "enemy_1012_dcross")).toBe(2.2);
+    expect(radius("level_main_04-04", "enemy_1002_nsabr")).toBeNull();
+  });
+
+  it("2-7 突襲: ebuff_attack_radius ×2 doubles the crossbowman's, as on the selection card", () => {
+    expect(radius("level_main_02-07", "enemy_1003_ncbow")).toBe(1.9);
+    expect(radius("level_main_02-07", "enemy_1003_ncbow", "FOUR_STAR")).toBe(3.8);
+    const level = loadFixtureLevel("level_main_02-07");
+    const card = enemyAttributes(
+      level.enemies["enemy_1003_ncbow"]!,
+      variantModifiers(level.modifiers, "FOUR_STAR"),
+    );
+    expect(card.find((a) => a.label === "攻擊範圍")!.value).toBe(3.8);
+  });
+
+  it("2-10: the ALL 碎骨 (enemy_1500_skulsr) has its 攻擊範圍 drawn", () => {
+    expect(radius("level_main_02-10", "enemy_1500_skulsr")).toBe(2.6);
+  });
+
+  it("a RANGED enemy with 攻擊範圍 0 or −1 has none drawn", () => {
+    const crossbow = loadFixtureLevel("level_main_04-04").enemies["enemy_1012_dcross"]!;
+    expect(attackRadius({ ...crossbow, rangeRadius: 0 }, [])).toBeNull();
+    expect(attackRadius({ ...crossbow, rangeRadius: -1 }, [])).toBeNull();
   });
 });

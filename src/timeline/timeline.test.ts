@@ -213,6 +213,7 @@ describe("movement model v0", () => {
           baseAttackTime: 0,
           attackSpeed: 100,
           rangeRadius: 0,
+          applyWay: "NONE",
           massLevel: 0,
           lifePointReduce: 1,
           notCountInTotal: false,
