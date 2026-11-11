@@ -271,7 +271,6 @@
     const device = level.devices[s.index];
     return device ? { index: s.index, device } : null;
   });
-  /** The selected device's 作用範圍, drawn while it is on the field: not removed, not withdrawn. */
   const effectCells = $derived.by(() => {
     const s = selectedDevice;
     const onField = s && drawnDevices.some((d) => d.index === s.index && !d.removed);

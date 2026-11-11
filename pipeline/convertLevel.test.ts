@@ -694,10 +694,8 @@ describe("作用範圍", () => {
   const sorted = (cells: Cell[]) => [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
   const effectOf = (levelName: string, alias: string) =>
     sorted(loadFixtureLevel(levelName).devices.find((d) => d.alias === alias)!.effectCells);
-  /** The cells of `rows` x `cols`, row by row. */
   const block = (rows: number[], cols: number[]) =>
     rows.flatMap((row) => cols.map((col) => ({ row, col })));
-  /** PRTS x-2: the 5 x 5 square around `center` without its four corners. */
   const squareWithoutCorners = ({ row, col }: Cell) =>
     sorted(
       block([-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2])
@@ -777,7 +775,6 @@ describe("作用範圍", () => {
     expect(stove.effectCells).toEqual([]);
   });
 
-  /** 16-2 converted with `phases` as the 嚴重汙染設施's 階段, and its insts at `phase`. */
   function facilityAt(phases: { rangeId: string | null }[], phase: string) {
     const { cn, tw } = rawCharacterTables();
     cn["trap_271_fowstn"]!.phases = phases;

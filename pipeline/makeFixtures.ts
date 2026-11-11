@@ -1,9 +1,7 @@
 // Refresh test-fixtures/raw/ from the raw-data cache: copies the listed level files, then
 // subsets the enemy database and TW handbook to the enemies referenced by every level file
 // in the fixture directory (old and new), the enemies already in the subset, and any
-// `--enemy` ids. Subsets the CN and TW character tables to the fixture levels' devices (the CN
-// one keeps the fields 作用範圍 come from), the CN skill table to the skills the CN subset names,
-// and the CN range table to the range ids those two subsets name. Also subsets the CN and TW stage, zone, activity and campaign tables to the
+// `--enemy` ids. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
 // pipeline reads; the activity tables also keep each 復刻's original activity. The stage
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
@@ -79,7 +77,6 @@ for (const file of levelFiles) {
   for (const token of level.predefines?.tokenInsts ?? []) deviceKeys.add(token.inst.characterKey);
 }
 
-/** The fields the pipeline reads; 作用範圍 come from the CN table only. */
 function characterFields(character: RawCharacter, withEffects: boolean): RawCharacter {
   const named = pick(character, ["name", "description"]);
   if (!withEffects) return named;

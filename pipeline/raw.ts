@@ -104,14 +104,8 @@ export interface RawTokenInst {
   hidden: boolean;
   /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
   alias: string | null;
-  /**
-   * `phase` (階段, "PHASE_0" or a number in older files) and `level` (等級) are absent in
-   * hand-made fixtures.
-   */
   inst: { characterKey: string; phase?: RawEnum; level?: number };
-  /** Which of the character's `skills` the device has; -1 = none. Absent in hand-made fixtures. */
   skillIndex?: number;
-  /** The level of that skill, from 1. */
   mainSkillLvl?: number;
 }
 
@@ -145,7 +139,6 @@ export interface RawEnemyHandbookTable {
   enemyData: Record<string, { enemyId: string; name: string; enemyIndex: string }>;
 }
 
-/** A talent candidate unlocks at a 階段 ("PHASE_0", ...) and level. */
 export interface RawTalentCandidate {
   unlockCondition: { phase: RawEnum; level: number };
   rangeId: string | null;
@@ -154,7 +147,6 @@ export interface RawTalentCandidate {
 export interface RawCharacter {
   name: string;
   description: string | null;
-  /** One entry per 階段; `rangeId` is a range-table id. Only the CN table is read for these. */
   phases?: { rangeId: string | null }[] | null;
   skills?: { skillId: string | null }[] | null;
   talents?: { candidates: RawTalentCandidate[] | null }[] | null;
@@ -162,7 +154,6 @@ export interface RawCharacter {
 
 export type RawCharacterTable = Record<string, RawCharacter>;
 
-/** Skill table: each skill's levels, from level 1; `rangeId` is a range-table id. */
 export type RawSkillTable = Record<string, { levels: { rangeId: string | null }[] }>;
 
 /**

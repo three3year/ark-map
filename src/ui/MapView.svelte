@@ -53,7 +53,6 @@
     terrain: TerrainTable;
     devices: DrawnDevice[];
     selectedDevice: DeviceIndex | null;
-    /** The 作用範圍 drawn over everything: the selected device's while it is on the field. */
     effectCells: Cell[];
     /** Clicking the selected device again passes null. */
     onSelectDevice: (index: DeviceIndex | null) => void;
@@ -347,7 +346,6 @@
           <rect width="0.14" height="0.14" fill="var(--floor-yellow)" />
           <rect width="0.07" height="0.14" fill="var(--floor-black)" />
         </pattern>
-        <!-- 作用範圍: red and clear stripes, 0.1 of a cell each, laid in map coordinates. -->
         <pattern
           id="effect-stripes"
           patternUnits="userSpaceOnUse"
@@ -560,7 +558,6 @@
       </g>
 
       {#if effectCells.length > 0}
-        <!-- Last, over everything; flat on the map, and clicks pass through to what is under it. -->
         <path
           class="effect-cells"
           d={effectShape}

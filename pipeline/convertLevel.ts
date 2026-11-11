@@ -348,7 +348,6 @@ export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): 
   return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
 }
 
-/** Names come from the TW character table, else CN; 作用範圍 from the CN tables only. */
 export function buildDeviceCatalog(
   controllers: ReadonlySet<string>,
   cn: RawCharacterTable,
@@ -413,7 +412,6 @@ export interface ConvertOptions {
   devices?: DeviceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
-  /** Called for each device naming a range id the range table lacks. */
   onUnknownRangeId?: UnknownRangeIdHandler;
 }
 

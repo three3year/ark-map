@@ -231,7 +231,6 @@ const modifierKeys = new Map<string, number>();
 /** "field = value" of enum values with no known name -> the level files they appear in. */
 const unknownEnums = new Map<string, Set<string>>();
 const unknownDevices = new Map<string, Set<string>>();
-/** Range ids the range table lacks -> the device kinds naming them. */
 const unknownRangeIds = new Map<string, Set<string>>();
 const deviceKeys = new Set<string>();
 const record = (seen: Map<string, Set<string>>, key: string, levelPath: string) => {

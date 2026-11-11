@@ -13,7 +13,6 @@ import {
 
 test.use({ viewport: wideWindow });
 
-/** The 作用範圍 drawn on the map. */
 const effectLayer = (page: Page) => page.locator("svg.map [data-effect-cells]");
 const legendItem = (page: Page) =>
   page.getByRole("list", { name: "圖例" }).getByText("作用範圍", { exact: true });
@@ -43,7 +42,6 @@ test("TB-1: selecting a 留聲機 draws its 18 cells and lists 作用範圍; sel
   expect(await drawnCells(page)).toEqual(cells.map(cellKey).sort());
   await expect(legendItem(page)).toBeVisible();
 
-  // The stripes cover the device's own cell; the click still reaches the device.
   await deviceByIndex(page, index).click();
   await expect(effectLayer(page)).toHaveCount(0);
   await expect(legendItem(page)).toHaveCount(0);
@@ -119,10 +117,6 @@ test("EP-8: a 鹽坨子炮 HidenCnnon activates draws its 作用範圍 only whil
   expect(await drawnCells(page)).toEqual(cells.map(cellKey).sort());
 });
 
-/**
- * A second at which an enemy individual stands in `cells`, off any device's cell and more than a
- * cell from any other individual, so a click on it can reach nothing else.
- */
 function enemyInside(level: Level, cells: string[]) {
   const timeline = buildTimeline(level);
   const deviceCells = new Set(level.devices.map((d) => cellKey(d.cell)));
