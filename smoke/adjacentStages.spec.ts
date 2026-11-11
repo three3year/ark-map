@@ -4,12 +4,9 @@ import { expectVariantShown, seek, siteStage, timeDisplay } from "./levelPage.ts
 const prevLink = (page: Page) => page.locator('a[data-adjacent="prev"]');
 const nextLink = (page: Page) => page.locator('a[data-adjacent="next"]');
 
-const label = (id: string) => {
-  const { code, name } = siteStage(id);
-  return code.trim() ? `${code} ${name}` : name;
-};
+const label = (id: string) => siteStage(id).name;
 
-test("a 集成戰略 node's links name its neighbours by code and name, telling apart the same ISW-NO", async ({
+test("a 集成戰略 node's links name its neighbours by name alone, without the shared ISW-NO", async ({
   page,
 }) => {
   expect(siteStage("ro1_n_1_1").code).toBe(siteStage("ro1_n_1_2").code);
