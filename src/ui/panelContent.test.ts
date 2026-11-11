@@ -194,6 +194,32 @@ describe("難度修正 lines", () => {
     ]);
   });
 
+  it("names a preset device of another level by its kind, an unknown one by its alias", () => {
+    const presets = {
+      key: "level_predefines_enable",
+      difficulties: [],
+      blackboard: [
+        { key: "trap_264_xdplat#20", value: 0, valueStr: null },
+        { key: "trap_made_up#1", value: 1, valueStr: null },
+      ],
+    };
+    expect(lines(loadFixtureLevel("level_main_04-04"), [presets])[0]?.params).toEqual([
+      { label: "伊斯貝塔高台", value: "關", hint: null },
+      { label: "trap_made_up#1", value: "開", hint: null },
+    ]);
+  });
+
+  it("a *_scale parameter named 倍率 gets no ×, and at 1 still shows", () => {
+    const env = {
+      key: "env_gbuff_new",
+      difficulties: [],
+      blackboard: [{ key: "damage_scale", value: 1, valueStr: null }],
+    };
+    expect(lines(loadFixtureLevel("level_main_04-04"), [env])[0]?.params).toEqual([
+      { label: "傷害倍率", value: "1", hint: null },
+    ]);
+  });
+
   it("names a key it does not know 未知修正", () => {
     const unknown = {
       key: "made_up_modifier",
