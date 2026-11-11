@@ -246,7 +246,7 @@ interface AreaDraft {
 export function buildStageIndex(
   tables: StageIndexTables,
   facts: Map<string, LevelFacts>,
-): { index: StageIndex; skipped: SkippedStage[] } {
+): { index: Omit<StageIndex, "versions">; skipped: SkippedStage[] } {
   const { cn, tw } = tables;
   const links = variantLinks(cn.stage.stages);
   const selected = selectStages(tables);

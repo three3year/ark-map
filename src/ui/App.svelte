@@ -83,7 +83,7 @@
     (e: unknown) => (error = String(e)),
   );
 
-  const footer = footerItems();
+  const footer = $derived(index ? footerItems(index.versions) : []);
 
   const stages: Record<string, { area: Area; stage: StageEntry }> = $derived(
     Object.fromEntries(

@@ -29,7 +29,13 @@ const links = [
 
 async function expectFooter(page: Page) {
   const footer = page.locator("footer");
-  await expect(footer).toContainText("陸服 · 台服 · 頭像與裝置圖 · 參考 PRTS · 參考 PRTS.Map");
+  // The version number is optional: the site still deploys when upstream changes its format.
+  const dataVersion = String.raw`(?: \S+)? · \d{4}-\d{2}-\d{2} \d{2}:\d{2}\(UTC\+8\)`;
+  await expect(footer.locator("p").first()).toHaveText(
+    new RegExp(
+      `^陸服${dataVersion} · 台服${dataVersion} · 頭像與裝置圖 · 參考 PRTS · 參考 PRTS\\.Map$`,
+    ),
+  );
   for (const [label, href, hint] of links) {
     const link = footer.getByRole("link", { name: label, exact: true });
     await expect(link).toHaveAttribute("href", href!);

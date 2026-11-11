@@ -15,7 +15,7 @@
         target="_blank"
         rel="noopener noreferrer"
         title={item.hint}>{item.label}</a
-      >{/each}
+      >{#if item.checkedAt}{strings.footerDataVersion(item.version, item.checkedAt)}{/if}{/each}
   </p>
   <p>{strings.footerNotice}</p>
 </footer>

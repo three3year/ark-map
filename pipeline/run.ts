@@ -1,9 +1,14 @@
 // Data pipeline entry point: fetch raw game data (cached by blob sha), trim every level the
-// stage index covers into the site's JSON under public/data/, write the stage index and the
-// 名稱表, and copy the avatars those levels use.
+// stage index covers into the site's JSON under public/data/, write the stage index (with each
+// server's 資料版本) and the 名稱表, and copy the avatars those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
+import {
+  isKnownModifierKey,
+  type DataVersion,
+  type NameTable,
+  type StageIndex,
+} from "../src/level/index.ts";
 import { sources, type RepoSource } from "../src/dataSources.ts";
 import { outDir, rawCacheDir } from "./config.ts";
 import {
@@ -13,7 +18,15 @@ import {
   convertLevel,
   siteLevelFile,
 } from "./convertLevel.ts";
-import { fetchCached, fetchJson, fetchStats, listTree, type TreeListing } from "./fetchCached.ts";
+import { dataVersion, versionFile } from "./dataVersion.ts";
+import {
+  fetchCached,
+  fetchJson,
+  fetchStats,
+  listTree,
+  sourceCacheDir,
+  type TreeListing,
+} from "./fetchCached.ts";
 import { pipelineOutcome, type ConversionFailure } from "./outcome.ts";
 import type {
   RawActivityTable,
@@ -37,6 +50,7 @@ import {
 } from "./stageIndex.ts";
 import { terrainTable } from "./terrainTable.ts";
 
+const runAt = new Date();
 const started = performance.now();
 const log = (message: string) => console.log(`[資料管線] ${message}`);
 
@@ -88,6 +102,41 @@ async function gameTables(source: RepoSource, listing: TreeListing | null): Prom
     roguelike: await table<RawRoguelikeTopicTable>(source, listing, "roguelike_topic_table"),
   };
 }
+
+/** The 資料版本; a missing or unreadable 版號 file warns and leaves the version out. */
+async function readDataVersion(
+  name: string,
+  source: RepoSource,
+  listing: TreeListing | null,
+): Promise<DataVersion> {
+  const file = `excel/${versionFile}`;
+  const body =
+    listing && !listing.has(versionFile)
+      ? null
+      : await fetchCached(source, file, listing?.get(versionFile));
+  const cachedAt = await stat(path.join(sourceCacheDir(source), file)).then(
+    (s) => s.mtime,
+    () => null,
+  );
+  const { version, warn } = dataVersion({
+    listing,
+    body: body?.toString("utf8") ?? null,
+    cachedAt,
+    now: runAt,
+  });
+  if (warn) {
+    console.warn(`[資料管線] 讀不到${name}的版號(${file} 的 dataVersion),頁尾只顯示確認時間`);
+  }
+  return version;
+}
+
+const versions: StageIndex["versions"] = {
+  cn: await readDataVersion("陸服", sources.cn, cnExcel),
+  tw: await readDataVersion("台服", sources.tw, twExcel),
+};
+log(
+  `資料版本: 陸服 ${versions.cn.version ?? "(無版號)"}、台服 ${versions.tw.version ?? "(無版號)"}`,
+);
 
 const tables = {
   cn: await gameTables(sources.cn, cnExcel),
@@ -225,7 +274,8 @@ await forEachLimit(wanted, 8, async (levelPath) => {
   if (++done % 250 === 0) log(`  ${done}/${wanted.length}`);
 });
 
-const { index, skipped } = buildStageIndex(tables, facts);
+const built = buildStageIndex(tables, facts);
+const index: StageIndex = { ...built.index, versions };
 await writeJson(path.join(outDir, "index.json"), index);
 const sortedNames = Object.keys(names.enemies).sort();
 const terrain = terrainTable([...tileKeys].sort(), tables.cn.stage, tables.tw.stage);
@@ -244,7 +294,7 @@ log(
     `台服、陸服都沒有名稱 ${unnamedTiles.length} 種`,
 );
 
-const outcome = pipelineOutcome(skipped, failures);
+const outcome = pipelineOutcome(built.skipped, failures);
 if (outcome.missing.length > 0) {
   log(`略過 ${outcome.missing.length} 個關卡:`);
   for (const s of outcome.missing) {

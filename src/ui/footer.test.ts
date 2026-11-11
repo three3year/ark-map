@@ -1,18 +1,28 @@
 import { describe, expect, it } from "vitest";
+import type { StageIndex } from "../level/index.ts";
 import { footerItems } from "./footer.ts";
 
+const versions: StageIndex["versions"] = {
+  cn: { version: "79.2.0", checkedAt: "2026-11-11T06:30:00.000Z" },
+  tw: { version: "52.0.0", checkedAt: "2026-10-18T17:05:30Z" },
+};
+
 describe("footerItems", () => {
-  it("lists 陸服, 台服, 頭像與裝置圖, then the two 參考來源, each with its link and hint", () => {
-    expect(footerItems()).toEqual([
+  it("lists 陸服 and 台服 with their 資料版本 in 台灣時間, 頭像與裝置圖, then the two 參考來源", () => {
+    expect(footerItems(versions)).toEqual([
       {
         label: "陸服",
         url: "https://github.com/Kengxxiao/ArknightsGameData",
         hint: "資料來源:Kengxxiao/ArknightsGameData",
+        version: "79.2.0",
+        checkedAt: "2026-11-11 14:30(UTC+8)",
       },
       {
         label: "台服",
         url: "https://github.com/ArknightsAssets/ArknightsGamedata",
         hint: "資料來源:ArknightsAssets/ArknightsGamedata",
+        version: "52.0.0",
+        checkedAt: "2026-10-19 01:05(UTC+8)",
       },
       {
         label: "頭像與裝置圖",
@@ -30,5 +40,17 @@ describe("footerItems", () => {
         hint: "出兵表絕對時刻的算法參考 PRTS.Map",
       },
     ]);
+  });
+
+  it("a server without a version number has only the time", () => {
+    const [cn] = footerItems({
+      ...versions,
+      cn: { version: null, checkedAt: "2026-11-11T06:30:00Z" },
+    });
+    expect(cn).toMatchObject({
+      label: "陸服",
+      version: null,
+      checkedAt: "2026-11-11 14:30(UTC+8)",
+    });
   });
 });
