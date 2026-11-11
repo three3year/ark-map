@@ -70,7 +70,7 @@ function chosenOffsets(
     const range = tables.ranges[id];
     if (!range) {
       onUnknownRangeId(id, token.inst.characterKey);
-      continue;
+      return [];
     }
     if (range.grids.some((g) => g.row !== 0 || g.col !== 0)) return range.grids;
   }

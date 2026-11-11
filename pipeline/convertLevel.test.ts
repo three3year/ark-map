@@ -819,4 +819,24 @@ describe("作用範圍", () => {
     const facilities = level.devices.filter((d) => d.key === "trap_271_fowstn");
     expect(facilities.map((d) => d.effectCells)).toEqual([[], []]);
   });
+
+  it.each([
+    ["a skill", "level_main_05-10", "trap_007_ballis"],
+    ["a talent", "level_act39side_08", "trap_196_cnnon"],
+  ])(
+    "a 階段 range id the range table lacks gives none, though %s has a range",
+    (_source, levelName, key) => {
+      const { cn, tw } = rawCharacterTables();
+      cn[key]!.phases = [{ rangeId: "x-404" }];
+      const unknown: string[] = [];
+      const level = convertLevel(levelName, rawFixture(levelName), enemyCatalog(), {
+        devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
+        onUnknownRangeId: (rangeId) => unknown.push(rangeId),
+      });
+      const devices = level.devices.filter((d) => d.key === key);
+      expect(devices.length).toBeGreaterThan(0);
+      expect(devices.map((d) => d.effectCells)).toEqual(devices.map(() => []));
+      expect(unknown).toEqual(devices.map(() => "x-404"));
+    },
+  );
 });
