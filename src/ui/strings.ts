@@ -79,6 +79,9 @@ export const strings = {
     `${source ? `${source}・` : ""}第 ${fragment + 1} 段・組鍵 ${key}`,
   candidateWeight: (weight: number, share: number) => `權重 ${weight}(${Math.round(share * 100)}%)`,
   noSpawn: "不出兵",
+  /** Items of a list in running text, e.g. a 隱藏組's contents. */
+  list: (items: readonly string[]) => items.join("、"),
+  enemyCount: (enemy: string, count: number) => `${enemy} × ${count}`,
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
   hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
@@ -136,12 +139,20 @@ export const strings = {
   maxLifePoint: "生命值",
   initialCost: "初始費用",
   maxCost: "費用上限",
+  /** The 關卡資訊's numbers on one line, each by its label. */
+  levelNumbers: (numbers: readonly (readonly [label: string, value: number])[]) =>
+    numbers.map(([label, value]) => `${label} ${value}`).join(" · "),
   modifiers: (variant: string) => `難度修正(${variant})`,
   noModifiers: "這個變體沒有難度修正",
   modifierMovesEnemies: "已套用到地圖上的移動",
   modifierUnknown: "未知修正",
-  deviceOn: "開",
-  deviceOff: "關",
+  /** A 啟用預設裝置 entry's state; `count` devices of one name share it. */
+  presetDeviceState: (count: number, on: boolean) =>
+    `${count > 1 ? `× ${count} ` : ""}${on ? "開" : "關"}`,
+  /** A 難度修正 value of the multiplying kind. */
+  multiplier: (value: number) => `×${value}`,
+  /** An 環境機制's mouse-over text: its key and its target. */
+  environmentHint: (key: string, target: string) => `${key} · ${target}`,
   /** 難度修正 names by key. */
   modifierKeys: {
     ebuff_attribute: "敵人屬性倍率",
@@ -297,7 +308,7 @@ export const strings = {
   attributeTooltip: (base: string, multiplier: number, addition: number) =>
     [
       `基礎 ${base}`,
-      multiplier !== 1 ? `×${multiplier}` : null,
+      multiplier !== 1 ? strings.multiplier(multiplier) : null,
       addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
     ]
       .filter((part) => part !== null)

@@ -47,9 +47,9 @@ function actionsLabel(level: Level, names: NameTable, actions: Action[]): string
       return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
     }
     if (!action.key) return [];
-    return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];
+    return [strings.enemyCount(level.enemies[action.key]?.name ?? action.key, action.count)];
   });
-  return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
+  return parts.length > 0 ? strings.list([...new Set(parts)]) : strings.noSpawn;
 }
 
 export const candidateLabel = (
@@ -136,7 +136,7 @@ export function hiddenGroupText(
     name: actionsLabel(level, names, actions),
     hint: name,
     note: parts.length > 0 ? strings.hiddenGroupNote(parts) : null,
-    badge: strings.hiddenGroupBadge(openers.length > 0 ? openers.join("、") : variant),
+    badge: strings.hiddenGroupBadge(openers.length > 0 ? strings.list(openers) : variant),
   };
 }
 
@@ -358,17 +358,17 @@ function entryValue(
   { names }: ModifierContext,
 ): string {
   if (valueStr === null) {
-    return modifierKind(modifierKey) === "multiply" ? `×${value}` : String(value);
+    return modifierKind(modifierKey) === "multiply" ? strings.multiplier(value) : String(value);
   }
   const parts = valueStr.split("|");
-  if (key === "location") return parts.join("、");
-  return parts
-    .map((part) =>
+  if (key === "location") return strings.list(parts);
+  return strings.list(
+    parts.map((part) =>
       key === "tile"
         ? (names.terrain[part]?.name ?? part)
         : (level.enemies[part]?.name ?? names.enemies[part] ?? names.devices[part]?.name ?? part),
-    )
-    .join("、");
+    ),
+  );
 }
 
 export interface ModifierContext {
@@ -401,7 +401,7 @@ function presetDeviceParams(
   }
   return [...counts.values()].map(({ name, on, count }) => ({
     label: name,
-    value: `${count > 1 ? `× ${count} ` : ""}${on ? strings.deviceOn : strings.deviceOff}`,
+    value: strings.presetDeviceState(count, on),
     hint: null,
   }));
 }
@@ -431,7 +431,8 @@ function modifierLine(
   const name = isKnownModifierKey(modifier.key)
     ? strings.modifierKeys[modifier.key]
     : strings.modifierUnknown;
-  const hint = environment && target !== null ? `${modifier.key} · ${target}` : modifier.key;
+  const hint =
+    environment && target !== null ? strings.environmentHint(modifier.key, target) : modifier.key;
   const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
@@ -460,9 +461,9 @@ export const modifierLines = (
 ): ModifierLine[] => modifiers.flatMap((modifier) => modifierLine(level, modifier, context) ?? []);
 
 export const levelNumbers = (options: LevelOptions): string =>
-  [
-    `${strings.characterLimit} ${options.characterLimit}`,
-    `${strings.maxLifePoint} ${options.maxLifePoint}`,
-    `${strings.initialCost} ${options.initialCost}`,
-    `${strings.maxCost} ${options.maxCost}`,
-  ].join(" · ");
+  strings.levelNumbers([
+    [strings.characterLimit, options.characterLimit],
+    [strings.maxLifePoint, options.maxLifePoint],
+    [strings.initialCost, options.initialCost],
+    [strings.maxCost, options.maxCost],
+  ]);
