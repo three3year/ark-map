@@ -1,12 +1,11 @@
 <script lang="ts">
   import {
     affectsMovement,
-    isKnownModifierKey,
-    type BlackboardEntry,
     type EnemyRef,
     type LevelOptions,
     type Modifier,
   } from "../level/index.ts";
+  import { modifierText } from "./panelContent.ts";
   import { strings } from "./strings.ts";
 
   interface Props {
@@ -25,25 +24,6 @@
     [strings.initialCost, options.initialCost],
     [strings.maxCost, options.maxCost],
   ] as const);
-
-  function modifierName(key: string): string {
-    return isKnownModifierKey(key) ? strings.modifierKeys[key] : strings.modifierUnknown;
-  }
-
-  /** Multiplier modifiers' numbers read "×2"; enemy lists ("a|b") read as names. */
-  function entryValue(modifierKey: string, { key, value, valueStr }: BlackboardEntry): string {
-    if (valueStr === null) {
-      const multiplies = modifierKey === "ebuff_attribute" || modifierKey.endsWith("_mul");
-      return multiplies ? `×${value}` : String(value);
-    }
-    if (key === "enemy" || key === "enemy_exclude") {
-      return valueStr
-        .split("|")
-        .map((id) => enemies[id]?.name ?? id)
-        .join("、");
-    }
-    return valueStr;
-  }
 </script>
 
 <section class="level-info">
@@ -62,9 +42,10 @@
   {:else}
     <ul class="modifiers">
       {#each modifiers as modifier, i (i)}
+        {@const text = modifierText(modifier, enemies)}
         <li data-modifier={modifier.key}>
           <div class="head">
-            <strong>{modifierName(modifier.key)}</strong>
+            <strong>{text.name}</strong>
             <code>{modifier.key}</code>
             {#if affectsMovement(modifier)}
               <span class="moves" title={strings.modifierMovesEnemiesHint}>
@@ -72,12 +53,12 @@
               </span>
             {/if}
           </div>
-          {#if modifier.blackboard.length > 0}
+          {#if text.params.length > 0}
             <ul class="blackboard">
-              {#each modifier.blackboard as entry, j (j)}
+              {#each text.params as { label, value }, j (j)}
                 <li>
-                  <span class="key">{strings.blackboardKeys[entry.key] ?? entry.key}</span>
-                  {entryValue(modifier.key, entry)}
+                  <span class="key">{label}</span>
+                  {value}
                 </li>
               {/each}
             </ul>

@@ -1,19 +1,12 @@
 <script lang="ts">
+  import type { Level } from "../level/index.ts";
   import {
-    deviceActionKind,
-    isSpawn,
-    type Action,
-    type Branch,
-    type Level,
-  } from "../level/index.ts";
-  import {
-    actionAt,
     markedSwitches,
     type ConditionalTrigger,
-    type RandomCandidate,
     type RandomGroup,
     type SpawnPlan,
   } from "../timeline/index.ts";
+  import { branchLabel, candidateLabel } from "./panelContent.ts";
   import { roundTenth } from "./playback.ts";
   import { strings } from "./strings.ts";
   import SwitchMark from "./SwitchMark.svelte";
@@ -42,31 +35,6 @@
       .filter(({ branch }) => branch.deviceOnly),
   );
 
-  function deviceName(alias: string): string {
-    return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
-  }
-
-  /**
-   * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
-   * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
-   */
-  function actionsLabel(actions: Action[]): string {
-    const parts = actions.flatMap((action) => {
-      if (!isSpawn(action)) {
-        const kind = deviceActionKind(action);
-        if (kind === null || !action.key) return [];
-        const name = deviceName(action.key);
-        return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
-      }
-      if (!action.key) return [];
-      return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];
-    });
-    return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
-  }
-
-  const candidateLabel = (candidate: RandomCandidate) =>
-    actionsLabel(candidate.actions.map((ref) => actionAt(level, ref)));
-
   /** The wave (when there are several) or the 條件出兵 a random group is in. */
   function groupSource(group: RandomGroup): string | null {
     if (group.branchIndex !== null) {
@@ -74,8 +42,6 @@
     }
     return multiWave ? strings.wave(group.waveIndex) : null;
   }
-
-  const branchLabel = (branch: Branch) => actionsLabel(branch.phases.flatMap((p) => p.actions));
 
   function setTriggerSecond(branch: number, value: string) {
     const seconds = Number(value);
@@ -124,7 +90,7 @@
             >
               {#each group.candidates as candidate, c (c)}
                 <option value={c}>
-                  {candidateLabel(candidate)} ・ {strings.candidateWeight(
+                  {candidateLabel(level, candidate)} ・ {strings.candidateWeight(
                     candidate.weight,
                     candidate.share,
                   )}
@@ -149,7 +115,7 @@
                   onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
               />
               <SwitchMark kind="conditional" {number} />
-              {branchLabel(branch)}
+              {branchLabel(level, branch)}
               <span class="muted">{branch.key}</span>
             </label>
             {#if trigger !== undefined && trigger.wave === wave}
@@ -179,7 +145,7 @@
         <ul>
           {#each deviceOnly as { branch, index } (index)}
             <li data-device-only={index}>
-              {branchLabel(branch)} <span class="muted">{branch.key}</span>
+              {branchLabel(level, branch)} <span class="muted">{branch.key}</span>
             </li>
           {/each}
         </ul>
