@@ -69,6 +69,9 @@ body {
 .segmented > button:last-child {
   border-radius: 0 999px 999px 0;
 }
+.segmented > button:only-child {
+  border-radius: 999px;
+}
 .segmented > button[aria-pressed="true"] {
   z-index: 1;
   background: var(--accent);
