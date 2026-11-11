@@ -102,6 +102,7 @@ function field(waves: Wave[], device: Partial<Device> = {}): Level {
         baseAttackTime: 0,
         attackSpeed: 100,
         rangeRadius: 0,
+        applyWay: "NONE",
         massLevel: 0,
         lifePointReduce: 1,
         notCountInTotal: false,
