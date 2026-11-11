@@ -1,4 +1,3 @@
-// Seam: one server's 資料版本 from what the pipeline could fetch.
 import { describe, expect, it } from "vitest";
 import { dataVersion } from "./dataVersion.ts";
 

@@ -103,11 +103,9 @@
   const markGap = 0.024;
   const markDigitWidth = 0.08;
   const markPadding = 0.064;
-  /** The device square runs from -deviceHalfSide to deviceHalfSide on both axes. */
   const deviceHalfSide = 0.3;
   const markWidth = ({ number }: DeviceSwitchMark) =>
     Math.max(markSide, markDigitWidth * String(number).length + markPadding);
-  /** The marks in a row leftward from `corner`: the first's bottom-right corner sits on it. */
   function placedMarks(marks: DeviceSwitchMark[], corner: Vec2) {
     let right = corner.x;
     return marks.map((mark) => {

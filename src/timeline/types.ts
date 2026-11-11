@@ -17,7 +17,6 @@ export interface Individual extends IndividualId, Trajectory {
   marks: SwitchMark[];
 }
 
-/** A device the 基準時間軸 lists at some second, on the field or removed. */
 export interface TimelineDevice extends IndexedDevice {
   /** 開關標記 of every 開關 acting on it: the same whatever the second, 開關狀態 or 移除. */
   marks: DeviceSwitchMark[];

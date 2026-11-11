@@ -1,4 +1,3 @@
-// The 頁尾's first line: the 資料來源 the pipeline downloads from, then the 參考來源.
 import { repoUrl, sources, type RepoSource } from "../dataSources.ts";
 import type { DataVersion, StageIndex } from "../level/index.ts";
 import { strings } from "./strings.ts";
@@ -6,11 +5,8 @@ import { strings } from "./strings.ts";
 export interface FooterItem {
   label: string;
   url: string;
-  /** The link's mouse-over hint. */
   hint: string;
-  /** The 資料版本's version number; only 陸服 and 台服 have one, and it may be missing. */
   version?: string | null;
-  /** When the 資料版本 was last confirmed, in 台灣時間, e.g. "2026-11-11 14:30(UTC+8)"; only 陸服 and 台服. */
   checkedAt?: string;
 }
 
@@ -36,7 +32,6 @@ function serverItem(label: string, source: RepoSource, data: DataVersion): Foote
   };
 }
 
-/** 陸服, 台服, 頭像與裝置圖 (one repo, one item), 參考 PRTS, 參考 PRTS.Map, in that order. */
 export function footerItems(versions: StageIndex["versions"]): FooterItem[] {
   const labels = strings.footerLabels;
   return [

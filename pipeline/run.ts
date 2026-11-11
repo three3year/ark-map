@@ -1,6 +1,3 @@
-// Data pipeline entry point: fetch raw game data (cached by blob sha), trim every level the
-// stage index covers into the site's JSON under public/data/, write the stage index (with each
-// server's 資料版本) and the 名稱表, and copy the avatars those levels use.
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -103,7 +100,6 @@ async function gameTables(source: RepoSource, listing: TreeListing | null): Prom
   };
 }
 
-/** The 資料版本; a missing or unreadable 版號 file warns and leaves the version out. */
 async function readDataVersion(
   name: string,
   source: RepoSource,

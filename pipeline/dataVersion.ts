@@ -1,4 +1,3 @@
-// One server's 資料版本, from what the pipeline could fetch of its `excel` directory.
 import type { DataVersion } from "../src/level/index.ts";
 
 /** The 版號 file, relative to the server's `excel` directory. */
@@ -18,10 +17,7 @@ export function dataVersion({ listing, body, cachedAt, now }: DataVersionInput):
   version: DataVersion;
   warn: boolean;
 } {
-  // Without the listing the pipeline trusts the cache, so the cached file's age is the newest
-  // confirmation there is.
   const checkedAt = (listing ? now : (cachedAt ?? now)).toISOString();
-  // A listing without the file means upstream dropped it; a cached copy would be a stale version.
   const listed = !listing || listing.has(versionFile);
   const version = listed && body !== null ? parseVersion(body) : null;
   return { version: { version, checkedAt }, warn: version === null };

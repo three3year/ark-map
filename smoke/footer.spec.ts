@@ -1,4 +1,3 @@
-// Smoke test: the 頁尾 in the built site (dist/), against the index the site ships.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -30,7 +29,6 @@ const links = [
 
 async function expectFooter(page: Page) {
   const footer = page.locator("footer");
-  // The version number is optional: the site still deploys when upstream changes its format.
   const dataVersion = String.raw`(?: \S+)? · \d{4}-\d{2}-\d{2} \d{2}:\d{2}\(UTC\+8\)`;
   await expect(footer.locator("p").first()).toHaveText(
     new RegExp(
@@ -73,7 +71,6 @@ test.describe("wide screen", () => {
     await expectFooter(page);
     const footer = page.locator("footer");
 
-    // The map's column: the 頁尾 comes last in it, under everything else there.
     const column = await footer.evaluate((f) => {
       const parent = f.parentElement!;
       const others = [...parent.children].filter((c) => c !== f);
@@ -99,7 +96,6 @@ test.describe("phone", () => {
   test("scrolled to the bottom of a level page, the 頁尾 ends above the drawer's button", async ({
     page,
   }) => {
-    // Taller than the window: the page scrolls.
     await page.goto("#/level/main_15-12?v=normal");
     await expect(page.locator("svg.map")).toBeVisible();
     await expectFooter(page);

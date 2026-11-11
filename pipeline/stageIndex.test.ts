@@ -6,7 +6,6 @@ import { buildStageIndex, indexedLevelPaths, levelFacts, type LevelFacts } from 
 
 const tables = rawTables();
 
-/** The index without the 資料版本, which the pipeline adds from other files. */
 type Index = Omit<StageIndex, "versions">;
 
 /** Every level file the index asks for exists and has no difficulty modifiers. */

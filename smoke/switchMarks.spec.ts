@@ -246,10 +246,8 @@ test("DS-2: the legend lists the mark kinds of the wave's enemies, whatever the 
   await expect(legend.locator("[data-switch-mark]")).toHaveText("1");
 });
 
-/** ISW-NO 公害: its 開關 activate devices; the 隨機出兵組 t1 picks one of three, 寶箱 first. */
 const gonghai = "ro4_n_1_2";
 
-/** Device `alias` of `stage`'s first variant: its index and its first whole second on the field. */
 function deviceShowing(stage: string, alias: string, options: TimelineOptions) {
   const level = siteLevel(stage);
   const difficulty = siteStage(stage).variants[0]!.difficulty;
@@ -324,7 +322,6 @@ test("ISW-NO 第 2 波: the legend lists the kind only a device carries, its box
 test("BD-1: a device's mark lets clicks and right-clicks through to it; removed, it keeps the mark and fades", async ({
   page,
 }) => {
-  // 公害 has no 擋路裝置 to remove; BD-1's shelter, withdrawn by a 隱藏組, stands from the start.
   const stage = "act21mini_01";
   const shelter = deviceShowing(stage, "trap_141_sheltr#5", {});
   expect(shelter.device.blocker).toBe(true);

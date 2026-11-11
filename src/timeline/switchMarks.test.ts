@@ -237,7 +237,6 @@ describe("敵人個體", () => {
 });
 
 describe("裝置", () => {
-  /** The device of `alias` on the field, at the first whole second it is there. */
   function onField(timeline: Timeline, alias: string) {
     for (let t = 0; t < 600; t++) {
       const device = timeline.devicesAt(t).find((d) => d.device.alias === alias);
