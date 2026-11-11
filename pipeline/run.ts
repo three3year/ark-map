@@ -4,7 +4,8 @@
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
-import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
+import { sources, type RepoSource } from "../src/dataSources.ts";
+import { outDir, rawCacheDir } from "./config.ts";
 import {
   buildDeviceCatalog,
   buildEnemyCatalog,
@@ -240,7 +241,7 @@ await writeJson(path.join(outDir, "names.json"), {
 const unnamedTiles = [...tileKeys].filter((key) => !terrain[key]);
 log(
   `地形 ${tileKeys.size} 種,地形表收錄 ${Object.keys(terrain).length} 種;` +
-    `台服、國服都沒有名稱 ${unnamedTiles.length} 種`,
+    `台服、陸服都沒有名稱 ${unnamedTiles.length} 種`,
 );
 
 const outcome = pipelineOutcome(skipped, failures);

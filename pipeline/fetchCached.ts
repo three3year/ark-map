@@ -4,7 +4,8 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { rawCacheDir, type RepoSource } from "./config.ts";
+import { rawCacheDir } from "./config.ts";
+import type { RepoSource } from "../src/dataSources.ts";
 
 const maxConcurrent = 6;
 const maxAttempts = 7;
