@@ -242,7 +242,16 @@ export interface Area {
   sections: Section[];
 }
 
+/** 資料版本: one server's game data version and when the pipeline confirmed it was current. */
+export interface DataVersion {
+  /** `dataVersion` from `excel/gamedata_const.json`; null when the pipeline could not read it. */
+  version: string | null;
+  /** ISO 8601. */
+  checkedAt: string;
+}
+
 /** Areas in display order: mainline chapters, activities newest first, campaign regions, themes. */
 export interface StageIndex {
   areas: Area[];
+  versions: { cn: DataVersion; tw: DataVersion };
 }

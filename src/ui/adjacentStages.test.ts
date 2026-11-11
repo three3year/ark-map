@@ -37,6 +37,10 @@ const index: StageIndex = {
     ),
     area("lonely", [stage("only")]),
   ],
+  versions: {
+    cn: { version: "79.2.0", checkedAt: "2026-11-11T06:30:00.000Z" },
+    tw: { version: "52.0.0", checkedAt: "2026-11-11T06:30:00.000Z" },
+  },
 };
 
 /** Where a link leads: the stage it names, and the stage and variant its href opens. */

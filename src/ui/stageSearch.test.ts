@@ -30,6 +30,10 @@ const index: StageIndex = {
       [stage("ro2_n_2_1", "ISW-NO", "決鬥")],
     ]),
   ],
+  versions: {
+    cn: { version: "79.2.0", checkedAt: "2026-11-11T06:30:00.000Z" },
+    tw: { version: "52.0.0", checkedAt: "2026-11-11T06:30:00.000Z" },
+  },
 };
 
 const found = (query: string) =>
