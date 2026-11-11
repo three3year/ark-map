@@ -4,7 +4,8 @@
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isKnownModifierKey, type NameTable } from "../src/level/index.ts";
-import { outDir, rawCacheDir, sources, type RepoSource } from "./config.ts";
+import { sources, type RepoSource } from "../src/dataSources.ts";
+import { outDir, rawCacheDir } from "./config.ts";
 import {
   buildDeviceCatalog,
   buildEnemyCatalog,

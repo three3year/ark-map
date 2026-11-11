@@ -13,7 +13,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { sources, type RepoSource } from "./config.ts";
+import { sources, type RepoSource } from "../src/dataSources.ts";
 import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
