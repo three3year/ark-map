@@ -1,18 +1,23 @@
 <script lang="ts">
-  import type { Level, Modifier } from "../level/index.ts";
+  import type { Level, Modifier, NameTable } from "../level/index.ts";
+  import type { SpawnPlan } from "../timeline/index.ts";
   import { levelNumbers, modifierLines } from "./panelContent.ts";
   import { strings } from "./strings.ts";
+  import SwitchMark from "./SwitchMark.svelte";
 
   interface Props {
     level: Level;
     /** The 難度修正 the shown variant applies. */
     modifiers: Modifier[];
+    names: NameTable;
+    /** The shown variant's spawn plan, which numbers the 隱藏組 marks. */
+    plan: SpawnPlan;
     /** Variant name, e.g. "突襲". */
     variantName: string;
   }
-  let { level, modifiers, variantName }: Props = $props();
+  let { level, modifiers, names, plan, variantName }: Props = $props();
 
-  const lines = $derived(modifierLines(level, modifiers));
+  const lines = $derived(modifierLines(level, modifiers, { names, plan }));
 </script>
 
 <section class="level-info">
@@ -26,9 +31,12 @@
       {#each lines as line, i (i)}
         <li data-modifier={line.key}>
           <strong title={line.hint}>{line.name}</strong>
+          {#each line.hiddenGroups as { name, number } (name)}
+            <span class="mark" title={name}><SwitchMark kind="hiddenGroup" {number} /></span>
+          {/each}
           {#if line.value !== null}
             {line.value}
-          {:else}
+          {:else if line.params.length > 0}
             —
             {#each line.params as { label, value, hint }, j (j)}
               {#if j > 0}、{/if}<span class="param" title={hint ?? undefined}
@@ -71,5 +79,9 @@
   }
   .key {
     color: var(--muted);
+  }
+  .mark {
+    display: inline-flex;
+    vertical-align: middle;
   }
 </style>

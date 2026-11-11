@@ -13,10 +13,18 @@ import {
   type Level,
   type LevelOptions,
   type Modifier,
+  type NameTable,
   type VariantId,
   targetsEnemy,
 } from "../level/index.ts";
-import { actionAt, allActions, levelGroups, type RandomCandidate } from "../timeline/index.ts";
+import {
+  actionAt,
+  allActions,
+  levelGroups,
+  markedSwitches,
+  type RandomCandidate,
+  type SpawnPlan,
+} from "../timeline/index.ts";
 import { strings, variantLabel } from "./strings.ts";
 
 /** The device an action's key names: by alias, else (an alias-less device) by its kind. */
@@ -293,11 +301,19 @@ export interface ModifierLine {
   /** The modifier's raw key. */
   key: string;
   name: string;
-  /** The name's mouse-over text: the raw key. */
+  /** The name's mouse-over text: the raw key, and an 環境機制's target. */
   hint: string;
   /** The lone `value` that reads straight after the name; `params` is then empty. */
   value: string | null;
+  /** The 隱藏組 the modifier opens or closes, drawn as their 開關標記 after the name. */
+  hiddenGroups: HiddenGroupMark[];
   params: ModifierParam[];
+}
+
+/** A 隱藏組 by its 開關標記's number, which the 開關面板 gives it. */
+export interface HiddenGroupMark {
+  name: string;
+  number: number;
 }
 
 const multiplies = (modifierKey: string) =>
@@ -311,35 +327,132 @@ function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): b
   return true;
 }
 
+/** Parameters the game reads for its own bookkeeping (UI plugins, aliases, ...): never shown. */
+const internalKeys = new Set([
+  "rune_alias",
+  "ui_plugin_name",
+  "ui_plugin_path",
+  "ui_plugin_position",
+  "camera_plugin_name",
+  "extra_load_bgm",
+  "disable_ui_hub",
+  "disable_click_character_info",
+  "at_root",
+  "include_predefined",
+]);
+
+/** 環境機制 and 環境全域效果: their `key` names the mechanism, shown only in the name's hint. */
+const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
+
+const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_group_disable"]);
+
 /** Parameters naming whom a modifier applies to; alone, they change nothing. */
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
-/** Multiplier modifiers' numbers read "×2"; enemy lists ("a|b") read as names. */
+/**
+ * Multiplier modifiers' numbers read "×2". Text lists ("a|b") read as names, each once: `tile`'s
+ * keys as 地形, any other part as the enemy or device kind it names, else as is. Cells keep their
+ * order and repeats.
+ */
 function entryValue(
+  level: Level,
   modifierKey: string,
   { key, value, valueStr }: BlackboardEntry,
-  enemies: Record<string, EnemyRef>,
+  { names }: ModifierContext,
 ): string {
   if (valueStr === null) return multiplies(modifierKey) ? `×${value}` : String(value);
-  if (key === "enemy" || key === "enemy_exclude") {
-    return valueStr
-      .split("|")
-      .map((id) => enemies[id]?.name ?? id)
-      .join("、");
-  }
-  return valueStr;
+  const parts = valueStr.split("|");
+  if (key === "location") return parts.join("、");
+  const shown = parts.map((part) =>
+    key === "tile"
+      ? (names.terrain[part]?.name ?? part)
+      : (level.enemies[part]?.name ??
+        names.enemies[part] ??
+        level.devices.find((d) => d.key === part)?.name ??
+        names.devices[part]?.name ??
+        part),
+  );
+  return [...new Set(shown)].join("、");
 }
 
-function modifierLine(level: Level, modifier: Modifier): ModifierLine | null {
-  const entries = modifier.blackboard.filter((entry) => hasEffect(modifier.key, entry));
-  if (entries.every((entry) => targetKeys.has(entry.key))) return null;
+/** What 難度修正 lines are worked out against besides the level. */
+export interface ModifierContext {
+  /** Names of the 地形, enemies and device kinds the level itself does not have. */
+  names: NameTable;
+  /** The variant's spawn plan: 隱藏組 marks number as the 開關面板 does. */
+  plan: SpawnPlan;
+}
+
+/** The 隱藏組 "a|b" names; one with no action in the level is left out, as switching it is moot. */
+function hiddenGroupMarks(level: Level, names: string, plan: SpawnPlan): HiddenGroupMark[] {
+  const marked = markedSwitches(level, plan).hidden;
+  return names.split("|").flatMap((name) => {
+    const number = marked.find(({ group }) => group.name === name)?.number;
+    return number === undefined ? [] : [{ name, number }];
+  });
+}
+
+/**
+ * `level_predefines_enable`'s entries, one per device alias: "名稱 開", or "名稱 × N 開" for N
+ * devices of the same name and state.
+ */
+function presetDeviceParams(
+  level: Level,
+  entries: BlackboardEntry[],
+  { names }: ModifierContext,
+): ModifierParam[] {
+  const counts = new Map<string, { name: string; on: boolean; count: number }>();
+  for (const { key, value } of entries) {
+    const kind = key.replace(/#\d+$/, "");
+    const name =
+      level.devices.find((d) => d.alias === key)?.name ?? names.devices[kind]?.name ?? key;
+    const on = value !== 0;
+    const id = `${on}:${name}`;
+    const seen = counts.get(id);
+    if (seen) seen.count++;
+    else counts.set(id, { name, on, count: 1 });
+  }
+  return [...counts.values()].map(({ name, on, count }) => ({
+    label: name,
+    value: `${count > 1 ? `× ${count} ` : ""}${on ? strings.deviceOn : strings.deviceOff}`,
+    hint: null,
+  }));
+}
+
+function modifierLine(
+  level: Level,
+  modifier: Modifier,
+  context: ModifierContext,
+): ModifierLine | null {
+  const environment = environmentKeys.has(modifier.key);
+  const opensGroups = hiddenGroupKeys.has(modifier.key);
+  // An 環境機制's or 隱藏組 modifier's `key` names its target: no parameter of its own.
+  const ownsKey = environment || opensGroups;
+  const target = ownsKey
+    ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
+    : null;
+  const entries = modifier.blackboard.filter(
+    (entry) =>
+      !internalKeys.has(entry.key) &&
+      !(ownsKey && entry.key === "key") &&
+      hasEffect(modifier.key, entry),
+  );
+  const hiddenGroups =
+    opensGroups && target !== null ? hiddenGroupMarks(level, target, context.plan) : [];
+  if (hiddenGroups.length === 0 && entries.every((entry) => targetKeys.has(entry.key))) {
+    return null;
+  }
   const name = isKnownModifierKey(modifier.key)
     ? strings.modifierKeys[modifier.key]
     : strings.modifierUnknown;
-  const line = { key: modifier.key, name, hint: modifier.key };
+  const hint = environment && target !== null ? `${modifier.key} · ${target}` : modifier.key;
+  const line = { key: modifier.key, name, hint, hiddenGroups };
   const [first] = entries;
   if (entries.length === 1 && first?.key === "value") {
-    return { ...line, value: entryValue(modifier.key, first, level.enemies), params: [] };
+    return { ...line, value: entryValue(level, modifier.key, first, context), params: [] };
+  }
+  if (modifier.key === "level_predefines_enable") {
+    return { ...line, value: null, params: presetDeviceParams(level, entries, context) };
   }
   const moves = affectsMovement(modifier);
   return {
@@ -347,15 +460,18 @@ function modifierLine(level: Level, modifier: Modifier): ModifierLine | null {
     value: null,
     params: entries.map((entry) => ({
       label: strings.blackboardKeys[entry.key] ?? entry.key,
-      value: entryValue(modifier.key, entry, level.enemies),
+      value: entryValue(level, modifier.key, entry, context),
       hint: moves && entry.key === "move_speed" ? strings.modifierMovesEnemies : null,
     })),
   };
 }
 
 /** The 難度修正 list: one line per modifier that changes something. */
-export const modifierLines = (level: Level, modifiers: Modifier[]): ModifierLine[] =>
-  modifiers.flatMap((modifier) => modifierLine(level, modifier) ?? []);
+export const modifierLines = (
+  level: Level,
+  modifiers: Modifier[],
+  context: ModifierContext,
+): ModifierLine[] => modifiers.flatMap((modifier) => modifierLine(level, modifier, context) ?? []);
 
 /** The 關卡資訊's numbers as one line: "可部署人數 8 · 生命值 3 · 初始費用 10 · 費用上限 99". */
 export const levelNumbers = (options: LevelOptions): string =>
