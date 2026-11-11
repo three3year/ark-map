@@ -27,9 +27,7 @@ export type SwitchMark = { number: number } & (ConditionalMark | HiddenGroupMark
 
 /** A device's 開關標記: a 隨機出兵組's only names the group, whatever candidate names the device. */
 export type DeviceSwitchMark = { number: number } & (
-  | ConditionalMark
-  | HiddenGroupMark
-  | RandomGroupMark
+  ConditionalMark | HiddenGroupMark | RandomGroupMark
 );
 
 export type SwitchMarkKind = SwitchMark["kind"];
@@ -100,7 +98,10 @@ export function deviceSwitchMarks(
     if (ref.branchIndex !== null && level.branches[ref.branchIndex]!.deviceOnly) continue;
     for (const mark of switchMarks(level, plan, ref)) {
       const { kind, number } = mark;
-      marks.set(`${kind} ${number}`, kind === "random" ? { kind, number, group: mark.group } : mark);
+      marks.set(
+        `${kind} ${number}`,
+        kind === "random" ? { kind, number, group: mark.group } : mark,
+      );
     }
   }
   return [...marks.values()].sort(
