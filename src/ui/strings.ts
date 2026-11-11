@@ -74,14 +74,19 @@ export const strings = {
   noSpawn: "不出兵",
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
-  hiddenGroupBadge: (name: string) => `隱藏組 ${name}`,
+  /** A 隱藏組's 出兵表 badge, with its 說明 when it has one. */
+  hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
+  /** 變體說明: the variants whose 難度修正 switch a 隱藏組 on. */
+  onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
+  onInEveryVariant: "各變體都開",
   conditional: "條件出兵",
   conditionalHint: "由機關或敵人技能觸發的出兵;預設關,打開後在指定秒數(波內)出生,沿額外路線走",
   triggerSecond: "觸發於",
   triggeredInWave: (wave: string, t: number) => `已在${wave}第 ${t} 秒觸發`,
   deviceOnly: "純機關(不出兵)",
   deviceOnlyHint: "只啟動裝置的條件出兵,不進快照",
-  conditionalBadge: (key: string) => `條件出兵 ${key}`,
+  /** Where a 隨機出兵組 in a 條件出兵 sits: the 條件出兵, and its device when its key names one. */
+  conditionalSource: (device: string | null) => (device ? `條件出兵 ${device}` : "條件出兵"),
   pickCandidate: "切換",
   pickCandidateHint: "改選這個候選上場",
   harmless: "無害",

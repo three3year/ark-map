@@ -39,6 +39,8 @@
     onClearFilter: () => void;
     rowStow: (row: SpawnRow) => RowStow;
     onStow: (rows: SpawnRow[], stow: boolean) => void;
+    /** The badge of 隱藏組 `name`. */
+    hiddenGroupBadge: (name: string) => string;
   }
   let {
     rows,
@@ -51,6 +53,7 @@
     onClearFilter,
     rowStow,
     onStow,
+    hiddenGroupBadge,
   }: Props = $props();
 
   /** Rows keep their 編號 in the whole table while filtered. */
@@ -214,9 +217,9 @@
                   >
                     <SwitchMark kind={mark.kind} number={mark.number} />
                     {#if mark.kind === "conditional"}
-                      {strings.conditionalBadge(mark.key)}
+                      {strings.conditional}
                     {:else if mark.kind === "hiddenGroup"}
-                      {strings.hiddenGroupBadge(mark.name)}
+                      {hiddenGroupBadge(mark.name)}
                     {:else}
                       {strings.randomGroup(mark.group)} ・ {strings.candidateWeight(
                         mark.weight,
