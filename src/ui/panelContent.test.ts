@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { spawnPlan } from "../timeline/index.ts";
 import { variantModifiers } from "../level/index.ts";
-import { branchLabel, candidateLabel, modifierText } from "./panelContent.ts";
+import {
+  branchLabel,
+  candidateLabel,
+  enemyAttributes,
+  modifierText,
+  type EnemyAttribute,
+} from "./panelContent.ts";
 
 describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
   const level = loadFixtureLevel("level_rogue4_1-2");
@@ -31,6 +37,30 @@ describe("純機關: 5-10", () => {
   it("names ten ballistae once", () => {
     const branch = level.branches.find((b) => b.key === "faust_ballis")!;
     expect(branchLabel(level, branch)).toBe("裝置 弩炮");
+  });
+});
+
+describe("敵人屬性", () => {
+  /** The 敵人屬性 of `enemyId` in the challenge (突襲) variant of a fixture level. */
+  const challengeAttributes = (name: string, enemyId: string) => {
+    const level = loadFixtureLevel(name);
+    const modifiers = variantModifiers(level.modifiers, "FOUR_STAR");
+    return enemyAttributes(level.enemies[enemyId]!, modifiers);
+  };
+  const attribute = (attributes: EnemyAttribute[], label: string) =>
+    attributes.find((a) => a.label === label)!;
+
+  it("act10mini 4 突襲: ×1.1 for all and ×2 for one enemy multiply to its HP ×2.2", () => {
+    const leader = attribute(
+      challengeAttributes("level_act10mini_04", "enemy_1045_hammer_2"),
+      "生命值",
+    );
+    expect(leader).toMatchObject({ text: "44000", modified: true, tooltip: "基礎 20000 ×2.2" });
+    const member = attribute(
+      challengeAttributes("level_act10mini_04", "enemy_1045_hammer"),
+      "生命值",
+    );
+    expect(member).toMatchObject({ text: "11000", modified: true, tooltip: "基礎 10000 ×1.1" });
   });
 });
 
