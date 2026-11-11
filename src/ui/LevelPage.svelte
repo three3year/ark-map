@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     variantModifiers,
+    variantsShowing,
     type Area,
     type DeviceIndex,
     type IndexedDevice,
@@ -50,6 +51,7 @@
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
+  import { hiddenGroupText } from "./panelContent.ts";
 
   interface Props {
     /**
@@ -124,6 +126,9 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
+  /** The 關卡變體 showing this level file: their 難度修正 make the 隱藏組's 變體說明. */
+  const siblings = $derived(variantsShowing(stage, view.shownFile));
+  const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, siblings).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
     onSwitches(switchHidden(level, difficulty, switches, name, on));
@@ -484,6 +489,7 @@
     <SwitchPanel
       {level}
       {plan}
+      variants={siblings}
       conditional={switches.conditional ?? {}}
       wave={waveIndex}
       {t}
@@ -535,6 +541,7 @@
         onClearFilter={() => (endpointFilter = null)}
         {rowStow}
         onStow={stowRows}
+        {hiddenGroupBadge}
       />
     </div>
   </div>

@@ -84,7 +84,8 @@ export const strings = {
   triggeredInWave: (wave: string, t: number) => `已在${wave}第 ${t} 秒觸發`,
   deviceOnly: "純機關(不出兵)",
   deviceOnlyHint: "只啟動裝置的條件出兵,不進快照",
-  conditionalBadge: (key: string) => `條件出兵 ${key}`,
+  /** Where a 隨機出兵組 in a 條件出兵 sits: the 條件出兵, and its device when its key names one. */
+  conditionalSource: (device: string | null) => (device ? `條件出兵 ${device}` : "條件出兵"),
   pickCandidate: "切換",
   pickCandidateHint: "改選這個候選上場",
   harmless: "無害",
