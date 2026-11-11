@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { spawnPlan } from "../timeline/index.ts";
 import { variantModifiers } from "../level/index.ts";
-import { branchLabel, candidateLabel, modifierText } from "./panelContent.ts";
+import { branchLabel, candidateLabel, hiddenGroupText, modifierText } from "./panelContent.ts";
 
 describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
   const level = loadFixtureLevel("level_rogue4_1-2");
@@ -22,6 +22,47 @@ describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
       "鴨爵 × 1",
       "高普尼克 × 1",
     ]);
+  });
+});
+
+describe("隱藏組", () => {
+  it("17-04's raid: on by default in 六星 only", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const variants = [
+      { id: "normal", difficulty: "NORMAL" },
+      { id: "sixStar", difficulty: "SIX_STAR" },
+    ] as const;
+    const text = hiddenGroupText(level, "raid", variants);
+    expect(text.note).toBe("六星時開");
+    expect(text.badge).toBe("隱藏組・六星時開");
+  });
+
+  it("is named by what all its actions put on the field; its tag is the hint", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const text = hiddenGroupText(level, "raid", []);
+    expect(text.name).toBe("實驗樣本A-000 × 1、破石草 × 1");
+    expect(text.hint).toBe("raid");
+  });
+
+  it("公害's calamity is named by the device it activates", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    expect(hiddenGroupText(level, "calamity", []).name).toBe("裝置 年代之刺");
+  });
+
+  it("on in every variant that shows the file: 各變體都開", () => {
+    const level = loadFixtureLevel("level_main_17-04");
+    const text = hiddenGroupText(level, "raid", [{ id: "sixStar", difficulty: "SIX_STAR" }]);
+    expect(text.note).toBe("各變體都開");
+  });
+
+  it("公害's calamity: no variant switches it on, so no 說明 and a bare badge", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    const text = hiddenGroupText(level, "calamity", [
+      { id: "normal", difficulty: "NORMAL" },
+      { id: "emergency", difficulty: "FOUR_STAR" },
+    ]);
+    expect(text.note).toBeNull();
+    expect(text.badge).toBe("隱藏組");
   });
 });
 

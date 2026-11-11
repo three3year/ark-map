@@ -7,12 +7,14 @@ import {
   type Action,
   type BlackboardEntry,
   type Branch,
+  type Difficulty,
   type EnemyRef,
   type Level,
   type Modifier,
+  type VariantId,
 } from "../level/index.ts";
-import { actionAt, type RandomCandidate } from "../timeline/index.ts";
-import { strings } from "./strings.ts";
+import { actionAt, allActions, levelGroups, type RandomCandidate } from "../timeline/index.ts";
+import { strings, variantLabel } from "./strings.ts";
 
 function deviceName(level: Level, alias: string): string {
   return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
@@ -49,6 +51,51 @@ export const branchLabel = (level: Level, branch: Branch): string =>
     level,
     branch.phases.flatMap((p) => p.actions),
   );
+
+/** A 關卡變體 that shows the same level file: its 難度修正 decide which 隱藏組 start on. */
+export interface SiblingVariant {
+  id: VariantId;
+  difficulty: Difficulty;
+}
+
+/** A 隱藏組 as the 開關面板 and the 出兵表 show it. */
+export interface HiddenGroupText {
+  /** What all its actions put on the field. */
+  name: string;
+  /** Its tag in the level file, for the mouse-over hint. */
+  hint: string;
+  /** 變體說明: the variants that switch it on by default; null when none does. */
+  note: string | null;
+  /** The 出兵表's badge. */
+  badge: string;
+}
+
+/** 變體說明 of 隱藏組 `name` among `variants`, the level file's variants in stage order. */
+function variantNote(level: Level, name: string, variants: readonly SiblingVariant[]): string | null {
+  const on = variants.filter(
+    (v) => levelGroups(level, v.difficulty).hidden.find((g) => g.name === name)?.defaultOn,
+  );
+  if (on.length === 0) return null;
+  if (on.length === variants.length) return strings.onInEveryVariant;
+  return strings.onInVariants(on.map((v) => variantLabel(v.id)));
+}
+
+export function hiddenGroupText(
+  level: Level,
+  name: string,
+  variants: readonly SiblingVariant[],
+): HiddenGroupText {
+  const actions = [...allActions(level)].flatMap(({ action }) =>
+    action.hiddenGroup === name ? [action] : [],
+  );
+  const note = variantNote(level, name, variants);
+  return {
+    name: actionsLabel(level, actions),
+    hint: name,
+    note,
+    badge: strings.hiddenGroupBadge(note),
+  };
+}
 
 /** One 難度修正 as the 關卡資訊 lists it: its name and its blackboard entries. */
 export interface ModifierText {
