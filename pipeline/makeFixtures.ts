@@ -2,8 +2,8 @@
 // subsets the enemy database and TW handbook to the enemies referenced by every level file
 // in the fixture directory (old and new), the enemies already in the subset, and any
 // `--enemy` ids. Subsets the CN and TW character tables to the fixture levels' devices (the CN
-// one keeps the fields 作用範圍 come from), and the CN range table to the range ids the CN
-// subset names. Also subsets the CN and TW stage, zone, activity and campaign tables to the
+// one keeps the fields 作用範圍 come from), the CN skill table to the skills the CN subset names,
+// and the CN range table to the range ids those two subsets name. Also subsets the CN and TW stage, zone, activity and campaign tables to the
 // `--zone` ids plus the zones already in the fixture tables, keeping only the fields the
 // pipeline reads; the activity tables also keep each 復刻's original activity. The stage
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
@@ -28,6 +28,7 @@ import type {
   RawRangeTable,
   RawRoguelikeStage,
   RawRoguelikeTopicTable,
+  RawSkillTable,
   RawStage,
   RawStageTable,
   RawZone,
@@ -94,6 +95,7 @@ function characterFields(character: RawCharacter, withEffects: boolean): RawChar
 }
 
 const rangeIds = new Set<string>();
+const skillIds = new Set<string>();
 for (const [source, suffix] of [
   [sources.cn, ""],
   [sources.tw, ".tw"],
@@ -114,9 +116,24 @@ for (const [source, suffix] of [
       ...(character.talents ?? []).flatMap((t) => (t.candidates ?? []).map((c) => c.rangeId)),
     ];
     for (const id of ids) if (id) rangeIds.add(id);
+    for (const skill of character.skills ?? []) if (skill.skillId) skillIds.add(skill.skillId);
   }
 }
 console.log(`fixtures: 角色表 ${deviceKeys.size} 種裝置`);
+
+const skills = await fetchJson<RawSkillTable>(sources.cn, "excel/skill_table.json");
+const skillSubset: RawSkillTable = Object.fromEntries(
+  [...skillIds]
+    .sort()
+    .flatMap((id) =>
+      skills[id] ? [[id, { levels: skills[id].levels.map((l) => pick(l, ["rangeId"])) }]] : [],
+    ),
+);
+await writeFile(path.join(fixtureDir, "skill_table.json"), JSON.stringify(skillSubset));
+for (const skill of Object.values(skillSubset)) {
+  for (const level of skill.levels) if (level.rangeId) rangeIds.add(level.rangeId);
+}
+console.log(`fixtures: 技能表 ${Object.keys(skillSubset).length} 個技能`);
 
 const ranges = await fetchJson<RawRangeTable>(sources.cn, "excel/range_table.json");
 const rangeSubset: RawRangeTable = Object.fromEntries(

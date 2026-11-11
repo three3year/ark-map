@@ -60,6 +60,31 @@ test("TB-1: a selected 碎石 draws no 作用範圍", async ({ page }) => {
   await expect(legendItem(page)).toHaveCount(0);
 });
 
+test("1-7: a 震撼裝置 draws its skill's 作用範圍; 移除 clears it and 恢復 brings it back", async ({
+  page,
+}) => {
+  const level = siteLevel("main_01-07");
+  const index = level.devices.findIndex((d) => d.key === "trap_002_emp");
+  const cells = level.devices[index]!.effectCells;
+  expect(cells, "x-4: the 3 x 3 square around it").toHaveLength(9);
+  const panelButton = (name: string) =>
+    page.locator(".selection[data-selected-device]").getByRole("button", { name, exact: true });
+
+  await page.goto("#/level/main_01-07?v=normal");
+  await deviceByIndex(page, index).click();
+  await expect(effectLayer(page)).toHaveCount(1);
+  expect(await drawnCells(page)).toEqual(cells.map(cellKey).sort());
+  await expect(legendItem(page)).toBeVisible();
+
+  await panelButton("移除").click();
+  await expect(effectLayer(page)).toHaveCount(0);
+  await expect(legendItem(page)).toHaveCount(0);
+
+  await panelButton("恢復").click();
+  await expect(effectLayer(page)).toHaveCount(1);
+  await expect(legendItem(page)).toBeVisible();
+});
+
 test("TB-1: the 作用範圍 is the map's last layer", async ({ page }) => {
   const level = siteLevel("act10mini_01");
 

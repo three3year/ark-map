@@ -109,6 +109,10 @@ export interface RawTokenInst {
    * hand-made fixtures.
    */
   inst: { characterKey: string; phase?: RawEnum; level?: number };
+  /** Which of the character's `skills` the device has; -1 = none. Absent in hand-made fixtures. */
+  skillIndex?: number;
+  /** The level of that skill, from 1. */
+  mainSkillLvl?: number;
 }
 
 export interface RawLevel {
@@ -157,6 +161,9 @@ export interface RawCharacter {
 }
 
 export type RawCharacterTable = Record<string, RawCharacter>;
+
+/** Skill table: each skill's levels, from level 1; `rangeId` is a range-table id. */
+export type RawSkillTable = Record<string, { levels: { rangeId: string | null }[] }>;
 
 /**
  * Range table: the cells of a range, stored facing right: `col` is the distance forward and

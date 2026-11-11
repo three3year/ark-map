@@ -18,6 +18,7 @@ import {
   rawCharacterTables,
   rawRangeTable,
   rawFixture,
+  rawSkillTable,
 } from "../test-fixtures/load.ts";
 import {
   buildDeviceCatalog,
@@ -394,7 +395,7 @@ describe("名稱表: 裝置", () => {
       level,
       enemyCatalog(),
       names,
-      buildDeviceCatalog(new Set(), {}, {}, {}),
+      buildDeviceCatalog(new Set(), {}, {}, {}, {}),
     );
     expect(names.devices).toEqual({});
     expect(file.devices[0]).toMatchObject({ name: "trap_001_crate", description: null });
@@ -622,7 +623,7 @@ describe("裝置", () => {
     const controllers = controllerKeys([tb1, other, rawFixture("level_act16d5_ex06")]);
     expect([...controllers]).toEqual(["trap_050_blizzard"]);
     const level = convertLevel("TB-1", tb1, enemyCatalog(), {
-      devices: buildDeviceCatalog(controllers, {}, {}, {}),
+      devices: buildDeviceCatalog(controllers, {}, {}, {}, {}),
     });
     expect(level.devices.filter((d) => d.key === "trap_050_blizzard")).toEqual([]);
     expect(level.devices.filter((d) => d.key === "trap_027_stone")).toHaveLength(9);
@@ -681,7 +682,7 @@ describe("裝置", () => {
     const { cn, tw } = rawCharacterTables();
     delete tw["trap_001_crate"];
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, {}),
+      devices: buildDeviceCatalog(new Set(), cn, tw, {}, {}),
     });
     expect(level.devices.map((d) => [d.name, d.description])[0]).toEqual(["障碍物", null]);
     const unnamed = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
@@ -734,6 +735,24 @@ describe("作用範圍", () => {
     );
   });
 
+  describe("5-10: a 弩炮, with no range in the character table, takes its skill's 1-1 (its own cell and the one ahead), turned to face where it is placed", () => {
+    const at = (row: number, col: number): Cell => ({ row, col });
+    it.each([
+      ["trap_007_ballis#3", "UP", [at(1, 5), at(2, 5)]],
+      ["trap_007_ballis#1", "LEFT", [at(3, 9), at(3, 10)]],
+      ["trap_007_ballis#2", "DOWN", [at(5, 6), at(6, 6)]],
+      ["trap_007_ballis#8", "RIGHT", [at(4, 2), at(4, 3)]],
+    ])("%s facing %s", (alias, _facing, cells) => {
+      expect(effectOf("level_main_05-10", alias)).toEqual(cells);
+    });
+  });
+
+  it("TB-1: a 留聲機 keeps the character table's x-2, though its skill has x-5", () => {
+    expect(effectOf("level_act10mini_01", "trap_014_tower#2")).toEqual(
+      squareWithoutCorners({ row: 4, col: 7 }),
+    );
+  });
+
   it("EP-8: a 鹽坨子炮 at level 1 takes 4-1 from its talent: five cells ahead on its row", () => {
     expect(effectOf("level_act39side_08", "trap_196_cnnon#1")).toEqual(block([2], [3, 4, 5, 6, 7]));
   });
@@ -765,7 +784,7 @@ describe("作用範圍", () => {
     const raw = rawFixture("level_main_16-02");
     for (const token of raw.predefines!.tokenInsts!) token.inst.phase = phase;
     const level = convertLevel("16-2", raw, enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable()),
+      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
     });
     return sorted(level.devices.find((d) => d.alias === "trap_271_fowstn#1")!.effectCells);
   }
@@ -793,7 +812,7 @@ describe("作用範圍", () => {
     cn["trap_271_fowstn"]!.phases = [{ rangeId: "x-404" }];
     const unknown: [string, string][] = [];
     const level = convertLevel("16-2", rawFixture("level_main_16-02"), enemyCatalog(), {
-      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable()),
+      devices: buildDeviceCatalog(new Set(), cn, tw, rawRangeTable(), rawSkillTable()),
       onUnknownRangeId: (rangeId, key) => unknown.push([rangeId, key]),
     });
     expect(unknown).toEqual([
