@@ -25,6 +25,7 @@ import type {
   RawZoneTable,
 } from "../pipeline/raw.ts";
 import type { EffectTables } from "../pipeline/effectCells.ts";
+import { buildSourceCatalog, type SourceCatalog } from "../pipeline/hiddenGroupSources.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level, NameTable } from "../src/level/index.ts";
 
@@ -94,9 +95,18 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
   ));
 }
 
+let sourceCatalog: SourceCatalog | undefined;
+
+/** 隱藏組來源 from the fixture theme tables. */
+export function fixtureSourceCatalog(): SourceCatalog {
+  const { cn, tw } = rawTables();
+  return (sourceCatalog ??= buildSourceCatalog(cn.roguelike, tw.roguelike));
+}
+
 export function convertFixture(raw: RawLevel, levelId = "fixture"): Level {
   return convertLevel(levelId, raw, buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook()), {
     devices: fixtureDeviceCatalog(),
+    sources: fixtureSourceCatalog(),
   });
 }
 
@@ -107,7 +117,7 @@ export function loadFixtureLevel(name: string): Level {
 let nameTable: NameTable | undefined;
 
 /**
- * The 名稱表 of every enemy, device and 地形 in the fixture tables, named as the pipeline names
+ * The 名稱表 of every enemy, device, 地形 and 隱藏組來源 in the fixture tables, named as the pipeline names
  * them (enemies: TW handbook, else the CN database's level 0).
  */
 export function fixtureNameTable(): NameTable {
@@ -124,5 +134,10 @@ export function fixtureNameTable(): NameTable {
     enemies,
     terrain: terrainTable(tileKeys, cn.stage, tw.stage),
     devices: Object.fromEntries(fixtureDeviceCatalog().info),
+    sources: Object.fromEntries(
+      [...fixtureSourceCatalog().byTheme.values()]
+        .flatMap((byTag) => [...byTag.values()].flat())
+        .map(({ item, name, kind }) => [item, { name, kind }]),
+    ),
   });
 }

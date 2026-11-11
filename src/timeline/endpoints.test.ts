@@ -225,6 +225,7 @@ function corridorLevel(routes: Pick<Route, "start" | "end" | "checkpoints">[]): 
       visitEveryCheckPoint: false,
     })),
     extraRoutes: [],
+    hiddenGroupSources: {},
     branches: [],
     devices: [],
     waves: [

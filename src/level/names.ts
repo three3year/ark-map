@@ -1,6 +1,6 @@
 // 名稱表: one site file (data/names.json) of enemy display names and the 地形表, so level files
 // need not repeat them. A level file keeps an enemy's name only when it differs from the table's.
-import type { Device, EnemyRef, Level } from "./types.ts";
+import type { Device, EnemyRef, HiddenGroupSource, Level } from "./types.ts";
 
 /** A 地形 as the game's stage table describes it. */
 export interface TerrainInfo {
@@ -18,11 +18,16 @@ export interface DeviceInfo {
   description: string | null;
 }
 
+/** A 隱藏組來源 item's name and kind. */
+export type SourceInfo = Pick<HiddenGroupSource, "name" | "kind">;
+
 export interface NameTable {
   /** Enemy id -> TW handbook name, else the CN database's name. */
   enemies: Record<string, string>;
   terrain: TerrainTable;
   devices: Record<string, DeviceInfo>;
+  /** 隱藏組來源 item id -> TW name and kind, else CN. */
+  sources: Record<string, SourceInfo>;
 }
 
 /** An 敵人 as written to a level file: `name` only when the name table lacks it or differs. */
@@ -30,11 +35,18 @@ export type EnemyFile = Omit<EnemyRef, "name"> & { name?: string };
 
 export type DeviceFile = Omit<Device, "name" | "description"> & Partial<DeviceInfo>;
 
+export type HiddenGroupSourceFile = Omit<HiddenGroupSource, "name" | "kind"> & Partial<SourceInfo>;
+
 /** A level as written to the site. */
-export type LevelFile = Omit<Level, "enemies" | "devices"> & {
+export type LevelFile = Omit<Level, "enemies" | "devices" | "hiddenGroupSources"> & {
   enemies: Record<string, EnemyFile>;
   devices: DeviceFile[];
+  hiddenGroupSources: Record<string, HiddenGroupSourceFile[]>;
 };
+
+function mapValues<T, U>(record: Record<string, T>, fn: (value: T) => U): Record<string, U> {
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v)]));
+}
 
 /** `level` with every enemy name the table gives left out. */
 export function withoutNames(level: Level, names: NameTable): LevelFile {
@@ -52,7 +64,17 @@ export function withoutNames(level: Level, names: NameTable): LevelFile {
       ...(info?.description === description ? {} : { description }),
     };
   });
-  return { ...level, enemies, devices };
+  const hiddenGroupSources = mapValues(level.hiddenGroupSources, (sources) =>
+    sources.map(({ name, kind, ...source }): HiddenGroupSourceFile => {
+      const info = names.sources[source.item];
+      return {
+        ...source,
+        ...(info?.name === name ? {} : { name }),
+        ...(info?.kind === kind ? {} : { kind }),
+      };
+    }),
+  );
+  return { ...level, enemies, devices, hiddenGroupSources };
 }
 
 /** The level a level file describes, names filled in from the table. */
@@ -71,5 +93,11 @@ export function withNames(file: LevelFile, names: NameTable): Level {
       description: description !== undefined ? description : (info?.description ?? null),
     };
   });
-  return { ...file, enemies, devices };
+  const hiddenGroupSources = mapValues(file.hiddenGroupSources, (sources) =>
+    sources.map(({ name, kind, ...source }): HiddenGroupSource => {
+      const info = names.sources[source.item];
+      return { ...source, name: name ?? info?.name ?? source.item, kind: kind ?? info?.kind ?? "" };
+    }),
+  );
+  return { ...file, enemies, devices, hiddenGroupSources };
 }

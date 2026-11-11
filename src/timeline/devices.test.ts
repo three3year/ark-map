@@ -83,6 +83,7 @@ function field(waves: Wave[], device: Partial<Device> = {}): Level {
       },
     ],
     extraRoutes: [],
+    hiddenGroupSources: {},
     branches: [],
     devices: [{ ...stone, ...device }],
     waves,

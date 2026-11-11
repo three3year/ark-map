@@ -6,7 +6,8 @@
 // pipeline reads; the activity tables also keep each 復刻's original activity. The stage
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
 // fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
-// keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
+// keep every theme, the numbered zones, the items that open or close a 隱藏組 with their effects,
+// and the `--rogue` stage ids plus the stages already in
 // the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
 //                      [--rogue <roguelike stage id>...] [--tile <tile key>...]
@@ -24,6 +25,7 @@ import type {
   RawEnemyHandbookTable,
   RawLevel,
   RawRangeTable,
+  RawRoguelikeRelic,
   RawRoguelikeStage,
   RawRoguelikeTopicTable,
   RawSkillTable,
@@ -277,6 +279,9 @@ const rogueStageKeys: (keyof RawRoguelikeStage)[] = [
   "difficulty",
 ];
 
+const switchesHiddenGroup = (relic: RawRoguelikeRelic) =>
+  relic.buffs.some((b) => /^level_hidden_group_(enable|disable)$/.test(b.key));
+
 async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<void> {
   const table = await fetchJson<RawRoguelikeTopicTable>(source, "excel/roguelike_topic_table.json");
   const subset: RawRoguelikeTopicTable = {
@@ -289,6 +294,14 @@ async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<
       stages: mapValues(
         filterEntries(d.stages, (id) => rogueStageIds.has(id)),
         (s) => pick(s, rogueStageKeys),
+      ),
+      relics: filterEntries(d.relics, (_, r) => switchesHiddenGroup(r)),
+      items: mapValues(
+        filterEntries(
+          d.items,
+          (id) => d.relics[id] !== undefined && switchesHiddenGroup(d.relics[id]),
+        ),
+        (i) => pick(i, ["id", "name", "type"]),
       ),
     })),
   };

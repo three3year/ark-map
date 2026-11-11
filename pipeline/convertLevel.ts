@@ -35,6 +35,7 @@ import {
   type EffectTables,
   type UnknownRangeIdHandler,
 } from "./effectCells.ts";
+import { levelSources, noSources, type SourceCatalog } from "./hiddenGroupSources.ts";
 import { plainText } from "./plainText.ts";
 import type {
   RawAction,
@@ -438,8 +439,17 @@ function convertDevices(
   });
 }
 
+function hiddenGroupTags(raw: RawLevel): Set<string> {
+  const fragments = [
+    ...raw.waves.flatMap((w) => w.fragments),
+    ...Object.values(raw.branches ?? {}).flatMap((b) => b.phases ?? []),
+  ];
+  return new Set(fragments.flatMap((f) => f.actions.flatMap((a) => a.hiddenGroup ?? [])));
+}
+
 export interface ConvertOptions {
   devices?: DeviceCatalog;
+  sources?: SourceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
   onUnknownRangeId?: UnknownRangeIdHandler;
@@ -452,6 +462,7 @@ export function convertLevel(
   catalog: EnemyCatalog,
   {
     devices = noDevices,
+    sources = noSources,
     onUnknownEnum = warnUnknownEnum,
     onUnknownDevice = warnUnknownDevice,
     onUnknownRangeId = warnUnknownRangeId,
@@ -496,13 +507,15 @@ export function convertLevel(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
     devices: convertDevices(raw, map, devices, decode, onUnknownDevice, onUnknownRangeId),
+    hiddenGroupSources: levelSources(sources, levelId, hiddenGroupTags(raw)),
   };
 }
 
 /**
  * The level file the site ships: names the 名稱表 gives are left out. Adds the level's enemies to
  * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
- * enemy (not in the database) gets no entry and keeps its name in the level file.
+ * enemy (not in the database) gets no entry and keeps its name in the level file. Also adds the
+ * level's devices and 隱藏組來源 items.
  */
 export function siteLevelFile(
   level: Level,
@@ -517,6 +530,9 @@ export function siteLevelFile(
   for (const { key } of level.devices) {
     const info = devices.info.get(key);
     if (info) names.devices[key] = info;
+  }
+  for (const { item, name, kind } of Object.values(level.hiddenGroupSources).flat()) {
+    names.sources[item] = { name, kind };
   }
   return withoutNames(level, names);
 }

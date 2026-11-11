@@ -194,6 +194,20 @@ export interface Level {
   /** Keyed by enemy id (`Action.key`). */
   enemies: Record<string, EnemyRef>;
   devices: Device[];
+  /** 隱藏組來源 by 隱藏組 tag, in theme-table order; tags without a source are absent. */
+  hiddenGroupSources: Record<string, HiddenGroupSource[]>;
+}
+
+/** 隱藏組來源: a 集成戰略 item of the level's theme that opens or closes a 隱藏組. */
+export interface HiddenGroupSource {
+  /** Item id in the theme table, e.g. "rogue_4_relic_explore_5". */
+  item: string;
+  /** true: opens the group; false: closes it. */
+  opens: boolean;
+  /** TW name, else CN. */
+  name: string;
+  /** "RELIC" | "COPPER_BUFF" | "TOTEM_EFFECT" | "FEATURE", as the theme table has it. */
+  kind: string;
 }
 
 /** Difficulty a variant runs at; 難度修正 whose mask matches it apply. */

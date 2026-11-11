@@ -95,7 +95,7 @@ export interface HiddenGroupText {
   name: string;
   /** Its tag in the level file, for the mouse-over hint. */
   hint: string;
-  /** 變體說明: the variants that switch it on by default; null when none does. */
+  /** 說明: its 隱藏組來源, then its 變體說明; null when it has neither. */
   note: string | null;
   /** The 出兵表's badge. */
   badge: string;
@@ -123,14 +123,28 @@ export function hiddenGroupText(
   const actions = [...allActions(level)].flatMap(({ action }) =>
     action.hiddenGroup === name ? [action] : [],
   );
-  const note = variantNote(level, name, variants);
+  const sources = level.hiddenGroupSources[name] ?? [];
+  // Distinct items with one name (two 花-鴨爵金幣) read as one.
+  const sourceTexts = unique(
+    sources.map((s) =>
+      strings.hiddenGroupSource(strings.sourceKinds[s.kind] ?? "", s.name, s.opens),
+    ),
+  );
+  const variant = variantNote(level, name, variants);
+  const parts = [
+    ...(sourceTexts.length > 0 ? [strings.hiddenGroupSources(sourceTexts)] : []),
+    ...(variant ? [variant] : []),
+  ];
+  const openers = unique(sources.filter((s) => s.opens).map((s) => s.name));
   return {
     name: actionsLabel(level, actions),
     hint: name,
-    note,
-    badge: strings.hiddenGroupBadge(note),
+    note: parts.length > 0 ? strings.hiddenGroupNote(parts) : null,
+    badge: strings.hiddenGroupBadge(openers.length > 0 ? openers.join("、") : variant),
   };
 }
+
+const unique = (texts: string[]) => [...new Set(texts)];
 
 /** The 10 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. */
 export const enemyAttributeKeys = [
