@@ -6,7 +6,7 @@ import type { TerrainIcon } from "./terrain.ts";
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
 
 export const strings = {
-  siteTitle: "明日方舟時刻快照",
+  siteTitle: "明日方舟地圖",
   loading: "載入中…",
   loadFailed: "資料載入失敗",
   stageNotFound: (id: string) => `找不到關卡 ${id}`,
