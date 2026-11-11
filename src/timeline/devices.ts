@@ -100,7 +100,7 @@ export function removedAt(device: DevicePresence, t: number): boolean {
   return valueAt(device.presence, t) && removedBy(device, t);
 }
 
-export function listedSometime(device: DevicePresence): boolean {
+export function onFieldOrRemovedAtSomeSecond(device: DevicePresence): boolean {
   return device.presence.initial || device.presence.changes.some((c) => c.value);
 }
 

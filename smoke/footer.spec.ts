@@ -29,10 +29,10 @@ const links = [
 
 async function expectFooter(page: Page) {
   const footer = page.locator("footer");
-  const dataVersion = String.raw`(?: \S+)? · \d{4}-\d{2}-\d{2} \d{2}:\d{2}\(UTC\+8\)`;
+  const optionalVersionThenTime = String.raw`(?: \S+)? · \d{4}-\d{2}-\d{2} \d{2}:\d{2}\(UTC\+8\)`;
   await expect(footer.locator("p").first()).toHaveText(
     new RegExp(
-      `^陸服${dataVersion} · 台服${dataVersion} · 頭像與裝置圖 · 參考 PRTS · 參考 PRTS\\.Map$`,
+      `^陸服${optionalVersionThenTime} · 台服${optionalVersionThenTime} · 頭像與裝置圖 · 參考 PRTS · 參考 PRTS\\.Map$`,
     ),
   );
   for (const [label, href, hint] of links) {
@@ -92,11 +92,12 @@ test.describe("wide screen", () => {
 
 test.describe("phone", () => {
   test.use({ viewport: phoneWindow });
+  const levelTallerThanPhone = "main_15-12";
 
   test("scrolled to the bottom of a level page, the 頁尾 ends above the drawer's button", async ({
     page,
   }) => {
-    await page.goto("#/level/main_15-12?v=normal");
+    await page.goto(`#/level/${levelTallerThanPhone}?v=normal`);
     await expect(page.locator("svg.map")).toBeVisible();
     await expectFooter(page);
 

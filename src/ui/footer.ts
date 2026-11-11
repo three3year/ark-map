@@ -1,16 +1,19 @@
 import { repoUrl, sources, type RepoSource } from "../dataSources.ts";
-import type { DataVersion, StageIndex } from "../level/index.ts";
+import type { DataVersion, Server, ServerVersions } from "../level/index.ts";
 import { strings } from "./strings.ts";
 
-export interface FooterItem {
+interface FooterLink {
   label: string;
   url: string;
   hint: string;
-  version?: string | null;
-  checkedAt?: string;
 }
 
-function sourceItem(label: string, source: RepoSource): FooterItem {
+/** A 伺服器 with its 資料版本, or a plain link. */
+export type FooterItem =
+  | (FooterLink & { kind: "server"; version: string | null; checkedAtTaiwanTime: string })
+  | (FooterLink & { kind: "link" });
+
+function sourceLink(label: string, source: RepoSource): FooterLink {
   return { label, url: repoUrl(source), hint: strings.footerSourceHint(source.repo) };
 }
 
@@ -24,21 +27,32 @@ function taiwanTime(iso: string): string {
   );
 }
 
-function serverItem(label: string, source: RepoSource, data: DataVersion): FooterItem {
+function serverItem(server: Server, data: DataVersion): FooterItem {
   return {
-    ...sourceItem(label, source),
+    kind: "server",
+    ...sourceLink(strings.servers[server], sources[server]),
     version: data.version,
-    checkedAt: taiwanTime(data.checkedAt),
+    checkedAtTaiwanTime: taiwanTime(data.checkedAt),
   };
 }
 
-export function footerItems(versions: StageIndex["versions"]): FooterItem[] {
+export function footerItems(versions: ServerVersions): FooterItem[] {
   const labels = strings.footerLabels;
   return [
-    serverItem(labels.cn, sources.cn, versions.cn),
-    serverItem(labels.tw, sources.tw, versions.tw),
-    sourceItem(labels.images, sources.avatars),
-    { label: labels.prts, url: "https://prts.wiki/w/作战机制", hint: strings.footerPrtsHint },
-    { label: labels.prtsMap, url: "https://map.ark-nights.com", hint: strings.footerPrtsMapHint },
+    serverItem("cn", versions.cn),
+    serverItem("tw", versions.tw),
+    { kind: "link", ...sourceLink(labels.images, sources.avatars) },
+    {
+      kind: "link",
+      label: labels.prts,
+      url: "https://prts.wiki/w/作战机制",
+      hint: strings.footerPrtsHint,
+    },
+    {
+      kind: "link",
+      label: labels.prtsMap,
+      url: "https://map.ark-nights.com",
+      hint: strings.footerPrtsMapHint,
+    },
   ];
 }

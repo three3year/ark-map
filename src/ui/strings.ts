@@ -1,5 +1,5 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, StageEntry, VariantId } from "../level/index.ts";
+import type { AreaKind, KnownModifierKey, Server, StageEntry, VariantId } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
@@ -237,9 +237,8 @@ export const strings = {
   restoreAll: "全部恢復",
   showRow: (number: number, enemy: string) => `顯示序號 ${number} 的${enemy}`,
   showListedRows: "顯示列出的所有列",
+  servers: { cn: "陸服", tw: "台服" } satisfies Record<Server, string>,
   footerLabels: {
-    cn: "陸服",
-    tw: "台服",
     images: "頭像與裝置圖",
     prts: "參考 PRTS",
     prtsMap: "參考 PRTS.Map",
@@ -248,7 +247,7 @@ export const strings = {
   footerPrtsHint: "擋路裝置清單參考 PRTS",
   footerPrtsMapHint: "出兵表絕對時刻的算法參考 PRTS.Map",
   footerSeparator: " · ",
-  footerDataVersion: (version: string | null | undefined, checkedAt: string) =>
+  footerDataVersion: (version: string | null, checkedAt: string) =>
     version ? ` ${version} · ${checkedAt}` : ` · ${checkedAt}`,
   footerNotice: "本站為非官方工具，遊戲內容版權屬於上海鷹角網路科技有限公司(Hypergryph)。",
 } as const;

@@ -15,7 +15,10 @@
         target="_blank"
         rel="noopener noreferrer"
         title={item.hint}>{item.label}</a
-      >{#if item.checkedAt}{strings.footerDataVersion(item.version, item.checkedAt)}{/if}{/each}
+      >{#if item.kind === "server"}{strings.footerDataVersion(
+          item.version,
+          item.checkedAtTaiwanTime,
+        )}{/if}{/each}
   </p>
   <p>{strings.footerNotice}</p>
 </footer>

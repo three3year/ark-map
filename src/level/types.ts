@@ -250,8 +250,14 @@ export interface DataVersion {
   checkedAt: string;
 }
 
+/** 伺服器: 陸服 (`cn`) or 台服 (`tw`). */
+export type Server = "cn" | "tw";
+
+/** Each 伺服器's 資料版本. */
+export type ServerVersions = Record<Server, DataVersion>;
+
 /** Areas in display order: mainline chapters, activities newest first, campaign regions, themes. */
 export interface StageIndex {
   areas: Area[];
-  versions: { cn: DataVersion; tw: DataVersion };
+  versions: ServerVersions;
 }
