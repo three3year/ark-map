@@ -106,3 +106,38 @@ test.describe("phone", () => {
     expect(footer.y + footer.height).toBeLessThanOrEqual(button.y);
   });
 });
+
+test.describe("a level route with no level on screen still ends with the 頁尾, under its message", () => {
+  async function expectFooterUnder(page: Page, message: string) {
+    const shown = page.getByText(message);
+    await expect(shown).toBeVisible();
+    await expectFooter(page);
+    const box = (await shown.boundingBox())!;
+    expect((await page.locator("footer").boundingBox())!.y).toBeGreaterThanOrEqual(
+      box.y + box.height,
+    );
+  }
+
+  test("the level file loading", async ({ page }) => {
+    // Never answered: the level file stays loading.
+    await page.route("**/data/levels/**", () => {});
+    await page.goto("#/level/main_01-07?v=normal");
+    await expectFooterUnder(page, "載入中…");
+  });
+
+  test("the level file failing to load", async ({ page }) => {
+    await page.route("**/data/levels/**", (route) => route.abort());
+    await page.goto("#/level/main_01-07?v=normal");
+    await expectFooterUnder(page, "資料載入失敗");
+  });
+
+  test("no such stage", async ({ page }) => {
+    await page.goto("#/level/no_such_stage");
+    await expectFooterUnder(page, "找不到關卡 no_such_stage");
+  });
+
+  test("no such area", async ({ page }) => {
+    await page.goto("#/area/no_such_area");
+    await expectFooterUnder(page, "找不到區域 no_such_area");
+  });
+});
