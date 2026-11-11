@@ -19,6 +19,7 @@ import type {
   RawLevel,
   RawRangeTable,
   RawRoguelikeTopicTable,
+  RawSkillTable,
   RawStageTable,
   RawZoneTable,
 } from "../pipeline/raw.ts";
@@ -69,7 +70,12 @@ export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterT
   };
 }
 
-/** The CN range table, subset to the range ids the CN character table names. */
+/** The CN skill table, subset to the skills the CN character table names. */
+export function rawSkillTable(): RawSkillTable {
+  return readJson<RawSkillTable>("skill_table.json");
+}
+
+/** The CN range table, subset to the range ids the CN character and skill tables name. */
 export function rawRangeTable(): RawRangeTable {
   return readJson<RawRangeTable>("range_table.json");
 }
@@ -83,6 +89,7 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
     cn,
     tw,
     rawRangeTable(),
+    rawSkillTable(),
   ));
 }
 

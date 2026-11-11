@@ -45,6 +45,7 @@ import type {
   RawRangeTable,
   RawRoute,
   RawRune,
+  RawSkillTable,
   Slot,
 } from "./raw.ts";
 
@@ -353,13 +354,14 @@ export function buildDeviceCatalog(
   cn: RawCharacterTable,
   tw: RawCharacterTable,
   ranges: RawRangeTable,
+  skills: RawSkillTable,
 ): DeviceCatalog {
   const info = new Map<string, DeviceInfo>();
   for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
     const { name, description } = tw[key] ?? cn[key]!;
     info.set(key, { name, description: description && plainText(description) });
   }
-  return { controllers, info, effects: { characters: cn, ranges } };
+  return { controllers, info, effects: { characters: cn, skills, ranges } };
 }
 
 export type UnknownDeviceHandler = (key: string) => void;

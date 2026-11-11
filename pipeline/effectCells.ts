@@ -1,14 +1,22 @@
 // 作用範圍: the cells a device's effect covers, from the CN character and range tables.
 import type { Cell, Direction, LevelMap } from "../src/level/index.ts";
-import type { RawCharacterTable, RawEnum, RawRangeTable, RawTokenInst } from "./raw.ts";
+import type {
+  RawCharacter,
+  RawCharacterTable,
+  RawEnum,
+  RawRangeTable,
+  RawSkillTable,
+  RawTokenInst,
+} from "./raw.ts";
 
 /** The CN tables 作用範圍 come from. */
 export interface EffectTables {
   characters: RawCharacterTable;
+  skills: RawSkillTable;
   ranges: RawRangeTable;
 }
 
-export const noEffectTables: EffectTables = { characters: {}, ranges: {} };
+export const noEffectTables: EffectTables = { characters: {}, skills: {}, ranges: {} };
 
 /** Called for each range id a device names that the range table lacks. */
 export type UnknownRangeIdHandler = (rangeId: string, key: string) => void;
@@ -22,7 +30,7 @@ function phaseIndex(phase: RawEnum | undefined): number {
 
 /**
  * The range ids a device may take its 作用範圍 from, in the order they are tried: the
- * character table's 階段 first.
+ * character table's 階段 first, then the skill the level gives the device.
  */
 function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string | null)[] {
   const character = tables.characters[token.inst.characterKey];
@@ -30,7 +38,19 @@ function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string |
   const phases = character.phases ?? [];
   // The 階段 of the device; past the last 階段 the table lists, the last one.
   const phase = phases[phaseIndex(token.inst.phase)] ?? phases.at(-1);
-  return [phase?.rangeId ?? null];
+  return [phase?.rangeId ?? null, skillRangeId(tables.skills, character, token)];
+}
+
+/** The range id of the device's skill at its level; past the last level, the last one. */
+function skillRangeId(
+  skills: RawSkillTable,
+  character: RawCharacter,
+  { skillIndex = 0, mainSkillLvl = 1 }: RawTokenInst,
+): string | null {
+  if (skillIndex === -1) return null;
+  const skillId = character.skills?.[skillIndex]?.skillId;
+  const levels = (skillId && skills[skillId]?.levels) || [];
+  return (levels[mainSkillLvl - 1] ?? levels.at(-1))?.rangeId ?? null;
 }
 
 /** The device's range offsets: the first candidate covering a cell besides its own. */

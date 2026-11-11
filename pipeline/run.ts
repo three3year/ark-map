@@ -37,6 +37,7 @@ import type {
   RawLevel,
   RawRangeTable,
   RawRoguelikeTopicTable,
+  RawSkillTable,
   RawStageTable,
   RawZoneTable,
 } from "./raw.ts";
@@ -217,6 +218,7 @@ const devices = buildDeviceCatalog(
   await table<RawCharacterTable>(sources.cn, cnExcel, "character_table"),
   await table<RawCharacterTable>(sources.tw, twExcel, "character_table"),
   await table<RawRangeTable>(sources.cn, cnExcel, "range_table"),
+  await table<RawSkillTable>(sources.cn, cnExcel, "skill_table"),
 );
 log(`控制器 ${controllers.size} 種:${[...controllers].sort().join("、")}`);
 const facts = new Map<string, LevelFacts>();
