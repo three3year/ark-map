@@ -296,7 +296,7 @@ describe("stage index: 集成戰略", () => {
       [null, false, ["ro1_b_1"]],
     ]);
     expect(sections("rogue_4")).toEqual([
-      ["熔魂之始", false, ["ro4_n_1_1"]],
+      ["熔魂之始", false, ["ro4_n_1_1", "ro4_n_1_2"]],
       [null, false, ["ro4_t_2"]],
     ]);
   });
