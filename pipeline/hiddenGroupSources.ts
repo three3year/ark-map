@@ -1,5 +1,3 @@
-// 隱藏組來源: the 集成戰略 items (收藏品, 通寶, 密文板效果, 機制) whose effects open or close a 隱藏組,
-// read from the CN and TW theme tables.
 import type { HiddenGroupSource } from "../src/level/index.ts";
 import type { RawRoguelikeTopic, RawRoguelikeTopicTable } from "./raw.ts";
 
@@ -17,7 +15,6 @@ const fileName = (levelId: string) => levelId.toLowerCase().replace(/^.*\//, "")
 
 const switchBuff = /^level_hidden_group_(enable|disable)$/;
 
-/** An item both tables have counts once: CN effects, TW name and kind (else CN). */
 function themeSources(
   cn: RawRoguelikeTopic | undefined,
   tw: RawRoguelikeTopic | undefined,
@@ -56,7 +53,6 @@ export function buildSourceCatalog(
   for (const theme of new Set([...Object.keys(cn.details), ...Object.keys(tw.details)])) {
     const [cnTopic, twTopic] = [cn.details[theme], tw.details[theme]];
     byTheme.set(theme, themeSources(cnTopic, twTopic));
-    // The site's 集成戰略 levels are the ones the CN table names (see `roguelikeLevelPaths`).
     for (const stage of Object.values(cnTopic?.stages ?? {})) {
       for (const id of [stage.levelId, ...stage.levelReplaceIds]) {
         themeOfLevel.set(fileName(id), theme);

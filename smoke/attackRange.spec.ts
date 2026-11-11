@@ -1,4 +1,3 @@
-// 攻擊範圍: the selected individual's circle on the map, centred where it stands now.
 import { expect, test, type Page } from "@playwright/test";
 import { buildTimeline, takeSnapshot, timelineEnd } from "../src/timeline/index.ts";
 import { drawnAt, enemyOnMap, seek, selectWave, siteLevel, wideWindow } from "./levelPage.ts";
@@ -7,7 +6,6 @@ test.use({ viewport: wideWindow });
 
 const level = siteLevel("main_04-04");
 
-/** The first individual of `enemyId`, in any wave, on the field and not 隱形 at two whole seconds. */
 function walker(enemyId: string) {
   for (const waveIndex of level.waves.keys()) {
     const timeline = buildTimeline(level, { waveIndex });

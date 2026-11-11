@@ -144,7 +144,6 @@
     };
   });
 
-  /** The last level JSON fetched, with the file it came from and the 名稱表. */
   let loaded = $state<{
     file: string;
     level: Level;

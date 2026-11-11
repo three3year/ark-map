@@ -149,7 +149,6 @@ describe("純機關: 5-10", () => {
 });
 
 describe("敵人屬性", () => {
-  /** The 敵人屬性 of `enemyId` in the challenge (突襲) variant of a fixture level. */
   const challengeAttributes = (name: string, enemyId: string) => {
     const level = loadFixtureLevel(name);
     const modifiers = variantModifiers(level.modifiers, "FOUR_STAR");
@@ -198,7 +197,6 @@ describe("敵人屬性", () => {
 
   it("act16mini 3 突襲: 攻擊 ×1.2, rounded, then +300 for the one enemy the addition names", () => {
     const scorpion = challengeAttributes("level_act16mini_03", "enemy_1100_scorpn");
-    // 380 × 1.2 = 456, + 300.
     expect(attribute(scorpion, "攻擊")).toMatchObject({
       text: "756",
       multipliers: [1.2],
@@ -206,13 +204,11 @@ describe("敵人屬性", () => {
       tooltip: "基礎 380 ×1.2 +300",
     });
     const warrior = challengeAttributes("level_act16mini_03", "enemy_1093_ccsbr");
-    // 290 × 1.2 = 348.
     expect(attribute(warrior, "攻擊")).toMatchObject({ text: "348", tooltip: "基礎 290 ×1.2" });
   });
 
   it("act50side EX-1 突襲: hp_max counts as 生命值", () => {
     const boss = challengeAttributes("level_act50side_ex01", "enemy_10132_pyceat_2");
-    // 14500 × 1.2 × 1.5.
     expect(attribute(boss, "生命值")).toMatchObject({ text: "26100", tooltip: "基礎 14500 ×1.8" });
   });
 
@@ -235,7 +231,6 @@ describe("敵人屬性", () => {
       difficulties: [],
       blackboard: [{ key: "move_speed", value: 1.234, valueStr: null }],
     };
-    // 1.1 × 1.234 = 1.3574.
     expect(attribute(enemyAttributes(soldier, [slow]), "移速").text).toBe("1.36");
   });
 });
@@ -445,7 +440,6 @@ describe("關卡資訊's numbers", () => {
 });
 
 describe("攻擊範圍", () => {
-  /** The 攻擊範圍 radius drawn for `enemyId` in a variant of a fixture level. */
   const radius = (name: string, enemyId: string, difficulty: Difficulty = "NORMAL") => {
     const level = loadFixtureLevel(name);
     return attackRadius(level.enemies[enemyId]!, variantModifiers(level.modifiers, difficulty));

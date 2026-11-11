@@ -74,9 +74,7 @@ export const strings = {
   noSpawn: "不出兵",
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
-  /** A 隱藏組's 出兵表 badge: its opening sources' names, else its 變體說明, when it has one. */
   hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
-  /** 隱藏組來源 kinds, as the theme tables name them. */
   sourceKinds: {
     RELIC: "收藏品",
     COPPER_BUFF: "通寶",
@@ -86,9 +84,7 @@ export const strings = {
   hiddenGroupSource: (kind: string, name: string, opens: boolean) =>
     `${kind}「${name}」${opens ? "開啟" : "關閉"}`,
   hiddenGroupSources: (sources: string[]) => `由${sources.join("、")}`,
-  /** A 隱藏組's 說明: its sources, then its 變體說明. */
   hiddenGroupNote: (parts: string[]) => parts.join(","),
-  /** 變體說明: the variants whose 難度修正 switch a 隱藏組 on. */
   onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
   onInEveryVariant: "各變體都開",
   conditional: "條件出兵",
@@ -97,7 +93,6 @@ export const strings = {
   triggeredInWave: (wave: string, t: number) => `已在${wave}第 ${t} 秒觸發`,
   deviceOnly: "純機關(不出兵)",
   deviceOnlyHint: "只啟動裝置的條件出兵,不進快照",
-  /** Where a 隨機出兵組 in a 條件出兵 sits: the 條件出兵, and its device when its key names one. */
   conditionalSource: (device: string | null) => (device ? `條件出兵 ${device}` : "條件出兵"),
   pickCandidate: "切換",
   pickCandidateHint: "改選這個候選上場",
@@ -136,10 +131,8 @@ export const strings = {
   maxCost: "費用上限",
   modifiers: (variant: string) => `難度修正(${variant})`,
   noModifiers: "這個變體沒有難度修正",
-  /** Hint on a 難度修正's move speed that the timeline applies. */
   modifierMovesEnemies: "已套用到地圖上的移動",
   modifierUnknown: "未知修正",
-  /** A preset device a 難度修正 switches on or off. */
   deviceOn: "開",
   deviceOff: "關",
   /** 難度修正 names by key. */
@@ -294,7 +287,6 @@ export const strings = {
   } satisfies Record<EnemyAttributeKey, string>,
   enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
     key === "baseAttackTime" ? `${value}秒` : String(value),
-  /** How a modified 敵人屬性 came about, e.g. 基礎 420 ×1.2 +50. */
   attributeTooltip: (base: string, multiplier: number, addition: number) =>
     [
       `基礎 ${base}`,

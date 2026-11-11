@@ -148,7 +148,6 @@
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
-  /** Where the selected individual's 攻擊範圍 is centred: drawn, and not 隱形. Null for none. */
   const attackCentre = $derived.by(() => {
     if (attackRadius === null || !selected) return null;
     const drawn = enemies.find((e) => e.individual.id === selected.id);

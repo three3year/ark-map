@@ -342,7 +342,6 @@ describe("enemy resolution", () => {
       withRefs([{ useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData }]).enemies[
         "enemy_1012_dcross"
       ]!;
-    // Level 1 leaves applyWay undefined (NONE); level 0 says RANGED.
     expect(crossbow(null).applyWay).toBe("RANGED");
     expect(crossbow({ applyWay: { m_defined: true, m_value: "MELEE" } }).applyWay).toBe("MELEE");
   });
@@ -352,7 +351,6 @@ describe("enemy resolution", () => {
       { useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData: null },
     ]).enemies["enemy_1012_dcross"]!;
     expect(crossbow).toMatchObject({
-      // Level 1 defines its own HP.
       maxHp: 6700,
       magicResistance: 50,
       baseAttackTime: 3,

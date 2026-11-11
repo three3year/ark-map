@@ -115,13 +115,10 @@ export interface EnemyRef {
   magicResistance: number;
   /** 攻擊間隔, seconds. */
   baseAttackTime: number;
-  /** 攻速 */
   attackSpeed: number;
   /** 攻擊範圍, cells. */
   rangeRadius: number;
-  /** 攻擊方式: decides whether the 攻擊範圍 is drawn; not an 敵人屬性. */
   applyWay: ApplyWay;
-  /** 重量 */
   massLevel: number;
   /** 關卡生命: life points lost when it gets through. */
   lifePointReduce: number;
@@ -202,7 +199,6 @@ export interface Level {
 export interface HiddenGroupSource {
   /** Item id in the theme table, e.g. "rogue_4_relic_explore_5". */
   item: string;
-  /** true: opens the group; false: closes it. */
   opens: boolean;
   /** TW name, else CN. */
   name: string;

@@ -18,7 +18,6 @@ export interface DeviceInfo {
   description: string | null;
 }
 
-/** A 隱藏組來源 item's name and kind. */
 export type SourceInfo = Pick<HiddenGroupSource, "name" | "kind">;
 
 export interface NameTable {

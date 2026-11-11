@@ -418,11 +418,9 @@ test("公害: cargo's 說明 names the 收藏品 that opens it", async ({ page }
   await expect(panel).toContainText("由收藏品「牧馱人的搖鈴」開啟");
 });
 
-// 公害's cargo only activates a device, so it has no 出兵表 row; totem1 spawns.
 test("死囚之夜: totem1's 出兵表 badge names the 密文板效果 that opens it", async ({ page }) => {
   await page.goto("#/level/ro3_n_1_1?v=normal");
   const panel = page.getByRole("region", { name: "開關" });
-  // Off by default: its rows join the 出兵表 once it is on.
   await panel.locator('input[data-hidden-group="totem1"]').check();
   await expect(spawnTableRegion(page)).toContainText("隱藏組・場上出現無人機");
 });

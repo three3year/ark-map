@@ -204,7 +204,6 @@
     align-items: center;
     gap: 6px;
   }
-  /* A 隱藏組's content is listed whole: it wraps inside the panel. */
   .hidden-group {
     max-width: 100%;
   }

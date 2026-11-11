@@ -67,7 +67,6 @@
     variant: Variant;
     view: LevelView;
     level: Level;
-    /** The 名稱表: the 地形表, and names the 難度修正 list looks up. */
     names: NameTable;
     /** 上一關 and 下一關 in the area; null at its ends. */
     prev: StageLink | null;
@@ -127,7 +126,6 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
-  /** The 關卡變體 showing this level file: their 難度修正 make the 隱藏組's 變體說明. */
   const siblings = $derived(variantsShowing(stage, view.shownFile));
   const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, siblings).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));

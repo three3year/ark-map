@@ -5,7 +5,6 @@
   --panel: #ffffff;
   --border: #d8d8dc;
   --accent: #2f6fde;
-  /* A 敵人屬性 the variant's 難度修正 change. */
   --attribute-modified: #c2410c;
   /* 出生點 dots and 侵入點 are red; 消失點 dots and 保護目標 are blue. */
   --spawn-red: #e5484d;

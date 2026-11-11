@@ -1,5 +1,3 @@
-// 顯示內容: the text the panels under the map show, worked out from the 關卡模型 and the 名稱表.
-// The Svelte components only lay it out.
 import {
   affectsMovement,
   deviceActionKind,
@@ -27,7 +25,6 @@ import {
 } from "../timeline/index.ts";
 import { strings, variantLabel } from "./strings.ts";
 
-/** The device an action's key names: by alias, else (an alias-less device) by its kind. */
 function deviceName(level: Level, alias: string): string {
   const kind = alias.replace(/#\d+$/, "");
   const device =
@@ -35,10 +32,6 @@ function deviceName(level: Level, alias: string): string {
   return device?.name ?? kind;
 }
 
-/**
- * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
- * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
- */
 function actionsLabel(level: Level, actions: Action[]): string {
   const parts = actions.flatMap((action) => {
     if (!isSpawn(action)) {
@@ -53,21 +46,18 @@ function actionsLabel(level: Level, actions: Action[]): string {
   return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
 }
 
-/** A 隨機出兵組 candidate by what it puts on the field. */
 export const candidateLabel = (level: Level, candidate: RandomCandidate): string =>
   actionsLabel(
     level,
     candidate.actions.map((ref) => actionAt(level, ref)),
   );
 
-/** A 條件出兵 or 純機關 by what all its phases put on the field. */
 export const branchLabel = (level: Level, branch: Branch): string =>
   actionsLabel(
     level,
     branch.phases.flatMap((p) => p.actions),
   );
 
-/** A 條件出兵 or 純機關 where its key used to show: the 開關面板 and a 隨機出兵組 in it. */
 export interface ConditionalText {
   /** "裝置 {名稱}" when its key is the alias of one of the level's devices; null otherwise. */
   device: string | null;
@@ -83,25 +73,20 @@ export function conditionalText(level: Level, branch: Branch): ConditionalText {
   return { device, hint: branch.key, source: strings.conditionalSource(device) };
 }
 
-/** A 關卡變體 that shows the same level file: its 難度修正 decide which 隱藏組 start on. */
 export interface SiblingVariant {
   id: VariantId;
   difficulty: Difficulty;
 }
 
-/** A 隱藏組 as the 開關面板 and the 出兵表 show it. */
 export interface HiddenGroupText {
-  /** What all its actions put on the field. */
   name: string;
   /** Its tag in the level file, for the mouse-over hint. */
   hint: string;
   /** 說明: its 隱藏組來源, then its 變體說明; null when it has neither. */
   note: string | null;
-  /** The 出兵表's badge. */
   badge: string;
 }
 
-/** 變體說明 of 隱藏組 `name` among `variants`, the level file's variants in stage order. */
 function variantNote(
   level: Level,
   name: string,
@@ -124,7 +109,6 @@ export function hiddenGroupText(
     action.hiddenGroup === name ? [action] : [],
   );
   const sources = level.hiddenGroupSources[name] ?? [];
-  // Distinct items with one name (two 花-鴨爵金幣) read as one.
   const sourceTexts = unique(
     sources.map((s) =>
       strings.hiddenGroupSource(strings.sourceKinds[s.kind] ?? "", s.name, s.opens),
@@ -162,7 +146,6 @@ export const enemyAttributeKeys = [
 
 export type EnemyAttributeKey = (typeof enemyAttributeKeys)[number];
 
-/** Rounded to whole numbers; the rest to two decimals. */
 const wholeAttributes: ReadonlySet<EnemyAttributeKey> = new Set([
   "maxHp",
   "atk",
@@ -170,7 +153,6 @@ const wholeAttributes: ReadonlySet<EnemyAttributeKey> = new Set([
   "lifePointReduce",
 ]);
 
-/** The attribute an 敵人屬性倍率 or 敵人屬性加值 blackboard key changes, by lower-case key. */
 const blackboardAttributes: Record<string, EnemyAttributeKey> = {
   max_hp: "maxHp",
   hp_max: "maxHp",
@@ -189,7 +171,6 @@ interface AttributeChange {
   value: number;
 }
 
-/** What one modifier's blackboard does to the 敵人屬性, before narrowing to its enemies. */
 function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
   const changes = (
     kind: AttributeChange["kind"],
@@ -219,7 +200,6 @@ function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
   }
 }
 
-/** One 敵人屬性 as the selection card shows it. */
 export interface EnemyAttribute {
   key: EnemyAttributeKey;
   label: string;
@@ -231,7 +211,6 @@ export interface EnemyAttribute {
   multipliers: number[];
   /** Every addition, in modifier order. */
   additions: number[];
-  /** The value differs from the base. */
   modified: boolean;
   text: string;
   /** "基礎 420 ×1.2 +50" for a modified value; null otherwise. */
@@ -286,7 +265,6 @@ export function attackRadius(enemy: EnemyRef, modifiers: Modifier[]): number | n
   return radius > 0 ? radius : null;
 }
 
-/** One 難度修正 parameter: "移速 ×2". `hint` is its mouse-over text. */
 export interface ModifierParam {
   label: string;
   value: string;
@@ -298,14 +276,11 @@ export interface ModifierParam {
  * left is a lone `value`.
  */
 export interface ModifierLine {
-  /** The modifier's raw key. */
   key: string;
   name: string;
   /** The name's mouse-over text: the raw key, and an 環境機制's target. */
   hint: string;
-  /** The lone `value` that reads straight after the name; `params` is then empty. */
   value: string | null;
-  /** The 隱藏組 the modifier opens or closes, drawn as their 開關標記 after the name. */
   hiddenGroups: HiddenGroupMark[];
   params: ModifierParam[];
 }
@@ -319,7 +294,6 @@ export interface HiddenGroupMark {
 const multiplies = (modifierKey: string) =>
   modifierKey === "ebuff_attribute" || modifierKey.endsWith("_mul");
 
-/** A multiplier at 1 or an addition of 0 changes nothing. */
 function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): boolean {
   if (valueStr !== null) return true;
   if (multiplies(modifierKey)) return value !== 1;
@@ -327,7 +301,6 @@ function hasEffect(modifierKey: string, { value, valueStr }: BlackboardEntry): b
   return true;
 }
 
-/** Parameters the game reads for its own bookkeeping (UI plugins, aliases, ...): never shown. */
 const internalKeys = new Set([
   "rune_alias",
   "ui_plugin_name",
@@ -341,19 +314,12 @@ const internalKeys = new Set([
   "include_predefined",
 ]);
 
-/** 環境機制 and 環境全域效果: their `key` names the mechanism, shown only in the name's hint. */
 const environmentKeys = new Set(["env_system_new", "env_gbuff_new", "env_gbuff_new_with_verify"]);
 
 const hiddenGroupKeys = new Set(["level_hidden_group_enable", "level_hidden_group_disable"]);
 
-/** Parameters naming whom a modifier applies to; alone, they change nothing. */
 const targetKeys = new Set(["enemy", "enemy_exclude", "char"]);
 
-/**
- * Multiplier modifiers' numbers read "×2". Text lists ("a|b") read as names, each once: `tile`'s
- * keys as 地形, any other part as the enemy or device kind it names, else as is. Cells keep their
- * order and repeats.
- */
 function entryValue(
   level: Level,
   modifierKey: string,
@@ -375,15 +341,12 @@ function entryValue(
   return [...new Set(shown)].join("、");
 }
 
-/** What 難度修正 lines are worked out against besides the level. */
 export interface ModifierContext {
-  /** Names of the 地形, enemies and device kinds the level itself does not have. */
   names: NameTable;
   /** The variant's spawn plan: 隱藏組 marks number as the 開關面板 does. */
   plan: SpawnPlan;
 }
 
-/** The 隱藏組 "a|b" names; one with no action in the level is left out, as switching it is moot. */
 function hiddenGroupMarks(level: Level, names: string, plan: SpawnPlan): HiddenGroupMark[] {
   const marked = markedSwitches(level, plan).hidden;
   return names.split("|").flatMap((name) => {
@@ -392,10 +355,6 @@ function hiddenGroupMarks(level: Level, names: string, plan: SpawnPlan): HiddenG
   });
 }
 
-/**
- * `level_predefines_enable`'s entries, one per device alias: "名稱 開", or "名稱 × N 開" for N
- * devices of the same name and state.
- */
 function presetDeviceParams(
   level: Level,
   entries: BlackboardEntry[],
@@ -426,7 +385,6 @@ function modifierLine(
 ): ModifierLine | null {
   const environment = environmentKeys.has(modifier.key);
   const opensGroups = hiddenGroupKeys.has(modifier.key);
-  // An 環境機制's or 隱藏組 modifier's `key` names its target: no parameter of its own.
   const ownsKey = environment || opensGroups;
   const target = ownsKey
     ? (modifier.blackboard.find((entry) => entry.key === "key")?.valueStr ?? null)
@@ -473,7 +431,6 @@ export const modifierLines = (
   context: ModifierContext,
 ): ModifierLine[] => modifiers.flatMap((modifier) => modifierLine(level, modifier, context) ?? []);
 
-/** The 關卡資訊's numbers as one line: "可部署人數 8 · 生命值 3 · 初始費用 10 · 費用上限 99". */
 export const levelNumbers = (options: LevelOptions): string =>
   [
     `${strings.characterLimit} ${options.characterLimit}`,

@@ -1,4 +1,3 @@
-// 敵人屬性 under the selection row: wired to the selected individual and the current variant.
 import { expect, test, type Page } from "@playwright/test";
 import { spawnTable } from "../src/timeline/index.ts";
 import { orderCell, rowOf, siteLevel, wideWindow } from "./levelPage.ts";

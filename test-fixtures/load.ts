@@ -97,7 +97,6 @@ export function fixtureDeviceCatalog(): DeviceCatalog {
 
 let sourceCatalog: SourceCatalog | undefined;
 
-/** 隱藏組來源 from the fixture theme tables. */
 export function fixtureSourceCatalog(): SourceCatalog {
   const { cn, tw } = rawTables();
   return (sourceCatalog ??= buildSourceCatalog(cn.roguelike, tw.roguelike));
@@ -116,10 +115,6 @@ export function loadFixtureLevel(name: string): Level {
 
 let nameTable: NameTable | undefined;
 
-/**
- * The 名稱表 of every enemy, device, 地形 and 隱藏組來源 in the fixture tables, named as the pipeline names
- * them (enemies: TW handbook, else the CN database's level 0).
- */
 export function fixtureNameTable(): NameTable {
   if (nameTable) return nameTable;
   const catalog = buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());

@@ -39,7 +39,6 @@
     onClearFilter: () => void;
     rowStow: (row: SpawnRow) => RowStow;
     onStow: (rows: SpawnRow[], stow: boolean) => void;
-    /** The badge of 隱藏組 `name`. */
     hiddenGroupBadge: (name: string) => string;
   }
   let {
