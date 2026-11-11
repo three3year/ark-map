@@ -19,6 +19,7 @@ import {
   type Stay,
   type TimelineOptions,
 } from "./index.ts";
+import { testEnemy } from "../../test-fixtures/enemy.ts";
 
 const road: Tile = {
   tileKey: "tile_road",
@@ -124,27 +125,7 @@ function level(rows: string[], route: TestRoute, timing: TestTiming = {}): Level
       },
     ],
     enemies: {
-      enemy_test: {
-        id: "enemy_test",
-        level: 0,
-        name: "測試",
-        code: null,
-        moveSpeed: 1,
-        motion: route.motionMode,
-        levelType: "NORMAL",
-        maxHp: 1,
-        atk: 0,
-        def: 0,
-        magicResistance: 0,
-        baseAttackTime: 0,
-        attackSpeed: 100,
-        rangeRadius: 0,
-        applyWay: "NONE",
-        massLevel: 0,
-        lifePointReduce: 1,
-        notCountInTotal: false,
-        avatar: null,
-      },
+      enemy_test: testEnemy({ motion: route.motionMode }),
     },
   };
 }
