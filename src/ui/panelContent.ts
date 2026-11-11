@@ -8,22 +8,31 @@ import {
   type Action,
   type BlackboardEntry,
   type Branch,
+  type Difficulty,
   type EnemyRef,
   type Level,
   type LevelOptions,
   type Modifier,
   type NameTable,
+  type VariantId,
+  targetsEnemy,
 } from "../level/index.ts";
 import {
   actionAt,
+  allActions,
+  levelGroups,
   markedSwitches,
   type RandomCandidate,
   type SpawnPlan,
 } from "../timeline/index.ts";
-import { strings } from "./strings.ts";
+import { strings, variantLabel } from "./strings.ts";
 
+/** The device an action's key names: by alias, else (an alias-less device) by its kind. */
 function deviceName(level: Level, alias: string): string {
-  return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
+  const kind = alias.replace(/#\d+$/, "");
+  const device =
+    level.devices.find((d) => d.alias === alias) ?? level.devices.find((d) => d.key === kind);
+  return device?.name ?? kind;
 }
 
 /**
@@ -57,6 +66,200 @@ export const branchLabel = (level: Level, branch: Branch): string =>
     level,
     branch.phases.flatMap((p) => p.actions),
   );
+
+/** A 條件出兵 or 純機關 where its key used to show: the 開關面板 and a 隨機出兵組 in it. */
+export interface ConditionalText {
+  /** "裝置 {名稱}" when its key is the alias of one of the level's devices; null otherwise. */
+  device: string | null;
+  /** Its key in the level file, for the mouse-over hint. */
+  hint: string;
+  /** Where a 隨機出兵組 inside it sits: 條件出兵, plus the device when there is one. */
+  source: string;
+}
+
+export function conditionalText(level: Level, branch: Branch): ConditionalText {
+  const named = level.devices.find((d) => d.alias === branch.key);
+  const device = named ? strings.device(named.name) : null;
+  return { device, hint: branch.key, source: strings.conditionalSource(device) };
+}
+
+/** A 關卡變體 that shows the same level file: its 難度修正 decide which 隱藏組 start on. */
+export interface SiblingVariant {
+  id: VariantId;
+  difficulty: Difficulty;
+}
+
+/** A 隱藏組 as the 開關面板 and the 出兵表 show it. */
+export interface HiddenGroupText {
+  /** What all its actions put on the field. */
+  name: string;
+  /** Its tag in the level file, for the mouse-over hint. */
+  hint: string;
+  /** 變體說明: the variants that switch it on by default; null when none does. */
+  note: string | null;
+  /** The 出兵表's badge. */
+  badge: string;
+}
+
+/** 變體說明 of 隱藏組 `name` among `variants`, the level file's variants in stage order. */
+function variantNote(
+  level: Level,
+  name: string,
+  variants: readonly SiblingVariant[],
+): string | null {
+  const on = variants.filter(
+    (v) => levelGroups(level, v.difficulty).hidden.find((g) => g.name === name)?.defaultOn,
+  );
+  if (on.length === 0) return null;
+  if (on.length === variants.length) return strings.onInEveryVariant;
+  return strings.onInVariants(on.map((v) => variantLabel(v.id)));
+}
+
+export function hiddenGroupText(
+  level: Level,
+  name: string,
+  variants: readonly SiblingVariant[],
+): HiddenGroupText {
+  const actions = [...allActions(level)].flatMap(({ action }) =>
+    action.hiddenGroup === name ? [action] : [],
+  );
+  const note = variantNote(level, name, variants);
+  return {
+    name: actionsLabel(level, actions),
+    hint: name,
+    note,
+    badge: strings.hiddenGroupBadge(note),
+  };
+}
+
+/** The 10 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. */
+export const enemyAttributeKeys = [
+  "maxHp",
+  "atk",
+  "def",
+  "magicResistance",
+  "baseAttackTime",
+  "attackSpeed",
+  "rangeRadius",
+  "moveSpeed",
+  "massLevel",
+  "lifePointReduce",
+] as const satisfies readonly (keyof EnemyRef)[];
+
+export type EnemyAttributeKey = (typeof enemyAttributeKeys)[number];
+
+/** Rounded to whole numbers; the rest to two decimals. */
+const wholeAttributes: ReadonlySet<EnemyAttributeKey> = new Set([
+  "maxHp",
+  "atk",
+  "def",
+  "lifePointReduce",
+]);
+
+/** The attribute an 敵人屬性倍率 or 敵人屬性加值 blackboard key changes, by lower-case key. */
+const blackboardAttributes: Record<string, EnemyAttributeKey> = {
+  max_hp: "maxHp",
+  hp_max: "maxHp",
+  atk: "atk",
+  def: "def",
+  magic_resistance: "magicResistance",
+  attack_speed: "attackSpeed",
+  move_speed: "moveSpeed",
+  mass_level: "massLevel",
+  map_hp: "lifePointReduce",
+};
+
+interface AttributeChange {
+  attribute: EnemyAttributeKey;
+  kind: "multiply" | "add";
+  value: number;
+}
+
+/** What one modifier's blackboard does to the 敵人屬性, before narrowing to its enemies. */
+function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
+  const changes = (
+    kind: AttributeChange["kind"],
+    attributeOf: (entryKey: string) => EnemyAttributeKey | undefined,
+  ) =>
+    blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
+      const attribute = valueStr === null ? attributeOf(entryKey) : undefined;
+      return attribute ? [{ attribute, kind, value }] : [];
+    });
+  const byTable = (entryKey: string) => blackboardAttributes[entryKey.toLowerCase()];
+  switch (key) {
+    case "ebuff_attribute":
+    case "enemy_attribute_mul":
+      return changes("multiply", byTable);
+    case "enemy_attribute_add":
+      return changes("add", byTable);
+    case "enemy_attackradius_mul":
+    case "ebuff_attack_radius":
+      return changes("multiply", (k) =>
+        k === "scale" || k === "range_scale" ? "rangeRadius" : undefined,
+      );
+    case "enemy_weight_add":
+    case "ebuff_weight":
+      return changes("add", (k) => (k === "value" ? "massLevel" : undefined));
+    default:
+      return [];
+  }
+}
+
+/** One 敵人屬性 as the selection card shows it. */
+export interface EnemyAttribute {
+  key: EnemyAttributeKey;
+  label: string;
+  /** After the variant's 難度修正, rounded. */
+  value: number;
+  /** The enemy's own value: its level, with the level's overwrites. */
+  base: number;
+  /** Every multiplier the variant's 難度修正 give this enemy here, in modifier order. */
+  multipliers: number[];
+  /** Every addition, in modifier order. */
+  additions: number[];
+  /** The value differs from the base. */
+  modified: boolean;
+  text: string;
+  /** "基礎 420 ×1.2 +50" for a modified value; null otherwise. */
+  tooltip: string | null;
+}
+
+const round = (value: number, digits: number) => {
+  const scale = 10 ** digits;
+  return Math.round(value * scale) / scale;
+};
+
+/**
+ * The 敵人屬性 of `enemy` under `modifiers` (the variant's 難度修正): base × the product of the
+ * multipliers, rounded, plus the additions. 移速 stays in the enemy data's unit (屬性移速), not
+ * multiplied by the level's move-speed multiplier.
+ */
+export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAttribute[] {
+  const changes = modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? attributeChanges(m) : []));
+  return enemyAttributeKeys.map((key) => {
+    const digits = wholeAttributes.has(key) ? 0 : 2;
+    const format = (n: number) => strings.enemyAttributeValue(key, round(n, digits));
+    const own = changes.filter((c) => c.attribute === key);
+    const multipliers = own.filter((c) => c.kind === "multiply").map((c) => c.value);
+    const additions = own.filter((c) => c.kind === "add").map((c) => c.value);
+    const product = multipliers.reduce((p, m) => p * m, 1);
+    const sum = additions.reduce((s, a) => s + a, 0);
+    const base = enemy[key];
+    const value = round(round(base * product, digits) + sum, digits);
+    const modified = value !== base;
+    return {
+      key,
+      label: strings.enemyAttributes[key],
+      value,
+      base,
+      multipliers,
+      additions,
+      modified,
+      text: format(value),
+      tooltip: modified ? strings.attributeTooltip(format(base), round(product, 4), sum) : null,
+    };
+  });
+}
 
 /** One 難度修正 parameter: "移速 ×2". `hint` is its mouse-over text. */
 export interface ModifierParam {

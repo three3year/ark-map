@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     variantModifiers,
+    variantsShowing,
     type Area,
     type DeviceIndex,
     type IndexedDevice,
@@ -49,7 +50,9 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
+  import { enemyAttributes } from "./panelContent.ts";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
+  import { hiddenGroupText } from "./panelContent.ts";
 
   interface Props {
     /**
@@ -124,6 +127,9 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
+  /** The 關卡變體 showing this level file: their 難度修正 make the 隱藏組's 變體說明. */
+  const siblings = $derived(variantsShowing(stage, view.shownFile));
+  const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, siblings).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
     onSwitches(switchHidden(level, difficulty, switches, name, on));
@@ -446,6 +452,16 @@
           <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
         </span>
       </p>
+      <dl class="enemy-attributes" aria-label={strings.enemyAttributesLabel}>
+        {#each enemyAttributes(selected.enemy, modifiers) as attribute (attribute.key)}
+          <div data-attribute={attribute.key}>
+            <dt>{attribute.label}</dt>
+            <dd class:modified={attribute.modified} title={attribute.tooltip ?? undefined}>
+              {attribute.text}
+            </dd>
+          </div>
+        {/each}
+      </dl>
     {:else if selectedDevice}
       {@const { index, device } = selectedDevice}
       <div class="selection device-selection" data-selected-device={index}>
@@ -484,6 +500,7 @@
     <SwitchPanel
       {level}
       {plan}
+      variants={siblings}
       conditional={switches.conditional ?? {}}
       wave={waveIndex}
       {t}
@@ -530,6 +547,7 @@
         onClearFilter={() => (endpointFilter = null)}
         {rowStow}
         onStow={stowRows}
+        {hiddenGroupBadge}
       />
     </div>
   </div>
@@ -689,6 +707,35 @@
     display: flex;
     flex-shrink: 0;
     gap: 8px;
+  }
+  .enemy-attributes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 16px;
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+  }
+  @media (width < 600px) {
+    .enemy-attributes {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .enemy-attributes div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .enemy-attributes dt {
+    color: var(--muted);
+  }
+  .enemy-attributes dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .enemy-attributes dd.modified {
+    color: var(--attribute-modified);
+    font-weight: 600;
+    cursor: help;
   }
   .device-about {
     display: flex;

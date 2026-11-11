@@ -1,6 +1,7 @@
 // 介面文字(繁中)。All user-facing text lives here.
 import type { AreaKind, KnownModifierKey, Server, StageEntry, VariantId } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
+import type { EnemyAttributeKey } from "./panelContent.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
@@ -73,14 +74,19 @@ export const strings = {
   noSpawn: "不出兵",
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
-  hiddenGroupBadge: (name: string) => `隱藏組 ${name}`,
+  /** A 隱藏組's 出兵表 badge, with its 說明 when it has one. */
+  hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
+  /** 變體說明: the variants whose 難度修正 switch a 隱藏組 on. */
+  onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
+  onInEveryVariant: "各變體都開",
   conditional: "條件出兵",
   conditionalHint: "由機關或敵人技能觸發的出兵;預設關,打開後在指定秒數(波內)出生,沿額外路線走",
   triggerSecond: "觸發於",
   triggeredInWave: (wave: string, t: number) => `已在${wave}第 ${t} 秒觸發`,
   deviceOnly: "純機關(不出兵)",
   deviceOnlyHint: "只啟動裝置的條件出兵,不進快照",
-  conditionalBadge: (key: string) => `條件出兵 ${key}`,
+  /** Where a 隨機出兵組 in a 條件出兵 sits: the 條件出兵, and its device when its key names one. */
+  conditionalSource: (device: string | null) => (device ? `條件出兵 ${device}` : "條件出兵"),
   pickCandidate: "切換",
   pickCandidateHint: "改選這個候選上場",
   harmless: "無害",
@@ -260,6 +266,30 @@ export const strings = {
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   selectedDevice: (name: string) => `已選取:${name}`,
+  enemyAttributesLabel: "敵人屬性",
+  enemyAttributes: {
+    maxHp: "生命值",
+    atk: "攻擊",
+    def: "防禦",
+    magicResistance: "法術抗性",
+    baseAttackTime: "攻擊間隔",
+    attackSpeed: "攻速",
+    rangeRadius: "攻擊範圍",
+    moveSpeed: "移速",
+    massLevel: "重量",
+    lifePointReduce: "關卡生命",
+  } satisfies Record<EnemyAttributeKey, string>,
+  enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
+    key === "baseAttackTime" ? `${value}秒` : String(value),
+  /** How a modified 敵人屬性 came about, e.g. 基礎 420 ×1.2 +50. */
+  attributeTooltip: (base: string, multiplier: number, addition: number) =>
+    [
+      `基礎 ${base}`,
+      multiplier !== 1 ? `×${multiplier}` : null,
+      addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
+    ]
+      .filter((part) => part !== null)
+      .join(" "),
   deselect: "取消選取",
   stow: "收起",
   show: "顯示",
