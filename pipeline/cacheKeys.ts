@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { sources } from "./config.ts";
+import { sources } from "../src/dataSources.ts";
 import { sourceCacheDir } from "./fetchCached.ts";
 
 const run = promisify(execFile);
