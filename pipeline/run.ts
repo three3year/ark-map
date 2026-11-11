@@ -106,21 +106,18 @@ async function readDataVersion(
   listing: TreeListing | null,
 ): Promise<DataVersion> {
   const file = `excel/${versionFile}`;
-  const body =
-    listing && !listing.has(versionFile)
-      ? null
-      : await fetchCached(source, file, listing?.get(versionFile));
+  const body = await fetchCached(source, file, listing?.get(versionFile));
   const cachedAt = await stat(path.join(sourceCacheDir(source), file)).then(
     (s) => s.mtime,
     () => null,
   );
-  const { version, warn } = dataVersion({
+  const version = dataVersion({
     listing,
     body: body?.toString("utf8") ?? null,
     cachedAt,
     now: runAt,
   });
-  if (warn) {
+  if (version.version === null) {
     console.warn(`[資料管線] 讀不到${name}的版號(${file} 的 dataVersion),頁尾只顯示確認時間`);
   }
   return version;
