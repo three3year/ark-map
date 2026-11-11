@@ -663,7 +663,7 @@
   }
   .device.blocker .device-frame {
     stroke: var(--device-blocker);
-    stroke-width: 0.1;
+    stroke-width: 0.06;
   }
   .device.removed {
     opacity: 0.3;
@@ -935,7 +935,7 @@
     border: 1.5px solid var(--device-frame);
   }
   .swatch.device.blocker {
-    border: 3px solid var(--device-blocker);
+    border: 2px solid var(--device-blocker);
   }
   .swatch.dot {
     width: 10px;
