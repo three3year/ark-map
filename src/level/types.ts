@@ -127,6 +127,11 @@ export interface Device {
   name: string;
   description: string | null;
   image: string | null;
+  /**
+   * 作用範圍 while it is on the field: map cells, turned to the direction it is placed facing and
+   * cut to the map. Empty when it has none.
+   */
+  effectCells: Cell[];
 }
 
 declare const deviceIndexBrand: unique symbol;
