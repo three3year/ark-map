@@ -4,6 +4,7 @@ import { buildTimeline } from "../src/timeline/index.ts";
 import {
   conditionalSwitch,
   deviceByIndex,
+  deviceIndex,
   devicesByKind,
   drawnAt,
   enemyOnMap,
@@ -97,7 +98,7 @@ test("EP-8: the hidden 加農炮 HidenCnnon activates appears from the 條件出
 }) => {
   const level = siteLevel("act39side_08");
   const branch = level.branches.findIndex((b) => b.key === "HidenCnnon");
-  const cannon = level.devices.findIndex((d) => d.alias === "trap_196_cnnon#3");
+  const cannon = deviceIndex(level, "trap_196_cnnon#3");
   expect(level.devices[cannon]!.hidden).toBe(true);
   const trigger = 20;
   const switches = { conditional: { [branch]: { wave: 0, t: trigger } } };

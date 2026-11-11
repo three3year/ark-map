@@ -1,4 +1,4 @@
-import type { Cell, Direction, LevelMap } from "../src/level/index.ts";
+import { directions, type Cell, type Direction, type LevelMap } from "../src/level/index.ts";
 import type {
   RawCharacter,
   RawCharacterTable,
@@ -19,33 +19,49 @@ export const noEffectTables: EffectTables = { characters: {}, skills: {}, ranges
 
 export type UnknownRangeIdHandler = (rangeId: string, key: string) => void;
 
-function phaseIndex(phase: RawEnum | undefined): number {
-  if (phase === undefined) return 0;
-  if (typeof phase === "number") return phase;
-  return Number(phase.replace("PHASE_", "")) || 0;
+export const warnUnknownRangeId: UnknownRangeIdHandler = (rangeId, key) =>
+  console.warn(`裝置 ${key} 的作用範圍 id ${rangeId} 不在範圍表,當作沒有作用範圍`);
+
+/** A 階段 as its index; undefined for a 階段 with no known name. */
+export type PhaseIndex = (phase: RawEnum) => number | undefined;
+
+export interface EffectContext {
+  tables: EffectTables;
+  map: Pick<LevelMap, "width" | "height">;
+  phaseIndex: PhaseIndex;
+  onUnknownRangeId: UnknownRangeIdHandler;
 }
 
-function talentRangeIds(character: RawCharacter, token: RawTokenInst): (string | null)[] {
-  const phase = phaseIndex(token.inst.phase);
+function talentRangeIds(
+  character: RawCharacter,
+  token: RawTokenInst,
+  phase: number,
+  phaseIndex: PhaseIndex,
+): (string | null)[] {
   const level = token.inst.level ?? 1;
   const unlocked = ({ unlockCondition: c }: RawTalentCandidate) => {
     const at = phaseIndex(c.phase);
-    return at < phase || (at === phase && c.level <= level);
+    return at !== undefined && (at < phase || (at === phase && c.level <= level));
   };
   return (character.talents ?? []).map(
     (talent) => (talent.candidates ?? []).filter(unlocked).at(-1)?.rangeId ?? null,
   );
 }
 
-function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string | null)[] {
+function rangeIdCandidates(
+  { tables, phaseIndex }: EffectContext,
+  token: RawTokenInst,
+): (string | null)[] {
   const character = tables.characters[token.inst.characterKey];
   if (!character) return [];
+  const phase = phaseIndex(token.inst.phase ?? "PHASE_0");
+  if (phase === undefined) return [];
   const phases = character.phases ?? [];
-  const phase = phases[phaseIndex(token.inst.phase)] ?? phases.at(-1);
+  const phaseRange = phases[phase] ?? phases.at(-1);
   return [
-    phase?.rangeId ?? null,
+    phaseRange?.rangeId ?? null,
     skillRangeId(tables.skills, character, token),
-    ...talentRangeIds(character, token),
+    ...talentRangeIds(character, token, phase, phaseIndex),
   ];
 }
 
@@ -60,44 +76,51 @@ function skillRangeId(
   return (levels[mainSkillLvl - 1] ?? levels.at(-1))?.rangeId ?? null;
 }
 
-function chosenOffsets(
-  tables: EffectTables,
-  token: RawTokenInst,
-  onUnknownRangeId: UnknownRangeIdHandler,
-): Cell[] {
-  for (const id of rangeIdCandidates(tables, token)) {
+interface Offset {
+  row: number;
+  col: number;
+}
+
+function chosenOffsets(context: EffectContext, token: RawTokenInst): Offset[] {
+  const { tables, onUnknownRangeId } = context;
+  for (const id of rangeIdCandidates(context, token)) {
     if (id === null) continue;
     const range = tables.ranges[id];
     if (!range) {
       onUnknownRangeId(id, token.inst.characterKey);
-      continue;
+      return [];
     }
     if (range.grids.some((g) => g.row !== 0 || g.col !== 0)) return range.grids;
   }
   return [];
 }
 
-function rotate({ row, col }: Cell, direction: Direction): Cell {
-  switch (direction) {
+type Facing = (typeof directions)[number];
+
+const isFacing = (direction: Direction): direction is Facing =>
+  (directions as readonly string[]).includes(direction);
+
+function rotate({ row, col }: Offset, facing: Facing): Offset {
+  switch (facing) {
+    case "RIGHT":
+      return { row, col };
     case "UP":
       return { row: col, col: -row };
     case "DOWN":
       return { row: -col, col: row };
     case "LEFT":
       return { row: -row, col: -col };
-    default:
-      return { row, col };
   }
 }
 
 export function effectCells(
-  tables: EffectTables,
+  context: EffectContext,
   token: RawTokenInst,
   direction: Direction,
-  map: Pick<LevelMap, "width" | "height">,
-  onUnknownRangeId: UnknownRangeIdHandler,
 ): Cell[] {
-  return chosenOffsets(tables, token, onUnknownRangeId)
+  const { map } = context;
+  if (!isFacing(direction)) return [];
+  return chosenOffsets(context, token)
     .map((offset) => rotate(offset, direction))
     .map((d) => ({ row: token.position.row + d.row, col: token.position.col + d.col }))
     .filter(({ row, col }) => row >= 0 && row < map.height && col >= 0 && col < map.width);

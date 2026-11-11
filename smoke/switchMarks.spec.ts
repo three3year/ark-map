@@ -17,6 +17,7 @@ import {
   clearAround,
   conditionalSwitch,
   deviceByIndex,
+  deviceIndex,
   endpointDot,
   enemyOnMap,
   rowOf,
@@ -251,7 +252,7 @@ const gonghai = "ro4_n_1_2";
 function deviceShowing(stage: string, alias: string, options: TimelineOptions) {
   const level = siteLevel(stage);
   const difficulty = siteStage(stage).variants[0]!.difficulty;
-  const index = level.devices.findIndex((d) => d.alias === alias);
+  const index = deviceIndex(level, alias);
   const timeline = buildTimeline(level, { ...options, difficulty });
   for (let t = 0; t < 600; t++) {
     const device = timeline.devicesAt(t).find((d) => d.index === index);

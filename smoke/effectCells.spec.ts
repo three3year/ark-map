@@ -4,6 +4,7 @@ import { buildTimeline, takeSnapshot, timelineEnd } from "../src/timeline/index.
 import {
   conditionalSwitch,
   deviceByIndex,
+  deviceIndex,
   enemyOnMap,
   seek,
   setConditionalSecond,
@@ -21,9 +22,6 @@ async function drawnCells(page: Page): Promise<string[]> {
   const cells = await effectLayer(page).getAttribute("data-effect-cells");
   return cells!.split(" ").sort();
 }
-
-const deviceIndex = (level: Level, alias: string) =>
-  level.devices.findIndex((d) => d.alias === alias);
 
 test("TB-1: selecting a 留聲機 draws its 18 cells and lists 作用範圍; selecting it again clears both", async ({
   page,

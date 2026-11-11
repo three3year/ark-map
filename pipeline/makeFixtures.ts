@@ -91,6 +91,16 @@ function characterFields(character: RawCharacter, withEffects: boolean): RawChar
   };
 }
 
+function subsetOf<T>(
+  table: Record<string, T>,
+  ids: Iterable<string>,
+  fields: (entry: T) => T,
+): Record<string, T> {
+  return Object.fromEntries(
+    [...ids].sort().flatMap((id) => (table[id] ? [[id, fields(table[id])]] : [])),
+  );
+}
+
 const rangeIds = new Set<string>();
 const skillIds = new Set<string>();
 for (const [source, suffix] of [
@@ -98,12 +108,8 @@ for (const [source, suffix] of [
   [sources.tw, ".tw"],
 ] as const) {
   const table = await fetchJson<RawCharacterTable>(source, "excel/character_table.json");
-  const subset: RawCharacterTable = Object.fromEntries(
-    [...deviceKeys]
-      .sort()
-      .flatMap((key) =>
-        table[key] ? [[key, characterFields(table[key], source === sources.cn)]] : [],
-      ),
+  const subset: RawCharacterTable = subsetOf(table, deviceKeys, (character) =>
+    characterFields(character, source === sources.cn),
   );
   await writeFile(path.join(fixtureDir, `character_table${suffix}.json`), JSON.stringify(subset));
   if (source !== sources.cn) continue;
@@ -119,13 +125,9 @@ for (const [source, suffix] of [
 console.log(`fixtures: 角色表 ${deviceKeys.size} 種裝置`);
 
 const skills = await fetchJson<RawSkillTable>(sources.cn, "excel/skill_table.json");
-const skillSubset: RawSkillTable = Object.fromEntries(
-  [...skillIds]
-    .sort()
-    .flatMap((id) =>
-      skills[id] ? [[id, { levels: skills[id].levels.map((l) => pick(l, ["rangeId"])) }]] : [],
-    ),
-);
+const skillSubset: RawSkillTable = subsetOf(skills, skillIds, (skill) => ({
+  levels: skill.levels.map((l) => pick(l, ["rangeId"])),
+}));
 await writeFile(path.join(fixtureDir, "skill_table.json"), JSON.stringify(skillSubset));
 for (const skill of Object.values(skillSubset)) {
   for (const level of skill.levels) if (level.rangeId) rangeIds.add(level.rangeId);
@@ -133,9 +135,7 @@ for (const skill of Object.values(skillSubset)) {
 console.log(`fixtures: 技能表 ${Object.keys(skillSubset).length} 個技能`);
 
 const ranges = await fetchJson<RawRangeTable>(sources.cn, "excel/range_table.json");
-const rangeSubset: RawRangeTable = Object.fromEntries(
-  [...rangeIds].sort().flatMap((id) => (ranges[id] ? [[id, pick(ranges[id], ["grids"])]] : [])),
-);
+const rangeSubset: RawRangeTable = subsetOf(ranges, rangeIds, (range) => pick(range, ["grids"]));
 await writeFile(path.join(fixtureDir, "range_table.json"), JSON.stringify(rangeSubset));
 console.log(`fixtures: 範圍表 ${Object.keys(rangeSubset).length} 個範圍`);
 
