@@ -98,10 +98,10 @@
   /** Share of the stay still to go: 1 as it starts, shrinking toward 0 as it ends. */
   const remainingOf = (stay: Stay) => (stay.end - t) / (stay.end - stay.start);
 
-  const markSide = 0.26;
-  const markGap = 0.03;
-  const markDigitWidth = 0.1;
-  const markPadding = 0.08;
+  const markSide = 0.21;
+  const markGap = 0.024;
+  const markDigitWidth = 0.08;
+  const markPadding = 0.064;
   const markWidth = ({ number }: SwitchMark) =>
     Math.max(markSide, markDigitWidth * String(number).length + markPadding);
   function placedMarks(marks: SwitchMark[]) {
@@ -911,7 +911,7 @@
     border: 3px solid var(--device-blocker);
   }
   .swatch.switch-mark {
-    --switch-mark-side: 14px;
+    --switch-mark-side: 12px;
     border: none;
     border-radius: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
     background: var(--switch-mark-fill);
