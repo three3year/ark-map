@@ -7,6 +7,7 @@ import {
   switchMarkKinds,
   switchMarks,
   type ActionRef,
+  type Timeline,
 } from "./index.ts";
 import type { Level } from "../level/index.ts";
 import { thiefGroup } from "../../test-fixtures/rogue2_2-6.ts";
@@ -232,6 +233,78 @@ describe("敵人個體", () => {
     const { individuals } = buildTimeline(loadFixtureLevel("level_rogue2_2-6"));
     expect(individuals.length).toBeGreaterThan(0);
     expect(individuals.every((i) => i.marks.length === 0)).toBe(true);
+  });
+});
+
+describe("裝置", () => {
+  /** The device of `alias` on the field, at the first whole second it is there. */
+  function onField(timeline: Timeline, alias: string) {
+    for (let t = 0; t < 600; t++) {
+      const device = timeline.devicesAt(t).find((d) => d.device.alias === alias);
+      if (device) return device;
+    }
+    throw new Error(`${alias} never shows`);
+  }
+
+  it("a device only a 隨機出兵組 activates carries that group's mark: ro3_n_5_5's smbox", () => {
+    const level = loadFixtureLevel("level_rogue3_5-5");
+    const timeline = buildTimeline(level, { switches: { picks: { 0: 1 } } });
+    expect(onField(timeline, "trap_108_smbox#1").marks).toEqual([
+      { kind: "random", number: 1, group: 0 },
+    ]);
+  });
+
+  it("several candidates of one group naming a device give it one mark, whichever is picked: act1arkhub_solo_1_3's akbtel#9", () => {
+    const level = loadFixtureLevel("level_act1arkhub_solo_1_3");
+    for (const candidate of [2, 3]) {
+      const timeline = buildTimeline(level, { switches: { picks: { 0: candidate } } });
+      expect(onField(timeline, "trap_1641_akbtel#9").marks).toEqual([
+        { kind: "random", number: 1, group: 0 },
+      ]);
+    }
+  });
+
+  it("a device on the field from the start carries the mark of the 隱藏組 that withdraws it, on or off: act21mini_01's sheltr#5", () => {
+    const level = loadFixtureLevel("level_act21mini_01");
+    for (const hiddenOn of [[], ["normal"]]) {
+      const device = buildTimeline(level, { switches: { hiddenOn } })
+        .devicesAt(0)
+        .find((d) => d.device.alias === "trap_141_sheltr#5");
+      expect(device?.marks).toEqual([{ kind: "hiddenGroup", number: 1, name: "normal" }]);
+    }
+  });
+
+  it("a device of four 開關 carries their marks by kind, then number: ro6_n_5_1's fttreant#5", () => {
+    const level = loadFixtureLevel("level_rogue6_5-1");
+    const timeline = buildTimeline(level, { switches: { picks: { 2: 1 } } });
+    expect(onField(timeline, "trap_219_fttreant#5").marks).toEqual([
+      { kind: "hiddenGroup", number: 1, name: "normal" },
+      { kind: "hiddenGroup", number: 2, name: "hard" },
+      { kind: "random", number: 3, group: 2 },
+      { kind: "random", number: 5, group: 4 },
+    ]);
+  });
+
+  it("a device only a 純機關 activates has no mark: main_05-10's ballis#1, on the field from the start (edited)", () => {
+    const raw = rawFixture("level_main_05-10");
+    const ballista = raw.predefines!.tokenInsts!.find((d) => d.alias === "trap_007_ballis#1")!;
+    ballista.hidden = false;
+    const device = buildTimeline(convertFixture(raw))
+      .devicesAt(0)
+      .find((d) => d.device.alias === "trap_007_ballis#1");
+    expect(device?.marks).toEqual([]);
+  });
+
+  it("a removed device carries the marks it had before its 移除", () => {
+    const level = loadFixtureLevel("level_rogue3_5-5");
+    const switches = { picks: { 0: 1 } };
+    const before = onField(buildTimeline(level, { switches }), "trap_108_smbox#1");
+    const removals = new Map([[before.index, { wave: 0, t: 0 }]]);
+    const removed = buildTimeline(level, { switches, removals })
+      .removedAt(300)
+      .find((d) => d.index === before.index);
+    expect(removed?.marks).toEqual(before.marks);
+    expect(removed?.marks).toHaveLength(1);
   });
 });
 

@@ -1,6 +1,7 @@
-import type { Branch, Level } from "../level/index.ts";
+import { isDeviceAction, type Branch, type Level } from "../level/index.ts";
 import {
   actionAt,
+  allActions,
   type ActionRef,
   type HiddenGroup,
   type RandomGroup,
@@ -11,13 +12,10 @@ import type { Timeline } from "./types.ts";
 /** `branchIndex` indexes `Level.branches`; `key` is the branch's. */
 type ConditionalMark = { kind: "conditional"; branchIndex: number; key: string };
 type HiddenGroupMark = { kind: "hiddenGroup"; name: string };
-/**
- * `group` indexes `SpawnPlan.groups.random`; the weight is that of the action's candidate, and
- * `picked` says whether this group picks it.
- */
-type RandomMark = {
-  kind: "random";
-  group: number;
+/** `group` indexes `SpawnPlan.groups.random`. */
+type RandomGroupMark = { kind: "random"; group: number };
+/** The weight is that of the action's candidate, and `picked` says whether this group picks it. */
+type RandomMark = RandomGroupMark & {
   candidate: number;
   weight: number;
   share: number;
@@ -26,6 +24,13 @@ type RandomMark = {
 
 /** One 開關標記: its kind, its number (from 1 per kind), and what names its 開關. */
 export type SwitchMark = { number: number } & (ConditionalMark | HiddenGroupMark | RandomMark);
+
+/** A device's 開關標記: a 隨機出兵組's only names the group, whatever candidate names the device. */
+export type DeviceSwitchMark = { number: number } & (
+  | ConditionalMark
+  | HiddenGroupMark
+  | RandomGroupMark
+);
 
 export type SwitchMarkKind = SwitchMark["kind"];
 
@@ -78,6 +83,30 @@ export function switchMarks(level: Level, plan: SpawnPlan, ref: ActionRef): Swit
 
 /** Where each kind's marks go among an action's: the order {@link switchMarks} gives them in. */
 const kindRank: Record<SwitchMarkKind, number> = { conditional: 0, hiddenGroup: 1, random: 2 };
+
+/**
+ * The marks of the device of `alias`: one per 開關 with an action that activates or withdraws
+ * it, whatever the 開關狀態, in mark order. A 純機關's actions give none.
+ */
+export function deviceSwitchMarks(
+  level: Level,
+  plan: SpawnPlan,
+  alias: string | null,
+): DeviceSwitchMark[] {
+  if (alias === null) return [];
+  const marks = new Map<string, DeviceSwitchMark>();
+  for (const { ref, action } of allActions(level)) {
+    if (action.key !== alias || !isDeviceAction(action)) continue;
+    if (ref.branchIndex !== null && level.branches[ref.branchIndex]!.deviceOnly) continue;
+    for (const mark of switchMarks(level, plan, ref)) {
+      const { kind, number } = mark;
+      marks.set(`${kind} ${number}`, kind === "random" ? { kind, number, group: mark.group } : mark);
+    }
+  }
+  return [...marks.values()].sort(
+    (a, b) => kindRank[a.kind] - kindRank[b.kind] || a.number - b.number,
+  );
+}
 
 /**
  * The kinds of 開關標記 the wave's 敵人個體 carry, in mark order: what the legend lists. The whole

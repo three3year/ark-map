@@ -24,8 +24,8 @@ import { individualKey, type IndividualId } from "./identity.ts";
 import { waveSpawns } from "./schedule.ts";
 import type { Stepwise } from "./stepwise.ts";
 import { spawnPlan, type SpawnSwitches } from "./switches.ts";
-import { switchMarks } from "./switchMarks.ts";
-import type { Individual, Timeline } from "./types.ts";
+import { deviceSwitchMarks, switchMarks } from "./switchMarks.ts";
+import type { Individual, Timeline, TimelineDevice } from "./types.ts";
 
 export {
   removalToggle,
@@ -129,12 +129,16 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
       });
     }
   }
+  const marks = level.devices.map((d) => deviceSwitchMarks(level, plan, d.alias));
+  const withMarks = ({ index, device }: DevicePresence): TimelineDevice => ({
+    index,
+    device,
+    marks: marks[index]!,
+  });
   return {
     individuals,
-    devicesAt: (t) =>
-      devices.filter((d) => presentAt(d, t)).map(({ index, device }) => ({ index, device })),
-    removedAt: (t) =>
-      devices.filter((d) => removedAt(d, t)).map(({ index, device }) => ({ index, device })),
+    devicesAt: (t) => devices.filter((d) => presentAt(d, t)).map(withMarks),
+    removedAt: (t) => devices.filter((d) => removedAt(d, t)).map(withMarks),
   };
 }
 
