@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { spawnPlan } from "../timeline/index.ts";
 import { variantModifiers } from "../level/index.ts";
-import { branchLabel, candidateLabel, hiddenGroupText, modifierText } from "./panelContent.ts";
+import {
+  branchLabel,
+  candidateLabel,
+  conditionalText,
+  hiddenGroupText,
+  modifierText,
+} from "./panelContent.ts";
 
 describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
   const level = loadFixtureLevel("level_rogue4_1-2");
@@ -63,6 +69,37 @@ describe("隱藏組", () => {
     ]);
     expect(text.note).toBeNull();
     expect(text.badge).toBe("隱藏組");
+  });
+
+  it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
+    const level = loadFixtureLevel("level_rogue2_1-1");
+    expect(hiddenGroupText(level, "allydonq", []).name).toBe("裝置 獵潮的騎士");
+  });
+});
+
+describe("條件出兵", () => {
+  const branch = (name: string, key: string) => {
+    const level = loadFixtureLevel(name);
+    return conditionalText(
+      level,
+      level.branches.find((b) => b.key === key)!,
+    );
+  };
+
+  it("level_rogue2_1-1's trap_068_badbox#1, a device's alias, reads as that device", () => {
+    expect(branch("level_rogue2_1-1", "trap_068_badbox#1")).toEqual({
+      device: "裝置 箱形恐魚",
+      hint: "trap_068_badbox#1",
+      source: "條件出兵 裝置 箱形恐魚",
+    });
+  });
+
+  it("公害's mbx1, not a device's alias, shows no key, only the hint has it", () => {
+    expect(branch("level_rogue4_1-2", "mbx1")).toEqual({
+      device: null,
+      hint: "mbx1",
+      source: "條件出兵",
+    });
   });
 });
 
