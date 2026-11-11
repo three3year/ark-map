@@ -1,6 +1,16 @@
 // 顯示內容: the text the panels under the map show, worked out from the 關卡模型 and the 名稱表.
 // The Svelte components only lay it out.
-import { deviceActionKind, isSpawn, type Action, type Branch, type Level } from "../level/index.ts";
+import {
+  deviceActionKind,
+  isKnownModifierKey,
+  isSpawn,
+  type Action,
+  type BlackboardEntry,
+  type Branch,
+  type EnemyRef,
+  type Level,
+  type Modifier,
+} from "../level/index.ts";
 import { actionAt, type RandomCandidate } from "../timeline/index.ts";
 import { strings } from "./strings.ts";
 
@@ -39,3 +49,40 @@ export const branchLabel = (level: Level, branch: Branch): string =>
     level,
     branch.phases.flatMap((p) => p.actions),
   );
+
+/** One 難度修正 as the 關卡資訊 lists it: its name and its blackboard entries. */
+export interface ModifierText {
+  name: string;
+  params: { label: string; value: string }[];
+}
+
+/** Multiplier modifiers' numbers read "×2"; enemy lists ("a|b") read as names. */
+function entryValue(
+  modifierKey: string,
+  { key, value, valueStr }: BlackboardEntry,
+  enemies: Record<string, EnemyRef>,
+): string {
+  if (valueStr === null) {
+    const multiplies = modifierKey === "ebuff_attribute" || modifierKey.endsWith("_mul");
+    return multiplies ? `×${value}` : String(value);
+  }
+  if (key === "enemy" || key === "enemy_exclude") {
+    return valueStr
+      .split("|")
+      .map((id) => enemies[id]?.name ?? id)
+      .join("、");
+  }
+  return valueStr;
+}
+
+export function modifierText(modifier: Modifier, enemies: Record<string, EnemyRef>): ModifierText {
+  return {
+    name: isKnownModifierKey(modifier.key)
+      ? strings.modifierKeys[modifier.key]
+      : strings.modifierUnknown,
+    params: modifier.blackboard.map((entry) => ({
+      label: strings.blackboardKeys[entry.key] ?? entry.key,
+      value: entryValue(modifier.key, entry, enemies),
+    })),
+  };
+}
