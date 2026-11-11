@@ -34,11 +34,11 @@ jobs:
       # One cache per upstream source, keyed on that source's branch head. An upstream update
       # restores the previous cache; the pipeline checks every file's blob sha and re-downloads
       # only the changed ones.
-      - name: 查詢上游資料版本
+      - name: 查詢上游 commit
         id: upstream
         run: pnpm exec tsx pipeline/cacheKeys.ts
 
-      - name: 還原原始檔快取(國服)
+      - name: 還原原始檔快取(陸服)
         uses: actions/cache/restore@v4
         id: cache-cn
         with:
@@ -77,7 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Saved right after the pipeline so a later failing step doesn't discard the downloads.
-      - name: 儲存原始檔快取(國服)
+      - name: 儲存原始檔快取(陸服)
         if: steps.cache-cn.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
