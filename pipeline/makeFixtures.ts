@@ -18,12 +18,15 @@ import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
   RawCampaignTable,
+  RawCharacter,
   RawCharacterTable,
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRangeTable,
   RawRoguelikeStage,
   RawRoguelikeTopicTable,
+  RawSkillTable,
   RawStage,
   RawStageTable,
   RawZone,
@@ -74,19 +77,67 @@ for (const file of levelFiles) {
   for (const token of level.predefines?.tokenInsts ?? []) deviceKeys.add(token.inst.characterKey);
 }
 
+function characterFields(character: RawCharacter, withEffects: boolean): RawCharacter {
+  const named = pick(character, ["name", "description"]);
+  if (!withEffects) return named;
+  return {
+    ...named,
+    phases: character.phases?.map((p) => pick(p, ["rangeId"])) ?? null,
+    skills: character.skills?.map((s) => pick(s, ["skillId"])) ?? null,
+    talents:
+      character.talents?.map((t) => ({
+        candidates: t.candidates?.map((c) => pick(c, ["unlockCondition", "rangeId"])) ?? null,
+      })) ?? null,
+  };
+}
+
+function subsetOf<T>(
+  table: Record<string, T>,
+  ids: Iterable<string>,
+  fields: (entry: T) => T,
+): Record<string, T> {
+  return Object.fromEntries(
+    [...ids].sort().flatMap((id) => (table[id] ? [[id, fields(table[id])]] : [])),
+  );
+}
+
+const rangeIds = new Set<string>();
+const skillIds = new Set<string>();
 for (const [source, suffix] of [
   [sources.cn, ""],
   [sources.tw, ".tw"],
 ] as const) {
   const table = await fetchJson<RawCharacterTable>(source, "excel/character_table.json");
-  const subset: RawCharacterTable = Object.fromEntries(
-    [...deviceKeys]
-      .sort()
-      .flatMap((key) => (table[key] ? [[key, pick(table[key], ["name", "description"])]] : [])),
+  const subset: RawCharacterTable = subsetOf(table, deviceKeys, (character) =>
+    characterFields(character, source === sources.cn),
   );
   await writeFile(path.join(fixtureDir, `character_table${suffix}.json`), JSON.stringify(subset));
+  if (source !== sources.cn) continue;
+  for (const character of Object.values(subset)) {
+    const ids = [
+      ...(character.phases ?? []).map((p) => p.rangeId),
+      ...(character.talents ?? []).flatMap((t) => (t.candidates ?? []).map((c) => c.rangeId)),
+    ];
+    for (const id of ids) if (id) rangeIds.add(id);
+    for (const skill of character.skills ?? []) if (skill.skillId) skillIds.add(skill.skillId);
+  }
 }
 console.log(`fixtures: 角色表 ${deviceKeys.size} 種裝置`);
+
+const skills = await fetchJson<RawSkillTable>(sources.cn, "excel/skill_table.json");
+const skillSubset: RawSkillTable = subsetOf(skills, skillIds, (skill) => ({
+  levels: skill.levels.map((l) => pick(l, ["rangeId"])),
+}));
+await writeFile(path.join(fixtureDir, "skill_table.json"), JSON.stringify(skillSubset));
+for (const skill of Object.values(skillSubset)) {
+  for (const level of skill.levels) if (level.rangeId) rangeIds.add(level.rangeId);
+}
+console.log(`fixtures: 技能表 ${Object.keys(skillSubset).length} 個技能`);
+
+const ranges = await fetchJson<RawRangeTable>(sources.cn, "excel/range_table.json");
+const rangeSubset: RawRangeTable = subsetOf(ranges, rangeIds, (range) => pick(range, ["grids"]));
+await writeFile(path.join(fixtureDir, "range_table.json"), JSON.stringify(rangeSubset));
+console.log(`fixtures: 範圍表 ${Object.keys(rangeSubset).length} 個範圍`);
 
 const db = await fetchJson<RawEnemyDatabase>(sources.cn, "levels/enemydata/enemy_database.json");
 const handbook = await fetchJson<RawEnemyHandbookTable>(

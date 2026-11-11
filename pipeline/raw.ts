@@ -104,7 +104,9 @@ export interface RawTokenInst {
   hidden: boolean;
   /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
   alias: string | null;
-  inst: { characterKey: string };
+  inst: { characterKey: string; phase?: RawEnum; level?: number };
+  skillIndex?: number;
+  mainSkillLvl?: number;
 }
 
 export interface RawLevel {
@@ -137,7 +139,28 @@ export interface RawEnemyHandbookTable {
   enemyData: Record<string, { enemyId: string; name: string; enemyIndex: string }>;
 }
 
-export type RawCharacterTable = Record<string, { name: string; description: string | null }>;
+export interface RawTalentCandidate {
+  unlockCondition: { phase: RawEnum; level: number };
+  rangeId: string | null;
+}
+
+export interface RawCharacter {
+  name: string;
+  description: string | null;
+  phases?: { rangeId: string | null }[] | null;
+  skills?: { skillId: string | null }[] | null;
+  talents?: { candidates: RawTalentCandidate[] | null }[] | null;
+}
+
+export type RawCharacterTable = Record<string, RawCharacter>;
+
+export type RawSkillTable = Record<string, { levels: { rangeId: string | null }[] }>;
+
+/**
+ * Range table: the cells of a range, stored facing right: `col` is the distance forward and
+ * `row` the offset to the side, both relative to the character's own cell.
+ */
+export type RawRangeTable = Record<string, { grids: RawCell[] }>;
 
 export interface RawStage {
   stageId: string;

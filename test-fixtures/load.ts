@@ -17,10 +17,13 @@ import type {
   RawEnemyDatabase,
   RawEnemyHandbookTable,
   RawLevel,
+  RawRangeTable,
   RawRoguelikeTopicTable,
+  RawSkillTable,
   RawStageTable,
   RawZoneTable,
 } from "../pipeline/raw.ts";
+import type { EffectTables } from "../pipeline/effectCells.ts";
 import type { GameTables, StageIndexTables } from "../pipeline/stageIndex.ts";
 import type { Level } from "../src/level/index.ts";
 
@@ -68,14 +71,25 @@ export function rawCharacterTables(): { cn: RawCharacterTable; tw: RawCharacterT
   };
 }
 
+export function rawSkillTable(): RawSkillTable {
+  return readJson<RawSkillTable>("skill_table.json");
+}
+
+export function rawRangeTable(): RawRangeTable {
+  return readJson<RawRangeTable>("range_table.json");
+}
+
 let deviceCatalog: DeviceCatalog | undefined;
 
+export function fixtureEffectTables(characters: RawCharacterTable): EffectTables {
+  return { characters, skills: rawSkillTable(), ranges: rawRangeTable() };
+}
+
 export function fixtureDeviceCatalog(): DeviceCatalog {
-  const { cn, tw } = rawCharacterTables();
+  const names = rawCharacterTables();
   return (deviceCatalog ??= buildDeviceCatalog(
     controllerKeys(fixtureLevelNames().map(rawFixture)),
-    cn,
-    tw,
+    { names, effects: fixtureEffectTables(names.cn) },
   ));
 }
 

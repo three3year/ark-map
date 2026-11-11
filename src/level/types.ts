@@ -127,6 +127,7 @@ export interface Device {
   name: string;
   description: string | null;
   image: string | null;
+  effectCells: Cell[];
 }
 
 declare const deviceIndexBrand: unique symbol;

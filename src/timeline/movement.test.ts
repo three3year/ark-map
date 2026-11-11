@@ -43,6 +43,7 @@ function blocker(cell: Cell): Device {
     name: "碎石",
     description: null,
     image: null,
+    effectCells: [],
   };
 }
 

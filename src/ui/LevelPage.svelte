@@ -271,6 +271,11 @@
     const device = level.devices[s.index];
     return device ? { index: s.index, device } : null;
   });
+  const effectCells = $derived.by(() => {
+    const s = selectedDevice;
+    const onField = s && drawnDevices.some((d) => d.index === s.index && !d.removed);
+    return onField ? s.device.effectCells : [];
+  });
   /** A device selected on another wave of the view stays selected while it is drawn here. */
   const drawnOnThisWave = (s: Selection & { kind: "device" }) =>
     sameView(s.view, view) && drawnDevices.some((d) => d.index === s.index);
@@ -418,6 +423,7 @@
       {terrain}
       devices={drawnDevices}
       selectedDevice={selectedDevice?.index ?? null}
+      {effectCells}
       onSelectDevice={selectDevice}
       onToggleRemoval={toggleDeviceRemoval}
       {endpoints}

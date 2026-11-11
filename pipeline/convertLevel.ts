@@ -11,6 +11,7 @@ import {
   type Direction,
   type LevelFile,
   type NameTable,
+  type UnknownEnum,
 } from "../src/level/index.ts";
 import type {
   Action,
@@ -26,6 +27,14 @@ import type {
   Route,
 } from "../src/level/index.ts";
 import { blockerKeys, nonBlockerKeys } from "./deviceKinds.ts";
+import {
+  effectCells,
+  noEffectTables,
+  warnUnknownRangeId,
+  type EffectContext,
+  type EffectTables,
+  type UnknownRangeIdHandler,
+} from "./effectCells.ts";
 import { plainText } from "./plainText.ts";
 import type {
   RawAction,
@@ -97,19 +106,26 @@ const numericEnums = {
   // reads 0 / UP 33 times, 1 / RIGHT twice and 3 / LEFT once (ballistae aiming along their lane);
   // 2 is DOWN, the one left in the game's UP, RIGHT, DOWN, LEFT order.
   direction: { 0: "UP", 1: "RIGHT", 2: "DOWN", 3: "LEFT" },
+  // Evidence: 0 is the only number (384 devices); all 29 kinds placed with it read PHASE_0, and
+  // never another 階段, in the newer files.
+  phase: { 0: "PHASE_0" },
 } satisfies Record<string, Record<number, string>>;
 
-/** Fields whose names the level model types: any other name is unknown too. */
+const phases = ["PHASE_0", "PHASE_1", "PHASE_2"] as const;
+
+/** Fields with a closed list of names: any other name is unknown too. */
 const knownNames: { [F in keyof Named]: readonly string[] } = {
   actionType: actionTypes,
   checkpointType: checkpointTypes,
   direction: directions,
+  phase: phases,
 };
 
 interface Named {
   actionType: ActionType;
   checkpointType: CheckpointType;
   direction: Direction;
+  phase: (typeof phases)[number] | UnknownEnum;
 }
 
 /** 難度修正 mask bit flags used by older activity files in place of names. */
@@ -317,9 +333,14 @@ function convertModifier(raw: RawRune, onUnknown: UnknownEnumHandler): Modifier 
 export interface DeviceCatalog {
   controllers: ReadonlySet<string>;
   info: Map<string, DeviceInfo>;
+  effects: EffectTables;
 }
 
-const noDevices: DeviceCatalog = { controllers: new Set(), info: new Map() };
+const noDevices: DeviceCatalog = {
+  controllers: new Set(),
+  info: new Map(),
+  effects: noEffectTables,
+};
 
 export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): Set<string> {
   const counts = new Map<string, { atOrigin: number; total: number }>();
@@ -335,17 +356,21 @@ export function controllerKeys(levels: Iterable<Pick<RawLevel, "predefines">>): 
   return new Set([...counts].filter(([, c]) => c.atOrigin * 2 > c.total).map(([key]) => key));
 }
 
+export interface DeviceTables {
+  names: { cn: RawCharacterTable; tw: RawCharacterTable };
+  effects: EffectTables;
+}
+
 export function buildDeviceCatalog(
   controllers: ReadonlySet<string>,
-  cn: RawCharacterTable,
-  tw: RawCharacterTable,
+  { names: { cn, tw }, effects }: DeviceTables,
 ): DeviceCatalog {
   const info = new Map<string, DeviceInfo>();
   for (const key of new Set([...Object.keys(cn), ...Object.keys(tw)])) {
     const { name, description } = tw[key] ?? cn[key]!;
     info.set(key, { name, description: description && plainText(description) });
   }
-  return { controllers, info };
+  return { controllers, info, effects };
 }
 
 export type UnknownDeviceHandler = (key: string) => void;
@@ -355,15 +380,29 @@ const warnUnknownDevice: UnknownDeviceHandler = (key) =>
 
 function convertDevices(
   raw: RawLevel,
+  map: LevelMap,
   devices: DeviceCatalog,
   decode: Decode,
   onUnknownDevice: UnknownDeviceHandler,
+  onUnknownRangeId: UnknownRangeIdHandler,
 ): Device[] {
   const tokens = (raw.predefines?.tokenInsts ?? []).filter(
     (t) => !devices.controllers.has(t.inst.characterKey),
   );
   const unknown = new Set<string>();
-  return tokens.map(({ alias, inst: { characterKey: key }, position, direction, hidden }) => {
+  const effects: EffectContext = {
+    tables: devices.effects,
+    map,
+    phaseIndex: (phase) => {
+      const index = (phases as readonly string[]).indexOf(decode("phase", phase));
+      return index < 0 ? undefined : index;
+    },
+    onUnknownRangeId,
+  };
+  return tokens.map((token) => {
+    const { alias, inst, position, hidden } = token;
+    const key = inst.characterKey;
+    const direction = decode("direction", token.direction);
     const blocker = blockerKeys.has(key);
     if (!blocker && !nonBlockerKeys.has(key) && !unknown.has(key)) {
       unknown.add(key);
@@ -374,12 +413,13 @@ function convertDevices(
       alias,
       key,
       cell: { row: position.row, col: position.col },
-      direction: decode("direction", direction),
+      direction,
       hidden,
       blocker,
       name: info?.name ?? key,
       description: info?.description ?? null,
       image: null,
+      effectCells: effectCells(effects, token, direction),
     };
   });
 }
@@ -388,6 +428,7 @@ export interface ConvertOptions {
   devices?: DeviceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
+  onUnknownRangeId?: UnknownRangeIdHandler;
 }
 
 /** Numeric enums come out as names; a number with no known name goes to `onUnknownEnum`. */
@@ -399,6 +440,7 @@ export function convertLevel(
     devices = noDevices,
     onUnknownEnum = warnUnknownEnum,
     onUnknownDevice = warnUnknownDevice,
+    onUnknownRangeId = warnUnknownRangeId,
   }: ConvertOptions = {},
 ): Level {
   const decode = enumDecoder(onUnknownEnum);
@@ -421,11 +463,12 @@ export function convertLevel(
     .flatMap((b) => b.phases.flatMap((p) => p.actions))
     .filter((a) => isSpawn(a) && !listed.has(a.key) && catalog.levels.has(a.key))
     .map((a): RawEnemyDbRef => ({ useDb: true, id: a.key, level: 0, overwrittenData: null }));
+  const map = convertMap(raw.mapData, decode);
   return {
     levelId,
     options: { characterLimit, maxLifePoint, initialCost, maxCost, moveMultiplier },
     modifiers: (raw.runes ?? []).map((r) => convertModifier(r, onUnknownEnum)),
-    map: convertMap(raw.mapData, decode),
+    map,
     routes: (raw.routes ?? []).map(route),
     extraRoutes: (raw.extraRoutes ?? []).map(route),
     waves: raw.waves.map((w) => ({
@@ -438,7 +481,7 @@ export function convertLevel(
     enemies: Object.fromEntries(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
-    devices: convertDevices(raw, devices, decode, onUnknownDevice),
+    devices: convertDevices(raw, map, devices, decode, onUnknownDevice, onUnknownRangeId),
   };
 }
 

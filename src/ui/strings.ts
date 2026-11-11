@@ -219,6 +219,7 @@ export const strings = {
   legendDevice: { device: "裝置", blocker: "擋路裝置" },
   legendSwitchMark: { conditional: "條件出兵", hiddenGroup: "隱藏組", random: "隨機出兵組" },
   legendPath: "路徑",
+  legendEffectCells: "作用範圍",
   legendTeleport: "傳送",
   waitSeconds: (seconds: number) => `等 ${seconds} 秒`,
   jumpToSpawn: "跳到出生時刻並選取",
