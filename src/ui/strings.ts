@@ -74,8 +74,20 @@ export const strings = {
   noSpawn: "不出兵",
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
-  /** A 隱藏組's 出兵表 badge, with its 說明 when it has one. */
+  /** A 隱藏組's 出兵表 badge: its opening sources' names, else its 變體說明, when it has one. */
   hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
+  /** 隱藏組來源 kinds, as the theme tables name them. */
+  sourceKinds: {
+    RELIC: "收藏品",
+    COPPER_BUFF: "通寶",
+    TOTEM_EFFECT: "密文板效果",
+    FEATURE: "機制",
+  } as Readonly<Record<string, string>>,
+  hiddenGroupSource: (kind: string, name: string, opens: boolean) =>
+    `${kind}「${name}」${opens ? "開啟" : "關閉"}`,
+  hiddenGroupSources: (sources: string[]) => `由${sources.join("、")}`,
+  /** A 隱藏組's 說明: its sources, then its 變體說明. */
+  hiddenGroupNote: (parts: string[]) => parts.join(","),
   /** 變體說明: the variants whose 難度修正 switch a 隱藏組 on. */
   onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
   onInEveryVariant: "各變體都開",

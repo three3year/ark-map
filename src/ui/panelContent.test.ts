@@ -74,6 +74,20 @@ describe("隱藏組", () => {
     expect(text.badge).toBe("隱藏組");
   });
 
+  it("公害's cargo: opened by the 收藏品 牧馱人的搖鈴, which also names its badge", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    const text = hiddenGroupText(level, "cargo", []);
+    expect(text.note).toBe("由收藏品「牧馱人的搖鈴」開啟");
+    expect(text.badge).toBe("隱藏組・牧馱人的搖鈴");
+  });
+
+  it("level_rogue2_1-1's allydonq: one 收藏品 opens it and another closes it", () => {
+    const level = loadFixtureLevel("level_rogue2_1-1");
+    const text = hiddenGroupText(level, "allydonq", []);
+    expect(text.note).toBe("由收藏品「海潮的氣息」開啟、收藏品「退行的羅辛南特」關閉");
+    expect(text.badge).toBe("隱藏組・海潮的氣息");
+  });
+
   it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
     const level = loadFixtureLevel("level_rogue2_1-1");
     expect(hiddenGroupText(level, "allydonq", []).name).toBe("裝置 獵潮的騎士");
