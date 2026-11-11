@@ -27,4 +27,6 @@ export interface Timeline {
   individuals: Individual[];
   devicesAt(t: number): TimelineDevice[];
   removedAt(t: number): TimelineDevice[];
+  /** Every device listed at some second of the wave, on the field or removed. */
+  listedDevices: TimelineDevice[];
 }

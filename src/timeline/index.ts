@@ -13,6 +13,7 @@ import {
 import { blockersKey, createNextNodeLookup, type NextNodeLookup } from "../pathfinding/index.ts";
 import {
   devicePresence,
+  listedSometime,
   presenceChanges,
   presentAt,
   removedAt,
@@ -93,7 +94,8 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
     removals = new Map(),
     movement = nextNodeModel,
   } = options;
-  if (!level.waves[waveIndex]) return { individuals: [], devicesAt: () => [], removedAt: () => [] };
+  if (!level.waves[waveIndex])
+    return { individuals: [], devicesAt: () => [], removedAt: () => [], listedDevices: [] };
   const modifiers = variantModifiers(level.modifiers, difficulty);
   const plan = spawnPlan(level, difficulty, switches);
   const devices = devicePresence(level, modifiers, plan, waveIndex, removals);
@@ -139,6 +141,7 @@ export function buildTimeline(level: Level, options: TimelineOptions = {}): Time
     individuals,
     devicesAt: (t) => devices.filter((d) => presentAt(d, t)).map(withMarks),
     removedAt: (t) => devices.filter((d) => removedAt(d, t)).map(withMarks),
+    listedDevices: devices.filter(listedSometime).map(withMarks),
   };
 }
 

@@ -43,6 +43,7 @@
   import type { MapViewMode } from "./mapViewPreference.ts";
   import { endpointName, strings } from "./strings.ts";
   import { keepsFloorStripes, legendMarks, terrainMark } from "./terrain.ts";
+  import SwitchMark from "./SwitchMark.svelte";
   import TerrainIcon from "./TerrainIcon.svelte";
 
   interface Props {
@@ -73,7 +74,7 @@
     onFilter: (endpoint: RouteEndpoint) => void;
     onToggleStow: (individual: Individual) => void;
     view: MapViewMode;
-    /** The 開關標記 kinds the legend lists: those the wave's enemies carry. */
+    /** The 開關標記 kinds the legend lists: those the wave's enemies and drawn devices carry. */
     markKinds: SwitchMarkKind[];
   }
   let {
@@ -558,7 +559,7 @@
     {/each}
     {#each markKinds as kind (kind)}
       <li>
-        <span class="swatch switch-mark" data-switch-mark={kind}></span>
+        <SwitchMark {kind} number={1} />
         <span>{strings.legendSwitchMark[kind]}</span>
       </li>
     {/each}
@@ -916,12 +917,6 @@
   }
   .swatch.device.blocker {
     border: 3px solid var(--device-blocker);
-  }
-  .swatch.switch-mark {
-    --switch-mark-side: 12px;
-    border: none;
-    border-radius: calc(var(--switch-mark-side) * var(--switch-mark-corner-ratio));
-    background: var(--switch-mark-fill);
   }
   .swatch.dot {
     width: 10px;
