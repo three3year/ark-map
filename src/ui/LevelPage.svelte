@@ -126,8 +126,8 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
-  const siblings = $derived(variantsShowing(stage, view.shownFile));
-  const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, siblings).badge;
+  const fileVariants = $derived(variantsShowing(stage, view.shownFile));
+  const hiddenGroupBadge = (name: string) => hiddenGroupText(level, name, fileVariants).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
     onSwitches(switchHidden(level, difficulty, switches, name, on));
@@ -499,7 +499,7 @@
     <SwitchPanel
       {level}
       {plan}
-      variants={siblings}
+      {fileVariants}
       conditional={switches.conditional ?? {}}
       wave={waveIndex}
       {t}

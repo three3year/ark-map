@@ -11,7 +11,7 @@
     candidateLabel,
     conditionalText,
     hiddenGroupText,
-    type SiblingVariant,
+    type FileVariant,
   } from "./panelContent.ts";
   import { roundTenth } from "./playback.ts";
   import { strings } from "./strings.ts";
@@ -22,7 +22,7 @@
     /** The current 開關狀態, resolved against the variant's defaults. */
     plan: SpawnPlan;
     /** The 關卡變體 showing this level file, in stage order: the 隱藏組's 變體說明 names them. */
-    variants: readonly SiblingVariant[];
+    fileVariants: readonly FileVariant[];
     /** 條件出兵 switched on, by branch index. */
     conditional: Readonly<Record<number, ConditionalTrigger>>;
     /** The wave and second on screen: a 條件出兵 switched on here is triggered there. */
@@ -33,7 +33,7 @@
     /** Switch 條件出兵 `branch` on at `trigger`, or off with null. */
     onConditional: (branch: number, trigger: ConditionalTrigger | null) => void;
   }
-  let { level, plan, variants, conditional, wave, t, onHidden, onPick, onConditional }: Props =
+  let { level, plan, fileVariants, conditional, wave, t, onHidden, onPick, onConditional }: Props =
     $props();
 
   const multiWave = $derived(level.waves.length > 1);
@@ -67,7 +67,7 @@
       <fieldset>
         <legend title={strings.hiddenGroupsHint}>{strings.hiddenGroups}</legend>
         {#each marked.hidden as { group, number } (group.name)}
-          {@const text = hiddenGroupText(level, group.name, variants)}
+          {@const text = hiddenGroupText(level, group.name, fileVariants)}
           <label class="hidden-group">
             <input
               type="checkbox"

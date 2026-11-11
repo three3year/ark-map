@@ -74,7 +74,8 @@ export function conditionalText(level: Level, branch: Branch): ConditionalText {
   return { device, hint: branch.key, source: strings.conditionalSource(device) };
 }
 
-export interface SiblingVariant {
+/** A 關卡變體 showing the level file on display (`variantsShowing`). */
+export interface FileVariant {
   id: VariantId;
   difficulty: Difficulty;
 }
@@ -91,20 +92,20 @@ export interface HiddenGroupText {
 function variantNote(
   level: Level,
   name: string,
-  variants: readonly SiblingVariant[],
+  fileVariants: readonly FileVariant[],
 ): string | null {
-  const on = variants.filter(
+  const on = fileVariants.filter(
     (v) => levelGroups(level, v.difficulty).hidden.find((g) => g.name === name)?.defaultOn,
   );
   if (on.length === 0) return null;
-  if (on.length === variants.length) return strings.onInEveryVariant;
+  if (on.length === fileVariants.length) return strings.onInEveryVariant;
   return strings.onInVariants(on.map((v) => variantLabel(v.id)));
 }
 
 export function hiddenGroupText(
   level: Level,
   name: string,
-  variants: readonly SiblingVariant[],
+  fileVariants: readonly FileVariant[],
 ): HiddenGroupText {
   const actions = [...allActions(level)].flatMap(({ action }) =>
     action.hiddenGroup === name ? [action] : [],
@@ -113,7 +114,7 @@ export function hiddenGroupText(
   const sourceTexts = unique(
     sources.map((s) => strings.hiddenGroupSource(s.kind, s.name, s.opens)),
   );
-  const variant = variantNote(level, name, variants);
+  const variant = variantNote(level, name, fileVariants);
   const parts = [
     ...(sourceTexts.length > 0 ? [strings.hiddenGroupSources(sourceTexts)] : []),
     ...(variant ? [variant] : []),
