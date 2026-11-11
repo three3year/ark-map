@@ -104,12 +104,13 @@
   const markPadding = 0.064;
   const markWidth = ({ number }: SwitchMark) =>
     Math.max(markSide, markDigitWidth * String(number).length + markPadding);
-  function placedMarks(marks: SwitchMark[]) {
-    let right = ringOuter;
+  /** The marks in a row leftward from `corner`: the first's bottom-right corner sits on it. */
+  function placedMarks(marks: SwitchMark[], corner: Vec2) {
+    let right = corner.x;
     return marks.map((mark) => {
       const width = markWidth(mark);
       right -= width + markGap;
-      return { mark, width, x: right + markGap };
+      return { mark, width, x: right + markGap, y: corner.y - markSide };
     });
   }
 
@@ -219,6 +220,20 @@
     "M 0.5 0.5 H 0.3 L 0.5 0.3 Z M -0.5 0.5 V 0.3 L -0.3 0.5 Z";
 </script>
 
+{#snippet switchMarks(marks: SwitchMark[], corner: Vec2)}
+  {#each placedMarks(marks, corner) as { mark, width, x, y } (`${mark.kind} ${mark.number}`)}
+    <g
+      class="switch-mark"
+      data-switch-mark={mark.kind}
+      data-switch-mark-number={mark.number}
+      transform="translate({x} {y})"
+    >
+      <rect {width} height={markSide} />
+      <text x={width / 2} y={markSide / 2}>{mark.number}</text>
+    </g>
+  {/each}
+{/snippet}
+
 {#snippet enemyMark({ individual, position, invisible }: OnField, faded: boolean)}
   <g
     class="enemy"
@@ -265,17 +280,7 @@
       {#if individual.harmless}
         <text class="harmless-tag" y="-0.42">{strings.harmless}</text>
       {/if}
-      {#each placedMarks(individual.marks) as { mark, width, x } (`${mark.kind} ${mark.number}`)}
-        <g
-          class="switch-mark"
-          data-switch-mark={mark.kind}
-          data-switch-mark-number={mark.number}
-          transform="translate({x} {ringOuter - markSide})"
-        >
-          <rect {width} height={markSide} />
-          <text x={width / 2} y={markSide / 2}>{mark.number}</text>
-        </g>
-      {/each}
+      {@render switchMarks(individual.marks, { x: ringOuter, y: ringOuter })}
     </g>
   </g>
 {/snippet}
