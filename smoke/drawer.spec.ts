@@ -52,6 +52,40 @@ test("the drawer starts closed; its button opens it over the page and closes it"
   await expect(spawnTableRegion(page)).toBeHidden();
 });
 
+test("a click outside the open drawer closes it", async ({ page }) => {
+  await page.goto("#/level/main_01-07?v=normal");
+  await drawerButton(page).click();
+  await expect(spawnTableRegion(page)).toBeInViewport();
+
+  // The strip the drawer leaves uncovered on the left, above the drawer's button.
+  await page.mouse.click(10, phoneWindow.height / 2);
+
+  await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
+  await expect(spawnTableRegion(page)).toBeHidden();
+});
+
+test.describe("on a tablet, where the open drawer leaves part of the map uncovered", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("a click on a dot outside the open drawer only closes it", async ({ page }) => {
+    await page.goto("#/level/main_15-12?v=normal");
+    const spawn = page.getByRole("button", { name: "出生點(3, 0)" });
+    await spawn.click();
+    await expect(filterCaption(page)).toBeVisible();
+    const dot = (await spawn.boundingBox())!;
+    const table = (await spawnTableRegion(page).boundingBox())!;
+    expect(dot.x + dot.width).toBeLessThan(table.x);
+
+    // A real pointer, not the locator: the dot is under the click that closes the drawer.
+    await page.mouse.click(dot.x + dot.width / 2, dot.y + dot.height / 2);
+
+    await expect(drawerButton(page)).toHaveAttribute("aria-expanded", "false");
+    await expect(spawnTableRegion(page)).toBeHidden();
+    await drawerButton(page).click();
+    await expect(filterCaption(page)).toContainText("出生點(3, 0)");
+  });
+});
+
 test("jumping from a row of the drawer's spawn table leaves the drawer open", async ({ page }) => {
   await page.goto("#/level/main_01-07?v=normal");
   await drawerButton(page).click();
