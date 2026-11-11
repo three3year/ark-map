@@ -491,12 +491,7 @@
       onPick={pick}
       onConditional={setConditional}
     />
-    <LevelInfo
-      options={level.options}
-      {modifiers}
-      variantName={variantLabel(variant.id)}
-      enemies={level.enemies}
-    />
+    <LevelInfo {level} {modifiers} variantName={variantLabel(variant.id)} />
     {@render footer()}
   </div>
   <!--
