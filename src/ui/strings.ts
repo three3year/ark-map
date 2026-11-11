@@ -227,6 +227,7 @@ export const strings = {
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   selectedDevice: (name: string) => `已選取:${name}`,
+  enemyAttributesLabel: "敵人屬性",
   enemyAttributes: {
     maxHp: "生命值",
     atk: "攻擊",
