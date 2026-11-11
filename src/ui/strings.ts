@@ -247,7 +247,7 @@ export const strings = {
   footerPrtsHint: "擋路裝置清單參考 PRTS",
   footerPrtsMapHint: "出兵表絕對時刻的算法參考 PRTS.Map",
   footerSeparator: " · ",
-  footerDataVersion: (version: string | null | undefined, checkedAt: string) =>
+  footerDataVersion: (version: string | null, checkedAt: string) =>
     version ? ` ${version} · ${checkedAt}` : ` · ${checkedAt}`,
   footerNotice: "本站為非官方工具，遊戲內容版權屬於上海鷹角網路科技有限公司(Hypergryph)。",
 } as const;
