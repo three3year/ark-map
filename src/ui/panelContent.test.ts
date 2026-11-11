@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { fixtureNameTable, loadFixtureLevel } from "../../test-fixtures/load.ts";
 import { markedSwitches, spawnPlan } from "../timeline/index.ts";
-import { variantModifiers, type Difficulty, type Level, type Modifier } from "../level/index.ts";
+import {
+  variantModifiers,
+  type Action,
+  type Difficulty,
+  type Level,
+  type Modifier,
+} from "../level/index.ts";
 import {
   attackRadius,
   branchLabel,
@@ -18,7 +24,9 @@ describe("隨機出兵組 candidates: 公害 (ro4_n_1_2)", () => {
   const level = loadFixtureLevel("level_rogue4_1-2");
   const plan = spawnPlan(level, "NORMAL");
   const labels = (key: string) =>
-    plan.groups.random.find((g) => g.key === key)!.candidates.map((c) => candidateLabel(level, c));
+    plan.groups.random
+      .find((g) => g.key === key)!
+      .candidates.map((c) => candidateLabel(level, fixtureNameTable(), c));
 
   it("names a device candidate by its device, and the empty one 不出兵", () => {
     expect(labels("t1")).toEqual(["不出兵", "裝置 寶箱", "裝置 停滯巧械", "裝置 垂死羽獸"]);
@@ -42,32 +50,34 @@ describe("隱藏組", () => {
       { id: "normal", difficulty: "NORMAL" },
       { id: "sixStar", difficulty: "SIX_STAR" },
     ] as const;
-    const text = hiddenGroupText(level, "raid", variants);
+    const text = hiddenGroupText(level, fixtureNameTable(), "raid", variants);
     expect(text.note).toBe("六星時開");
     expect(text.badge).toBe("隱藏組・六星時開");
   });
 
   it("is named by what all its actions put on the field; its tag is the hint", () => {
     const level = loadFixtureLevel("level_main_17-04");
-    const text = hiddenGroupText(level, "raid", []);
+    const text = hiddenGroupText(level, fixtureNameTable(), "raid", []);
     expect(text.name).toBe("實驗樣本A-000 × 1、破石草 × 1");
     expect(text.hint).toBe("raid");
   });
 
   it("公害's calamity is named by the device it activates", () => {
     const level = loadFixtureLevel("level_rogue4_1-2");
-    expect(hiddenGroupText(level, "calamity", []).name).toBe("裝置 年代之刺");
+    expect(hiddenGroupText(level, fixtureNameTable(), "calamity", []).name).toBe("裝置 年代之刺");
   });
 
   it("on in every variant that shows the file: 各變體都開", () => {
     const level = loadFixtureLevel("level_main_17-04");
-    const text = hiddenGroupText(level, "raid", [{ id: "sixStar", difficulty: "SIX_STAR" }]);
+    const text = hiddenGroupText(level, fixtureNameTable(), "raid", [
+      { id: "sixStar", difficulty: "SIX_STAR" },
+    ]);
     expect(text.note).toBe("各變體都開");
   });
 
   it("公害's calamity: no variant switches it on, so no 說明 and a bare badge", () => {
     const level = loadFixtureLevel("level_rogue4_1-2");
-    const text = hiddenGroupText(level, "calamity", [
+    const text = hiddenGroupText(level, fixtureNameTable(), "calamity", [
       { id: "normal", difficulty: "NORMAL" },
       { id: "emergency", difficulty: "FOUR_STAR" },
     ]);
@@ -77,14 +87,14 @@ describe("隱藏組", () => {
 
   it("公害's cargo: opened by the 收藏品 牧馱人的搖鈴, which also names its badge", () => {
     const level = loadFixtureLevel("level_rogue4_1-2");
-    const text = hiddenGroupText(level, "cargo", []);
+    const text = hiddenGroupText(level, fixtureNameTable(), "cargo", []);
     expect(text.note).toBe("由收藏品「牧馱人的搖鈴」開啟");
     expect(text.badge).toBe("隱藏組・牧馱人的搖鈴");
   });
 
   it("level_rogue2_1-1's allydonq: one 收藏品 opens it and another closes it", () => {
     const level = loadFixtureLevel("level_rogue2_1-1");
-    const text = hiddenGroupText(level, "allydonq", []);
+    const text = hiddenGroupText(level, fixtureNameTable(), "allydonq", []);
     expect(text.note).toBe("由收藏品「海潮的氣息」開啟、收藏品「退行的羅辛南特」關閉");
     expect(text.badge).toBe("隱藏組・海潮的氣息");
   });
@@ -92,14 +102,14 @@ describe("隱藏組", () => {
   it("level_rogue5_2-1_dlc1's copper_r: two 通寶 named 花-鴨爵金幣 read as one", () => {
     const level = loadFixtureLevel("level_rogue5_2-1_dlc1");
     expect(level.hiddenGroupSources["copper_r"]).toHaveLength(2);
-    const text = hiddenGroupText(level, "copper_r", []);
+    const text = hiddenGroupText(level, fixtureNameTable(), "copper_r", []);
     expect(text.note).toBe("由通寶「花-鴨爵金幣」開啟");
     expect(text.badge).toBe("隱藏組・花-鴨爵金幣");
   });
 
   it("level_rogue5_2-1_dlc1's copper_d: its closing source, then its 變體說明, which names the badge", () => {
     const level = loadFixtureLevel("level_rogue5_2-1_dlc1");
-    const text = hiddenGroupText(level, "copper_d", [
+    const text = hiddenGroupText(level, fixtureNameTable(), "copper_d", [
       { id: "normal", difficulty: "NORMAL" },
       { id: "emergency", difficulty: "FOUR_STAR" },
     ]);
@@ -109,7 +119,7 @@ describe("隱藏組", () => {
 
   it("level_rogue2_1-1's allydonq activates an alias-less device, named by its kind", () => {
     const level = loadFixtureLevel("level_rogue2_1-1");
-    expect(hiddenGroupText(level, "allydonq", []).name).toBe("裝置 獵潮的騎士");
+    expect(hiddenGroupText(level, fixtureNameTable(), "allydonq", []).name).toBe("裝置 獵潮的騎士");
   });
 });
 
@@ -144,7 +154,39 @@ describe("純機關: 5-10", () => {
 
   it("names ten ballistae once", () => {
     const branch = level.branches.find((b) => b.key === "faust_ballis")!;
-    expect(branchLabel(level, branch)).toBe("裝置 弩炮");
+    expect(branchLabel(level, fixtureNameTable(), branch)).toBe("裝置 弩炮");
+  });
+});
+
+describe("a device action whose alias the level lacks", () => {
+  const label = (key: string) => {
+    const action: Action = {
+      actionType: "ACTIVATE_PREDEFINED",
+      key,
+      count: 1,
+      preDelay: 0,
+      interval: 1,
+      routeIndex: 0,
+      hiddenGroup: null,
+      randomSpawnGroupKey: null,
+      randomSpawnGroupPackKey: null,
+      weight: 0,
+      harmless: false,
+    };
+    const branch = {
+      key: "made_up",
+      phases: [{ preDelay: 0, actions: [action] }],
+      deviceOnly: true,
+    };
+    return branchLabel(loadFixtureLevel("level_main_04-04"), fixtureNameTable(), branch);
+  };
+
+  it("reads as the 名稱表's name for its kind", () => {
+    expect(label("trap_050_blizzard#9")).toBe("裝置 暴風雪");
+  });
+
+  it("reads as the alias as is when the 名稱表 lacks its kind", () => {
+    expect(label("trap_made_up#1")).toBe("裝置 trap_made_up#1");
   });
 });
 

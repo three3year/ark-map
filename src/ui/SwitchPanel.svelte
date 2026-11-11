@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Level } from "../level/index.ts";
+  import type { Level, NameTable } from "../level/index.ts";
   import {
     markedSwitches,
     type ConditionalTrigger,
@@ -19,6 +19,7 @@
 
   interface Props {
     level: Level;
+    names: NameTable;
     /** The current 開關狀態, resolved against the variant's defaults. */
     plan: SpawnPlan;
     /** The 關卡變體 showing this level file, in stage order: the 隱藏組's 變體說明 names them. */
@@ -33,8 +34,18 @@
     /** Switch 條件出兵 `branch` on at `trigger`, or off with null. */
     onConditional: (branch: number, trigger: ConditionalTrigger | null) => void;
   }
-  let { level, plan, fileVariants, conditional, wave, t, onHidden, onPick, onConditional }: Props =
-    $props();
+  let {
+    level,
+    names,
+    plan,
+    fileVariants,
+    conditional,
+    wave,
+    t,
+    onHidden,
+    onPick,
+    onConditional,
+  }: Props = $props();
 
   const multiWave = $derived(level.waves.length > 1);
   const marked = $derived(markedSwitches(level, plan));
@@ -67,7 +78,7 @@
       <fieldset>
         <legend title={strings.hiddenGroupsHint}>{strings.hiddenGroups}</legend>
         {#each marked.hidden as { group, number } (group.name)}
-          {@const text = hiddenGroupText(level, group.name, fileVariants)}
+          {@const text = hiddenGroupText(level, names, group.name, fileVariants)}
           <label class="hidden-group">
             <input
               type="checkbox"
@@ -104,7 +115,7 @@
             >
               {#each group.candidates as candidate, c (c)}
                 <option value={c}>
-                  {candidateLabel(level, candidate)} ・ {strings.candidateWeight(
+                  {candidateLabel(level, names, candidate)} ・ {strings.candidateWeight(
                     candidate.weight,
                     candidate.share,
                   )}
@@ -130,7 +141,7 @@
                   onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
               />
               <SwitchMark kind="conditional" {number} />
-              {branchLabel(level, branch)}
+              {branchLabel(level, names, branch)}
               {#if text.device}
                 <span class="muted">{text.device}</span>
               {/if}
@@ -163,7 +174,7 @@
           {#each deviceOnly as { branch, index } (index)}
             {@const text = conditionalText(level, branch)}
             <li data-device-only={index} title={text.hint}>
-              {branchLabel(level, branch)}
+              {branchLabel(level, names, branch)}
               {#if text.device}
                 <span class="muted">{text.device}</span>
               {/if}

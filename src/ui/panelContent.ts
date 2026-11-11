@@ -26,19 +26,24 @@ import {
 } from "../timeline/index.ts";
 import { strings, variantLabel } from "./strings.ts";
 
-function deviceName(level: Level, alias: string): string {
-  const kind = alias.replace(/#\d+$/, "");
-  const device =
-    level.devices.find((d) => d.alias === alias) ?? level.devices.find((d) => d.key === kind);
-  return device?.name ?? kind;
+const aliasedDevice = (level: Level, alias: string) => level.devices.find((d) => d.alias === alias);
+
+/**
+ * A device by its alias: the level's device with that alias, else the 名稱表's name for its kind
+ * (the alias without `#n`), else the alias as is.
+ */
+function deviceName(level: Level, names: NameTable, alias: string): string {
+  return (
+    aliasedDevice(level, alias)?.name ?? names.devices[alias.replace(/#\d+$/, "")]?.name ?? alias
+  );
 }
 
-function actionsLabel(level: Level, actions: Action[]): string {
+function actionsLabel(level: Level, names: NameTable, actions: Action[]): string {
   const parts = actions.flatMap((action) => {
     if (!isSpawn(action)) {
       const kind = deviceActionKind(action);
       if (kind === null || !action.key) return [];
-      const name = deviceName(level, action.key);
+      const name = deviceName(level, names, action.key);
       return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
     }
     if (!action.key) return [];
@@ -47,15 +52,21 @@ function actionsLabel(level: Level, actions: Action[]): string {
   return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
 }
 
-export const candidateLabel = (level: Level, candidate: RandomCandidate): string =>
+export const candidateLabel = (
+  level: Level,
+  names: NameTable,
+  candidate: RandomCandidate,
+): string =>
   actionsLabel(
     level,
+    names,
     candidate.actions.map((ref) => actionAt(level, ref)),
   );
 
-export const branchLabel = (level: Level, branch: Branch): string =>
+export const branchLabel = (level: Level, names: NameTable, branch: Branch): string =>
   actionsLabel(
     level,
+    names,
     branch.phases.flatMap((p) => p.actions),
   );
 
@@ -69,7 +80,7 @@ export interface ConditionalText {
 }
 
 export function conditionalText(level: Level, branch: Branch): ConditionalText {
-  const named = level.devices.find((d) => d.alias === branch.key);
+  const named = aliasedDevice(level, branch.key);
   const device = named ? strings.device(named.name) : null;
   return { device, hint: branch.key, source: strings.conditionalSource(device) };
 }
@@ -104,6 +115,7 @@ function variantNote(
 
 export function hiddenGroupText(
   level: Level,
+  names: NameTable,
   name: string,
   fileVariants: readonly FileVariant[],
 ): HiddenGroupText {
@@ -121,7 +133,7 @@ export function hiddenGroupText(
   ];
   const openers = unique(sources.filter((s) => s.opens).map((s) => s.name));
   return {
-    name: actionsLabel(level, actions),
+    name: actionsLabel(level, names, actions),
     hint: name,
     note: parts.length > 0 ? strings.hiddenGroupNote(parts) : null,
     badge: strings.hiddenGroupBadge(openers.length > 0 ? openers.join("、") : variant),
@@ -330,11 +342,7 @@ function entryValue(
   const shown = parts.map((part) =>
     key === "tile"
       ? (names.terrain[part]?.name ?? part)
-      : (level.enemies[part]?.name ??
-        names.enemies[part] ??
-        level.devices.find((d) => d.key === part)?.name ??
-        names.devices[part]?.name ??
-        part),
+      : (level.enemies[part]?.name ?? names.enemies[part] ?? names.devices[part]?.name ?? part),
   );
   return [...new Set(shown)].join("、");
 }
@@ -360,9 +368,7 @@ function presetDeviceParams(
 ): ModifierParam[] {
   const counts = new Map<string, { name: string; on: boolean; count: number }>();
   for (const { key, value } of entries) {
-    const kind = key.replace(/#\d+$/, "");
-    const name =
-      level.devices.find((d) => d.alias === key)?.name ?? names.devices[kind]?.name ?? key;
+    const name = deviceName(level, names, key);
     const on = value !== 0;
     const id = `${on}:${name}`;
     const seen = counts.get(id);
