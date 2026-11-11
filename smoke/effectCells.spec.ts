@@ -1,7 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 import { cellKey, type Level } from "../src/level/index.ts";
 import { buildTimeline, takeSnapshot, timelineEnd } from "../src/timeline/index.ts";
-import { deviceByIndex, enemyOnMap, seek, siteLevel, wideWindow } from "./levelPage.ts";
+import {
+  conditionalSwitch,
+  deviceByIndex,
+  enemyOnMap,
+  seek,
+  setConditionalSecond,
+  siteLevel,
+  wideWindow,
+} from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -83,6 +91,32 @@ test("TB-1: the 作用範圍 is the map's last layer", async ({ page }) => {
   await page.goto("#/level/act10mini_01?v=normal");
   await deviceByIndex(page, deviceIndex(level, "trap_014_tower#1")).click();
   await expect(page.locator("svg.map > :last-child")).toHaveAttribute("data-effect-cells");
+});
+
+test("EP-8: a 鹽坨子炮 HidenCnnon activates draws its 作用範圍 only while it is on the map", async ({
+  page,
+}) => {
+  const level = siteLevel("act39side_08");
+  const branch = level.branches.findIndex((b) => b.key === "HidenCnnon");
+  const cannon = deviceIndex(level, "trap_196_cnnon#3");
+  const cells = level.devices[cannon]!.effectCells;
+  expect(cells).toHaveLength(7);
+  const trigger = 20;
+
+  await page.goto("#/level/act39side_08?v=normal");
+  await conditionalSwitch(page, branch).check();
+  await setConditionalSecond(page, branch, trigger);
+  await seek(page, trigger + 5);
+  await deviceByIndex(page, cannon).click();
+  expect(await drawnCells(page)).toEqual(cells.map(cellKey).sort());
+  await expect(legendItem(page)).toBeVisible();
+
+  await seek(page, trigger - 1);
+  await expect(effectLayer(page)).toHaveCount(0);
+  await expect(legendItem(page)).toHaveCount(0);
+
+  await seek(page, trigger + 5);
+  expect(await drawnCells(page)).toEqual(cells.map(cellKey).sort());
 });
 
 /**

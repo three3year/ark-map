@@ -104,8 +104,11 @@ export interface RawTokenInst {
   hidden: boolean;
   /** Wave and 條件出兵 actions, and 難度修正, name the token by it; not always unique. */
   alias: string | null;
-  /** `phase` (階段, "PHASE_0" or a number in older files) is absent in hand-made fixtures. */
-  inst: { characterKey: string; phase?: RawEnum };
+  /**
+   * `phase` (階段, "PHASE_0" or a number in older files) and `level` (等級) are absent in
+   * hand-made fixtures.
+   */
+  inst: { characterKey: string; phase?: RawEnum; level?: number };
   /** Which of the character's `skills` the device has; -1 = none. Absent in hand-made fixtures. */
   skillIndex?: number;
   /** The level of that skill, from 1. */

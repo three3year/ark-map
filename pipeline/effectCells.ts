@@ -6,6 +6,7 @@ import type {
   RawEnum,
   RawRangeTable,
   RawSkillTable,
+  RawTalentCandidate,
   RawTokenInst,
 } from "./raw.ts";
 
@@ -29,8 +30,24 @@ function phaseIndex(phase: RawEnum | undefined): number {
 }
 
 /**
+ * The range id of each talent, in the character table's order: of its candidates, the last
+ * one unlocked at the device's 階段 and 等級 (a lower 階段, or the same 階段 at no higher 等級).
+ */
+function talentRangeIds(character: RawCharacter, token: RawTokenInst): (string | null)[] {
+  const phase = phaseIndex(token.inst.phase);
+  const level = token.inst.level ?? 1;
+  const unlocked = ({ unlockCondition: c }: RawTalentCandidate) => {
+    const at = phaseIndex(c.phase);
+    return at < phase || (at === phase && c.level <= level);
+  };
+  return (character.talents ?? []).map(
+    (talent) => (talent.candidates ?? []).filter(unlocked).at(-1)?.rangeId ?? null,
+  );
+}
+
+/**
  * The range ids a device may take its 作用範圍 from, in the order they are tried: the
- * character table's 階段 first, then the skill the level gives the device.
+ * character table's 階段 first, then the skill the level gives the device, then its talents.
  */
 function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string | null)[] {
   const character = tables.characters[token.inst.characterKey];
@@ -38,7 +55,11 @@ function rangeIdCandidates(tables: EffectTables, token: RawTokenInst): (string |
   const phases = character.phases ?? [];
   // The 階段 of the device; past the last 階段 the table lists, the last one.
   const phase = phases[phaseIndex(token.inst.phase)] ?? phases.at(-1);
-  return [phase?.rangeId ?? null, skillRangeId(tables.skills, character, token)];
+  return [
+    phase?.rangeId ?? null,
+    skillRangeId(tables.skills, character, token),
+    ...talentRangeIds(character, token),
+  ];
 }
 
 /** The range id of the device's skill at its level; past the last level, the last one. */
