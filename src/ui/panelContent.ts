@@ -106,6 +106,7 @@ function variantNote(
   name: string,
   fileVariants: readonly FileVariant[],
 ): string | null {
+  if (fileVariants.length < 2) return null;
   const on = fileVariants.filter(
     (v) => levelGroups(level, v.difficulty).hidden.find((g) => g.name === name)?.defaultOn,
   );
