@@ -148,10 +148,10 @@
     path.flatMap((leg) => (leg.kind === "move" ? [leg.points.at(-1)!] : [])),
   );
 
-  const attackCentre = $derived.by(() => {
+  const attackRangeEnemy = $derived.by(() => {
     if (attackRadius === null || !selected) return null;
     const drawn = enemies.find((e) => e.individual.id === selected.id);
-    return drawn && !drawn.invisible ? drawn.position : null;
+    return drawn && !drawn.invisible ? drawn : null;
   });
 
   let brokenImages = $state(new Set<string>());
@@ -504,14 +504,16 @@
         </g>
       {/each}
 
-      {#if attackCentre && attackRadius !== null}
-        <circle
-          class="attack-range"
-          cx={attackCentre.x}
-          cy={svgY(attackCentre.y)}
-          r={attackRadius}
-          data-attack-range={selected?.id}
-        />
+      {#if attackRangeEnemy && attackRadius !== null}
+        <g class:faded={isFaded(attackRangeEnemy)}>
+          <circle
+            class="attack-range"
+            cx={attackRangeEnemy.position.x}
+            cy={svgY(attackRangeEnemy.position.y)}
+            r={attackRadius}
+            data-attack-range={selected?.id}
+          />
+        </g>
       {/if}
 
       {#if path.length > 0}
@@ -629,7 +631,7 @@
     {#if effectCells.length > 0}
       <li><span class="swatch effect"></span>{strings.legendEffectCells}</li>
     {/if}
-    {#if attackCentre}
+    {#if attackRangeEnemy}
       <li><span class="swatch attack-range"></span>{strings.legendAttackRange}</li>
     {/if}
     {#if selected}

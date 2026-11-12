@@ -1,6 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
-import { buildTimeline, takeSnapshot, timelineEnd } from "../src/timeline/index.ts";
-import { drawnAt, enemyOnMap, seek, selectWave, siteLevel, wideWindow } from "./levelPage.ts";
+import {
+  buildTimeline,
+  matchesEndpoint,
+  routeEndpoints,
+  takeSnapshot,
+  timelineEnd,
+} from "../src/timeline/index.ts";
+import {
+  drawnAt,
+  endpointDot,
+  enemyOnMap,
+  seek,
+  selectWave,
+  shownOpacity,
+  siteLevel,
+  wideWindow,
+} from "./levelPage.ts";
 
 test.use({ viewport: wideWindow });
 
@@ -71,4 +86,22 @@ test("4-4: a selected soldier has no 攻擊範圍 and the legend does not list o
   await expect(enemyOnMap(page, individual.id)).toHaveAttribute("aria-pressed", "true");
   await expect(attackRange(page)).toHaveCount(0);
   await expect(legendItem(page)).toHaveCount(0);
+});
+
+test("4-4: the 攻擊範圍 fades with its crossbowman outside the 端點篩選", async ({ page }) => {
+  const { waveIndex, individual, seconds } = visibleForTwoSeconds("enemy_1012_dcross");
+  const elsewhere = routeEndpoints(buildTimeline(level, { waveIndex })).find(
+    (e) => !matchesEndpoint(individual, e),
+  )!;
+
+  await page.goto("#/level/main_04-04?v=normal");
+  await selectWave(page, waveIndex);
+  await seek(page, seconds[0]!);
+  await enemyOnMap(page, individual.id).press("Enter");
+  expect(await shownOpacity(attackRange(page))).toBeCloseTo(1, 2);
+
+  await endpointDot(page, elsewhere).click();
+
+  await expect(enemyOnMap(page, individual.id)).toHaveAttribute("data-filtered-out");
+  expect(await shownOpacity(attackRange(page))).toBeCloseTo(0.4, 2);
 });
