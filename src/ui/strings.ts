@@ -45,6 +45,7 @@ export const strings = {
   /** Heading of a 集成戰略 section of stages outside the numbered zones. */
   otherStages: "其他關卡",
   variantPicker: "關卡變體",
+  adjacentStages: "上一關／下一關",
   seconds: "秒",
   play: "播放",
   pause: "暫停",

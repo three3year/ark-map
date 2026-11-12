@@ -60,3 +60,16 @@ test("on 突襲, 下一關 opens the next stage's 突襲 from the start; 上一�
   await expect(page).toHaveURL(/#\/level\/main_01-03\?v=challenge$/);
   await expectVariantShown(page, "challenge");
 });
+
+test("上一關 sits in the title line's right half, away from where 上一頁 is looked for", async ({
+  page,
+}) => {
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("#/level/ro1_n_1_2?v=normal");
+
+    const line = await page.locator(".title-line").boundingBox();
+    const prev = await prevLink(page).boundingBox();
+    expect(prev!.x, `at ${width}px`).toBeGreaterThan(line!.x + line!.width / 2);
+  }
+});

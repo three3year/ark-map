@@ -314,7 +314,7 @@ test("entering a stage starts at 第 1 波, 0 s; changing only the variant keeps
   await seek(page, 30);
 
   // Back to the stage list and into the same stage again.
-  await page.locator("nav a").click();
+  await page.locator(`a[href="#/area/main_11"]`).click();
   await page.locator('a[data-stage="main_11-06"]').click();
   await expect(timeDisplay(page)).toHaveText("0.0 秒");
 

@@ -393,9 +393,6 @@
   <div class="main-column">
     {@render siteTitle(backToArea, viewToggle)}
     <div class="title-line">
-      {#if prev}
-        <a href={prev.href} data-adjacent="prev">‹ {prev.stage.name}</a>
-      {/if}
       <h2>{stageLabel(stage)}</h2>
       {#if stage.variants.length > 1}
         <div class="variants segmented" role="group" aria-label={strings.variantPicker}>
@@ -411,8 +408,19 @@
           {/each}
         </div>
       {/if}
-      {#if next}
-        <a href={next.href} data-adjacent="next">{next.stage.name} ›</a>
+      <!-- Away from the left edge, where 上一頁 is looked for: 上一關 is no way back. -->
+      {#if prev || next}
+        <nav class="adjacent" aria-label={strings.adjacentStages}>
+          {#if prev}
+            <a href={prev.href} data-adjacent="prev">‹ {prev.stage.name}</a>
+          {/if}
+          {#if prev && next}
+            <span class="separator" aria-hidden="true">|</span>
+          {/if}
+          {#if next}
+            <a href={next.href} data-adjacent="next">{next.stage.name} ›</a>
+          {/if}
+        </nav>
       {/if}
     </div>
     <div class="map-controls">
@@ -690,6 +698,15 @@
   h2 {
     margin: 0;
     font-size: 1.4rem;
+  }
+  .adjacent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .separator {
+    color: var(--muted);
   }
   .selection,
   .stowed,
