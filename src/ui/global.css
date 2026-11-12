@@ -5,6 +5,7 @@
   --panel: #ffffff;
   --border: #d8d8dc;
   --accent: #2f6fde;
+  --attribute-modified: #c2410c;
   /* 出生點 dots and 侵入點 are red; 消失點 dots and 保護目標 are blue. */
   --spawn-red: #e5484d;
   --exit-blue: #3e83f8;
@@ -29,6 +30,7 @@
     --panel: #222227;
     --border: #3a3a42;
     --accent: #6f9cff;
+    --attribute-modified: #ff9a57;
   }
 }
 

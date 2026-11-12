@@ -27,6 +27,12 @@ export function shownLevelFile(
   return expansions.find((x) => x.number === shown)?.levelFile ?? variant.levelFile;
 }
 
+/** The stage's variants that show `file`: every one for a 內容拓展's file, else those it is the own file of. */
+export function variantsShowing(stage: StageEntry, file: string): Variant[] {
+  const expansion = (stage.expansions ?? []).some((x) => x.levelFile === file);
+  return stage.variants.filter((v) => expansion || v.levelFile === file);
+}
+
 export function themeExpansions(area: Area): number[] {
   if (area.kind !== "ROGUELIKE") return [];
   const numbers = area.sections.flatMap((s) => s.stages.flatMap((x) => x.expansions ?? []));

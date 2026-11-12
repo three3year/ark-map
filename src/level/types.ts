@@ -97,6 +97,8 @@ export interface Branch {
   deviceOnly: boolean;
 }
 
+export type ApplyWay = "MELEE" | "RANGED" | "ALL" | "NONE";
+
 /** An 敵人 (kind + level) after level fallback and the level's `overwrittenData`. */
 export interface EnemyRef {
   id: string;
@@ -110,6 +112,16 @@ export interface EnemyRef {
   maxHp: number;
   atk: number;
   def: number;
+  magicResistance: number;
+  /** 攻擊間隔, seconds. */
+  baseAttackTime: number;
+  attackSpeed: number;
+  /** 攻擊範圍, cells. */
+  rangeRadius: number;
+  applyWay: ApplyWay;
+  massLevel: number;
+  /** 關卡生命: life points lost when it gets through. */
+  lifePointReduce: number;
   notCountInTotal: boolean;
   /** TW handbook code, e.g. "B1"; shown in place of a missing avatar. */
   code: string | null;
@@ -179,7 +191,22 @@ export interface Level {
   /** Keyed by enemy id (`Action.key`). */
   enemies: Record<string, EnemyRef>;
   devices: Device[];
+  /** 隱藏組來源 by 隱藏組 tag, in theme-table order; tags without a source are absent. */
+  hiddenGroupSources: Record<string, HiddenGroupSource[]>;
 }
+
+/** 隱藏組來源: a 集成戰略 item of the level's theme that opens or closes a 隱藏組. */
+export interface HiddenGroupSource {
+  /** Item id in the theme table, e.g. "rogue_4_relic_explore_5". */
+  item: string;
+  opens: boolean;
+  /** TW name, else CN. */
+  name: string;
+  kind: HiddenGroupSourceKind;
+}
+
+/** A 隱藏組來源's item kind, as the theme table has it: 收藏品, 通寶, 密文板效果 or 機制. */
+export type HiddenGroupSourceKind = "RELIC" | "COPPER_BUFF" | "TOTEM_EFFECT" | "FEATURE";
 
 /** Difficulty a variant runs at; 難度修正 whose mask matches it apply. */
 export type Difficulty = "NORMAL" | "FOUR_STAR" | "SIX_STAR" | "EASY";

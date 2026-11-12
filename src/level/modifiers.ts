@@ -87,6 +87,21 @@ export function isKnownModifierKey(key: string): key is KnownModifierKey {
   return (knownModifierKeys as readonly string[]).includes(key);
 }
 
+/**
+ * What a 難度修正 or 集成戰略 item buff with this key does to the 隱藏組 its `key` entry names:
+ * opens or closes them; null when it does neither.
+ */
+export function hiddenGroupSwitch(key: string): "open" | "close" | null {
+  switch (key) {
+    case "level_hidden_group_enable":
+      return "open";
+    case "level_hidden_group_disable":
+      return "close";
+    default:
+      return null;
+  }
+}
+
 /** A variant = the level file + the modifiers whose mask matches its difficulty. */
 export function variantModifiers(modifiers: Modifier[], difficulty: Difficulty): Modifier[] {
   return modifiers.filter((m) => m.difficulties.includes(difficulty));
@@ -106,11 +121,14 @@ export function affectsMovement(modifier: Modifier): boolean {
 }
 
 /** The blackboard's `enemy` list narrows a modifier to those enemies; `enemy_exclude` removes some. */
-function movesEnemy(modifier: Modifier, enemyId: string): boolean {
-  if (!affectsMovement(modifier)) return false;
+export function targetsEnemy(modifier: Modifier, enemyId: string): boolean {
   const only = enemyList(modifier, "enemy");
   if (only && !only.includes(enemyId)) return false;
   return !enemyList(modifier, "enemy_exclude")?.includes(enemyId);
+}
+
+function movesEnemy(modifier: Modifier, enemyId: string): boolean {
+  return affectsMovement(modifier) && targetsEnemy(modifier, enemyId);
 }
 
 /** Product of the `move_speed` factors the variant's modifiers give `enemyId`; 1 when none do. */

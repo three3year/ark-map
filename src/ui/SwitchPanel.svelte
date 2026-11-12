@@ -1,27 +1,29 @@
 <script lang="ts">
+  import type { Level, NameTable } from "../level/index.ts";
   import {
-    deviceActionKind,
-    isSpawn,
-    type Action,
-    type Branch,
-    type Level,
-  } from "../level/index.ts";
-  import {
-    actionAt,
     markedSwitches,
     type ConditionalTrigger,
-    type RandomCandidate,
     type RandomGroup,
     type SpawnPlan,
   } from "../timeline/index.ts";
+  import {
+    branchLabel,
+    candidateLabel,
+    conditionalText,
+    hiddenGroupText,
+    type FileVariant,
+  } from "./panelContent.ts";
   import { roundTenth } from "./playback.ts";
   import { strings } from "./strings.ts";
   import SwitchMark from "./SwitchMark.svelte";
 
   interface Props {
     level: Level;
+    names: NameTable;
     /** The current 開關狀態, resolved against the variant's defaults. */
     plan: SpawnPlan;
+    /** The 關卡變體 showing this level file, in stage order: the 隱藏組's 變體說明 names them. */
+    fileVariants: readonly FileVariant[];
     /** 條件出兵 switched on, by branch index. */
     conditional: Readonly<Record<number, ConditionalTrigger>>;
     /** The wave and second on screen: a 條件出兵 switched on here is triggered there. */
@@ -32,7 +34,18 @@
     /** Switch 條件出兵 `branch` on at `trigger`, or off with null. */
     onConditional: (branch: number, trigger: ConditionalTrigger | null) => void;
   }
-  let { level, plan, conditional, wave, t, onHidden, onPick, onConditional }: Props = $props();
+  let {
+    level,
+    names,
+    plan,
+    fileVariants,
+    conditional,
+    wave,
+    t,
+    onHidden,
+    onPick,
+    onConditional,
+  }: Props = $props();
 
   const multiWave = $derived(level.waves.length > 1);
   const marked = $derived(markedSwitches(level, plan));
@@ -42,40 +55,14 @@
       .filter(({ branch }) => branch.deviceOnly),
   );
 
-  function deviceName(alias: string): string {
-    return level.devices.find((d) => d.alias === alias)?.name ?? alias.replace(/#\d+$/, "");
-  }
-
-  /**
-   * What actions put on the field: enemies × count, devices, or nothing. Repeated entries show
-   * once, so a branch activating ten ballistae (`trap_007_ballis#1` … `#10`) stays short.
-   */
-  function actionsLabel(actions: Action[]): string {
-    const parts = actions.flatMap((action) => {
-      if (!isSpawn(action)) {
-        const kind = deviceActionKind(action);
-        if (kind === null || !action.key) return [];
-        const name = deviceName(action.key);
-        return [kind === "withdraw" ? strings.withdrawDevice(name) : strings.device(name)];
-      }
-      if (!action.key) return [];
-      return [`${level.enemies[action.key]?.name ?? action.key} × ${action.count}`];
-    });
-    return parts.length > 0 ? [...new Set(parts)].join("、") : strings.noSpawn;
-  }
-
-  const candidateLabel = (candidate: RandomCandidate) =>
-    actionsLabel(candidate.actions.map((ref) => actionAt(level, ref)));
-
   /** The wave (when there are several) or the 條件出兵 a random group is in. */
   function groupSource(group: RandomGroup): string | null {
     if (group.branchIndex !== null) {
-      return strings.conditionalBadge(level.branches[group.branchIndex]?.key ?? "");
+      const branch = level.branches[group.branchIndex];
+      return branch ? conditionalText(level, branch).source : strings.conditional;
     }
     return multiWave ? strings.wave(group.waveIndex) : null;
   }
-
-  const branchLabel = (branch: Branch) => actionsLabel(branch.phases.flatMap((p) => p.actions));
 
   function setTriggerSecond(branch: number, value: string) {
     const seconds = Number(value);
@@ -91,7 +78,8 @@
       <fieldset>
         <legend title={strings.hiddenGroupsHint}>{strings.hiddenGroups}</legend>
         {#each marked.hidden as { group, number } (group.name)}
-          <label>
+          {@const text = hiddenGroupText(level, names, group.name, fileVariants)}
+          <label class="hidden-group">
             <input
               type="checkbox"
               data-hidden-group={group.name}
@@ -99,7 +87,10 @@
               onchange={(e) => onHidden(group.name, e.currentTarget.checked)}
             />
             <SwitchMark kind="hiddenGroup" {number} />
-            {group.name}
+            <span class="content" title={text.hint}>{text.content}</span>
+            {#if text.note}
+              <span class="note">{text.note}</span>
+            {/if}
             <span class="muted">{group.defaultOn ? strings.defaultOn : strings.defaultOff}</span>
           </label>
         {/each}
@@ -124,7 +115,7 @@
             >
               {#each group.candidates as candidate, c (c)}
                 <option value={c}>
-                  {candidateLabel(candidate)} ・ {strings.candidateWeight(
+                  {candidateLabel(level, names, candidate)} ・ {strings.candidateWeight(
                     candidate.weight,
                     candidate.share,
                   )}
@@ -140,8 +131,9 @@
         <legend title={strings.conditionalHint}>{strings.conditional}</legend>
         {#each marked.conditional as { branch, branchIndex: index, number } (index)}
           {@const trigger = conditional[index]}
+          {@const text = conditionalText(level, branch)}
           <div class="conditional" data-conditional={index}>
-            <label>
+            <label title={text.hint}>
               <input
                 type="checkbox"
                 checked={trigger !== undefined && trigger.wave === wave}
@@ -149,8 +141,10 @@
                   onConditional(index, e.currentTarget.checked ? { wave, t: roundTenth(t) } : null)}
               />
               <SwitchMark kind="conditional" {number} />
-              {branchLabel(branch)}
-              <span class="muted">{branch.key}</span>
+              {branchLabel(level, names, branch)}
+              {#if text.device}
+                <span class="muted">{text.device}</span>
+              {/if}
             </label>
             {#if trigger !== undefined && trigger.wave === wave}
               <label class="seconds">
@@ -178,8 +172,12 @@
         <legend title={strings.deviceOnlyHint}>{strings.deviceOnly}</legend>
         <ul>
           {#each deviceOnly as { branch, index } (index)}
-            <li data-device-only={index}>
-              {branchLabel(branch)} <span class="muted">{branch.key}</span>
+            {@const text = conditionalText(level, branch)}
+            <li data-device-only={index} title={text.hint}>
+              {branchLabel(level, names, branch)}
+              {#if text.device}
+                <span class="muted">{text.device}</span>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -216,6 +214,16 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+  }
+  .hidden-group {
+    max-width: 100%;
+  }
+  .hidden-group .content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .note {
+    font-size: 0.85rem;
   }
   .random {
     flex-wrap: wrap;

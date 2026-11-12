@@ -18,6 +18,7 @@ import {
   rawEnemyHandbook,
   rawCharacterTables,
   rawFixture,
+  rawTables,
 } from "../test-fixtures/load.ts";
 import {
   buildDeviceCatalog,
@@ -28,7 +29,8 @@ import {
   type DeviceTables,
 } from "./convertLevel.ts";
 import { noEffectTables } from "./effectCells.ts";
-import type { RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
+import { buildHiddenGroupSourceCatalog } from "./hiddenGroupSources.ts";
+import type { RawEnemyData, RawEnemyDbRef, RawLevel, RawTokenInst } from "./raw.ts";
 
 const enemyCatalog = () => buildEnemyCatalog(rawEnemyDatabase(), rawEnemyHandbook());
 const noDeviceTables: DeviceTables = { names: { cn: {}, tw: {} }, effects: noEffectTables };
@@ -315,6 +317,105 @@ describe("enemy resolution", () => {
     expect(level.enemies["enemy_1002_nsabr"]!.maxHp).toBe(2200);
   });
 
+  it("4-4: the soldier carries the 10 敵人屬性, HP still the overwritten 2200", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    expect(soldier).toMatchObject({
+      maxHp: 2200,
+      atk: 200,
+      def: 100,
+      magicResistance: 0,
+      baseAttackTime: 2,
+      attackSpeed: 100,
+      rangeRadius: 0,
+      moveSpeed: 1.1,
+      massLevel: 1,
+      lifePointReduce: 1,
+    });
+  });
+
+  it("4-4: the soldier attacks MELEE, the crossbowman RANGED", () => {
+    const level = loadFixtureLevel("level_main_04-04");
+    expect(level.enemies["enemy_1002_nsabr"]!.applyWay).toBe("MELEE");
+    expect(level.enemies["enemy_1012_dcross"]!.applyWay).toBe("RANGED");
+  });
+
+  it("攻擊方式 falls back from level n to level 0, and overwrittenData overrides it", () => {
+    const crossbow = (overwrittenData: RawEnemyData | null) =>
+      withRefs([{ useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData }]).enemies[
+        "enemy_1012_dcross"
+      ]!;
+    expect(crossbow(null).applyWay).toBe("RANGED");
+    expect(crossbow({ applyWay: { m_defined: true, m_value: "MELEE" } }).applyWay).toBe("MELEE");
+  });
+
+  it("level n takes the 敵人屬性 it leaves undefined from level 0, 攻擊範圍 and 關卡生命 too", () => {
+    const crossbow = withRefs([
+      { useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData: null },
+    ]).enemies["enemy_1012_dcross"]!;
+    expect(crossbow).toMatchObject({
+      maxHp: 6700,
+      magicResistance: 50,
+      baseAttackTime: 3,
+      attackSpeed: 100,
+      rangeRadius: 2.2,
+      massLevel: 2,
+      lifePointReduce: 1,
+    });
+  });
+
+  it("takes every 敵人屬性 of an enemy not in the database from overwrittenData", () => {
+    const slot = <T>(m_value: T) => ({ m_defined: true, m_value });
+    const enemy = withRefs([
+      {
+        useDb: false,
+        id: "enemy_local",
+        level: 0,
+        overwrittenData: {
+          name: slot("本關敵人"),
+          attributes: {
+            maxHp: slot(3200),
+            atk: slot(450),
+            def: slot(120),
+            magicResistance: slot(30),
+            baseAttackTime: slot(2.5),
+            attackSpeed: slot(110),
+            moveSpeed: slot(0.9),
+            massLevel: slot(3),
+          },
+          rangeRadius: slot(1.75),
+          lifePointReduce: slot(2),
+        },
+      },
+    ]).enemies["enemy_local"]!;
+    expect(enemy).toMatchObject({
+      maxHp: 3200,
+      atk: 450,
+      def: 120,
+      magicResistance: 30,
+      baseAttackTime: 2.5,
+      attackSpeed: 110,
+      rangeRadius: 1.75,
+      moveSpeed: 0.9,
+      massLevel: 3,
+      lifePointReduce: 2,
+    });
+  });
+
+  it("the level's overwrittenData overrides 攻擊範圍 and 關卡生命 too", () => {
+    const crossbow = withRefs([
+      {
+        useDb: true,
+        id: "enemy_1012_dcross",
+        level: 0,
+        overwrittenData: {
+          rangeRadius: { m_defined: true, m_value: 3 },
+          lifePointReduce: { m_defined: true, m_value: 5 },
+        },
+      },
+    ]).enemies["enemy_1012_dcross"]!;
+    expect(crossbow).toMatchObject({ rangeRadius: 3, lifePointReduce: 5, maxHp: 6000 });
+  });
+
   it("carries the TW handbook code, shown when an enemy has no avatar", () => {
     const level = loadFixtureLevel("level_main_01-07");
     expect(level.enemies["enemy_1007_slime_2"]!.code).toBe("B2");
@@ -334,7 +435,7 @@ describe("名稱表", () => {
 
   it("1-7: the level file names no enemy; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_main_01-07");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, catalog(), names);
     expect(Object.values(file.enemies).filter((e) => e.name !== undefined)).toEqual([]);
     expect(names.enemies).toMatchObject({
@@ -346,7 +447,7 @@ describe("名稱表", () => {
   });
 
   it("one table serves every level; a name only one level gives stays in its level file", () => {
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const other = siteLevelFile(loadFixtureLevel("level_main_04-04"), catalog(), names);
     const raw = rawFixture("level_main_01-07");
     // A level-local enemy (not in the database), and a level renaming an enemy TW has no name for.
@@ -380,7 +481,7 @@ describe("名稱表", () => {
 describe("名稱表: 裝置", () => {
   it("TB-1: the level file names and describes no device; the name table does, and restores the level", () => {
     const level = loadFixtureLevel("level_act10mini_01");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
     expect(file.devices.filter((d) => "name" in d || "description" in d)).toEqual([]);
     expect(names.devices).toEqual({
@@ -392,7 +493,7 @@ describe("名稱表: 裝置", () => {
 
   it("a device kind neither character table has keeps its key as its name in the level file", () => {
     const level = convertLevel("WR-EX-6", rawFixture("level_act16d5_ex06"), enemyCatalog());
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(
       level,
       enemyCatalog(),
@@ -402,6 +503,55 @@ describe("名稱表: 裝置", () => {
     expect(names.devices).toEqual({});
     expect(file.devices[0]).toMatchObject({ name: "trap_001_crate", description: null });
     expect(withNames(file, names)).toEqual(level);
+  });
+});
+
+describe("隱藏組來源", () => {
+  it("公害: the 收藏品 牧馱人的搖鈴 opens cargo; calamity has no source", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    expect(level.hiddenGroupSources["cargo"]).toEqual([
+      { item: "rogue_4_relic_explore_5", opens: true, name: "牧馱人的搖鈴", kind: "RELIC" },
+    ]);
+    expect(level.hiddenGroupSources["calamity"]).toBeUndefined();
+  });
+
+  it("公害: the level file names no source; the name table does, and restores the level", () => {
+    const level = loadFixtureLevel("level_rogue4_1-2");
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
+    const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
+    expect(file.hiddenGroupSources).toEqual({
+      cargo: [{ item: "rogue_4_relic_explore_5", opens: true }],
+    });
+    expect(names.hiddenGroupSources).toEqual({
+      rogue_4_relic_explore_5: { name: "牧馱人的搖鈴", kind: "RELIC" },
+    });
+    expect(withNames(file, names)).toEqual(level);
+  });
+
+  it("an item only the CN table has takes its CN name: shadvr's 谒日之祈", () => {
+    const level = loadFixtureLevel("level_rogue6_3-1_dlc1");
+    expect(level.hiddenGroupSources["shadvr"]).toContainEqual({
+      item: "rogue_6_relic_final_7",
+      opens: true,
+      name: "谒日之祈",
+      kind: "RELIC",
+    });
+  });
+
+  it("an item of a kind the site does not know is left out, and its kind is reported", () => {
+    const { cn, tw } = rawTables();
+    for (const table of [cn.roguelike, tw.roguelike]) {
+      table.details["rogue_4"]!.items["rogue_4_relic_explore_5"]!.type = "MADE_UP";
+    }
+    const unknown: string[] = [];
+    const catalog = buildHiddenGroupSourceCatalog(cn.roguelike, tw.roguelike, (item, kind) =>
+      unknown.push(`${item} ${kind}`),
+    );
+    const level = convertLevel("level_rogue4_1-2", rawFixture("level_rogue4_1-2"), enemyCatalog(), {
+      hiddenGroupSources: catalog,
+    });
+    expect(unknown).toEqual(["rogue_4_relic_explore_5 MADE_UP"]);
+    expect(level.hiddenGroupSources["cargo"]).toBeUndefined();
   });
 });
 
@@ -803,7 +953,7 @@ describe("作用範圍", () => {
 
   it("the site's level file keeps each device's 作用範圍", () => {
     const level = loadFixtureLevel("level_main_16-02");
-    const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+    const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
     const file = siteLevelFile(level, enemyCatalog(), names, fixtureDeviceCatalog());
     expect(file.devices.map((d) => d.effectCells)).toEqual(level.devices.map((d) => d.effectCells));
     expect(file.devices.some((d) => d.effectCells.length === 21)).toBe(true);

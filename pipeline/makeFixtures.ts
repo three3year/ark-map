@@ -6,7 +6,8 @@
 // pipeline reads; the activity tables also keep each 復刻's original activity. The stage
 // tables' `tileInfo` keeps the tile keys the fixture levels use, the keys already in the
 // fixture table, and any `--tile` keys. The CN and TW roguelike topic tables
-// keep every theme, the numbered zones, and the `--rogue` stage ids plus the stages already in
+// keep every theme, the numbered zones, the items that open or close a 隱藏組 with their effects,
+// and the `--rogue` stage ids plus the stages already in
 // the fixture table.
 // Usage: pnpm fixtures [<level path under levels/>...] [--enemy <enemy id>...] [--zone <zone id>...]
 //                      [--rogue <roguelike stage id>...] [--tile <tile key>...]
@@ -14,6 +15,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sources, type RepoSource } from "../src/dataSources.ts";
+import { hiddenGroupSwitch, mapValues } from "../src/level/index.ts";
 import { fetchCached, fetchJson } from "./fetchCached.ts";
 import type {
   RawActivityTable,
@@ -24,6 +26,7 @@ import type {
   RawEnemyHandbookTable,
   RawLevel,
   RawRangeTable,
+  RawRoguelikeRelic,
   RawRoguelikeStage,
   RawRoguelikeTopicTable,
   RawSkillTable,
@@ -165,10 +168,6 @@ function filterEntries<T>(record: Record<string, T>, keep: (key: string, value: 
   return Object.fromEntries(Object.entries(record).filter(([k, v]) => keep(k, v)));
 }
 
-function mapValues<T>(record: Record<string, T>, fn: (value: T) => T): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v)]));
-}
-
 const stageKeys: (keyof RawStage)[] = [
   "stageId",
   "levelId",
@@ -277,6 +276,9 @@ const rogueStageKeys: (keyof RawRoguelikeStage)[] = [
   "difficulty",
 ];
 
+const switchesHiddenGroup = (relic: RawRoguelikeRelic) =>
+  relic.buffs.some((b) => hiddenGroupSwitch(b.key) !== null);
+
 async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<void> {
   const table = await fetchJson<RawRoguelikeTopicTable>(source, "excel/roguelike_topic_table.json");
   const subset: RawRoguelikeTopicTable = {
@@ -289,6 +291,14 @@ async function writeRoguelikeTable(source: RepoSource, suffix: string): Promise<
       stages: mapValues(
         filterEntries(d.stages, (id) => rogueStageIds.has(id)),
         (s) => pick(s, rogueStageKeys),
+      ),
+      relics: filterEntries(d.relics, (_, r) => switchesHiddenGroup(r)),
+      items: mapValues(
+        filterEntries(
+          d.items,
+          (id) => d.relics[id] !== undefined && switchesHiddenGroup(d.relics[id]),
+        ),
+        (i) => pick(i, ["id", "name", "type"]),
       ),
     })),
   };

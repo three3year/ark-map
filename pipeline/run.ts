@@ -18,6 +18,7 @@ import {
   convertLevel,
   siteLevelFile,
 } from "./convertLevel.ts";
+import { buildHiddenGroupSourceCatalog } from "./hiddenGroupSources.ts";
 import { dataVersion, versionFile, versionFileListed } from "./dataVersion.ts";
 import {
   fetchCached,
@@ -225,10 +226,14 @@ const devices = buildDeviceCatalog(controllers, {
     ranges: await table<RawRangeTable>(sources.cn, cnExcel, "range_table"),
   },
 });
+const hiddenGroupSourceCatalog = buildHiddenGroupSourceCatalog(
+  tables.cn.roguelike,
+  tables.tw.roguelike,
+);
 log(`控制器 ${controllers.size} 種:${[...controllers].sort().join("、")}`);
 const facts = new Map<string, LevelFacts>();
 const failures: ConversionFailure[] = [];
-const names: NameTable = { enemies: {}, terrain: {}, devices: {} };
+const names: NameTable = { enemies: {}, terrain: {}, devices: {}, hiddenGroupSources: {} };
 /** Every `tileKey` the converted level files use. */
 const tileKeys = new Set<string>();
 /** 難度修正 key -> how many modifiers in the converted level files use it. */
@@ -252,6 +257,7 @@ await forEachLimit(wanted, 8, async (levelPath) => {
       const raw = JSON.parse(body.toString("utf8")) as RawLevel;
       const level = convertLevel(levelPath, raw, catalog, {
         devices,
+        hiddenGroupSources: hiddenGroupSourceCatalog,
         onUnknownEnum: (field, value) => record(unknownEnums, `${field} = ${value}`, levelPath),
         onUnknownDevice: (key) => record(unknownDevices, key, levelPath),
         onUnknownRangeId: (rangeId, key) => record(unknownRangeIds, rangeId, key),
@@ -295,6 +301,11 @@ await writeJson(path.join(outDir, "names.json"), {
     Object.keys(names.devices)
       .sort()
       .map((key) => [key, names.devices[key]!]),
+  ),
+  hiddenGroupSources: Object.fromEntries(
+    Object.keys(names.hiddenGroupSources)
+      .sort()
+      .map((item) => [item, names.hiddenGroupSources[item]!]),
   ),
 } satisfies NameTable);
 const unnamedTiles = [...tileKeys].filter((key) => !terrain[key]);

@@ -204,7 +204,9 @@ test("11-7: a 條件出兵 switched on spawns at its second and shows its path",
 test("5-10: a device-only 條件出兵 is listed without a switch", async ({ page }) => {
   await page.goto("#/level/main_05-10?v=normal");
   await expect(page.locator("[data-device-only]")).toHaveCount(1);
-  await expect(page.locator("[data-device-only]")).toContainText("faust_ballis");
+  await expect(page.locator("[data-device-only]")).toContainText("裝置 弩炮");
+  await expect(page.locator("[data-device-only]")).not.toContainText("faust_ballis");
+  await expect(page.locator("[data-device-only]")).toHaveAttribute("title", "faust_ballis");
   await expect(page.locator("[data-conditional] input")).toHaveCount(0);
 });
 
@@ -399,4 +401,26 @@ test("ro2_n_2_6: switching 波次 clears the 端點篩選", async ({ page }) => 
   // Back on the first wave the filter stays cleared.
   await selectWave(page, 0);
   await expect(filterCaption(page)).toHaveCount(0);
+});
+
+test("公害: the 開關面板 names 隱藏組 and 條件出兵 by their content, not their codes", async ({
+  page,
+}) => {
+  await page.goto("#/level/ro4_n_1_2?v=normal");
+  const panel = page.getByRole("region", { name: "開關" });
+  await expect(panel.locator('input[data-hidden-group="cargo"]')).toBeVisible();
+  for (const code of ["cargo", "calamity", "mbx1"]) await expect(panel).not.toContainText(code);
+});
+
+test("公害: cargo's 說明 names the 收藏品 that opens it", async ({ page }) => {
+  await page.goto("#/level/ro4_n_1_2?v=normal");
+  const panel = page.getByRole("region", { name: "開關" });
+  await expect(panel).toContainText("由收藏品「牧馱人的搖鈴」開啟");
+});
+
+test("死囚之夜: totem1's 出兵表 badge names the 密文板效果 that opens it", async ({ page }) => {
+  await page.goto("#/level/ro3_n_1_1?v=normal");
+  const panel = page.getByRole("region", { name: "開關" });
+  await panel.locator('input[data-hidden-group="totem1"]').check();
+  await expect(spawnTableRegion(page)).toContainText("隱藏組・場上出現無人機");
 });

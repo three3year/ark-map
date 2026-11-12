@@ -23,6 +23,7 @@ import {
   type Timeline,
 } from "./index.ts";
 import { thiefGroup } from "../../test-fixtures/rogue2_2-6.ts";
+import { testEnemy } from "../../test-fixtures/enemy.ts";
 
 /** "row,col" of each cell with an endpoint of `kind`. */
 const cellsOf = (timeline: Timeline, kind: EndpointKind) =>
@@ -225,6 +226,7 @@ function corridorLevel(routes: Pick<Route, "start" | "end" | "checkpoints">[]): 
       visitEveryCheckPoint: false,
     })),
     extraRoutes: [],
+    hiddenGroupSources: {},
     branches: [],
     devices: [],
     waves: [
@@ -253,20 +255,7 @@ function corridorLevel(routes: Pick<Route, "start" | "end" | "checkpoints">[]): 
       },
     ],
     enemies: {
-      enemy_test: {
-        id: "enemy_test",
-        level: 0,
-        name: "測試",
-        code: null,
-        moveSpeed: 1,
-        motion: "WALK",
-        levelType: "NORMAL",
-        maxHp: 1,
-        atk: 0,
-        def: 0,
-        notCountInTotal: false,
-        avatar: null,
-      },
+      enemy_test: testEnemy(),
     },
   };
 }

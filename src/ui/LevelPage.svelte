@@ -1,12 +1,13 @@
 <script lang="ts">
   import {
     variantModifiers,
+    variantsShowing,
     type Area,
     type DeviceIndex,
     type IndexedDevice,
     type Level,
     type StageEntry,
-    type TerrainTable,
+    type NameTable,
     type Variant,
     type VariantId,
   } from "../level/index.ts";
@@ -49,6 +50,7 @@
   import SpawnTable, { combinedStow, type RowStow } from "./SpawnTable.svelte";
   import TimelineBar from "./TimelineBar.svelte";
   import WaveSelect from "./WaveSelect.svelte";
+  import { attackRadius, enemyAttributes, hiddenGroupText } from "./panelContent.ts";
   import { stageLabel, strings, variantLabel } from "./strings.ts";
 
   interface Props {
@@ -64,8 +66,7 @@
     variant: Variant;
     view: LevelView;
     level: Level;
-    /** The 名稱表's 地形表. */
-    terrain: TerrainTable;
+    names: NameTable;
     /** 上一關 and 下一關 in the area; null at its ends. */
     prev: StageLink | null;
     next: StageLink | null;
@@ -89,7 +90,7 @@
     variant,
     view,
     level,
-    terrain,
+    names,
     prev,
     next,
     wave,
@@ -124,6 +125,9 @@
   const plan = $derived(spawnPlan(level, difficulty, switches));
   const timeline = $derived(buildTimeline(level, { waveIndex, difficulty, switches, removals }));
   const modifiers = $derived(variantModifiers(level.modifiers, difficulty));
+  const fileVariants = $derived(variantsShowing(stage, view.shownFile));
+  const hiddenGroupBadge = (name: string) =>
+    hiddenGroupText(level, names, name, fileVariants).badge;
   const rows = $derived(spawnTable(level, { difficulty, switches }));
   const setHidden = (name: string, on: boolean) =>
     onSwitches(switchHidden(level, difficulty, switches, name, on));
@@ -420,7 +424,7 @@
     <MapView
       view={mapView}
       map={level.map}
-      {terrain}
+      terrain={names.terrain}
       devices={drawnDevices}
       selectedDevice={selectedDevice?.index ?? null}
       {effectCells}
@@ -430,6 +434,7 @@
       enemies={drawn}
       {t}
       {selected}
+      attackRadius={selected ? attackRadius(selected.enemy, modifiers) : null}
       onSelect={select}
       filter={filtered}
       onFilter={toggleFilter}
@@ -446,6 +451,16 @@
           <button type="button" onclick={() => select(null)}>{strings.deselect}</button>
         </span>
       </p>
+      <dl class="enemy-attributes" aria-label={strings.enemyAttributesLabel}>
+        {#each enemyAttributes(selected.enemy, modifiers) as attribute (attribute.key)}
+          <div data-attribute={attribute.key}>
+            <dt>{attribute.label}</dt>
+            <dd class:modified={attribute.modified} title={attribute.tooltip ?? undefined}>
+              {attribute.text}
+            </dd>
+          </div>
+        {/each}
+      </dl>
     {:else if selectedDevice}
       {@const { index, device } = selectedDevice}
       <div class="selection device-selection" data-selected-device={index}>
@@ -483,7 +498,9 @@
     </div>
     <SwitchPanel
       {level}
+      {names}
       {plan}
+      {fileVariants}
       conditional={switches.conditional ?? {}}
       wave={waveIndex}
       {t}
@@ -491,12 +508,7 @@
       onPick={pick}
       onConditional={setConditional}
     />
-    <LevelInfo
-      options={level.options}
-      {modifiers}
-      variantName={variantLabel(variant.id)}
-      enemies={level.enemies}
-    />
+    <LevelInfo {level} {modifiers} {names} {plan} variantName={variantLabel(variant.id)} />
     {@render footer()}
   </div>
   <!--
@@ -535,6 +547,7 @@
         onClearFilter={() => (endpointFilter = null)}
         {rowStow}
         onStow={stowRows}
+        {hiddenGroupBadge}
       />
     </div>
   </div>
@@ -694,6 +707,35 @@
     display: flex;
     flex-shrink: 0;
     gap: 8px;
+  }
+  .enemy-attributes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 16px;
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+  }
+  @media (width < 600px) {
+    .enemy-attributes {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .enemy-attributes div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .enemy-attributes dt {
+    color: var(--muted);
+  }
+  .enemy-attributes dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .enemy-attributes dd.modified {
+    color: var(--attribute-modified);
+    font-weight: 600;
+    cursor: help;
   }
   .device-about {
     display: flex;

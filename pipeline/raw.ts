@@ -1,5 +1,7 @@
 // Shapes of the raw game-data files, limited to the fields the pipeline reads.
 
+import type { ApplyWay } from "../src/level/index.ts";
+
 /** An enum field: a name, or a number in older activity files (decoded in convertLevel.ts). */
 export type RawEnum = string | number;
 
@@ -77,8 +79,15 @@ export interface RawEnemyData {
     maxHp?: Slot<number>;
     atk?: Slot<number>;
     def?: Slot<number>;
+    magicResistance?: Slot<number>;
+    baseAttackTime?: Slot<number>;
+    attackSpeed?: Slot<number>;
     moveSpeed?: Slot<number>;
+    massLevel?: Slot<number>;
   };
+  rangeRadius?: Slot<number>;
+  applyWay?: Slot<ApplyWay>;
+  lifePointReduce?: Slot<number>;
   motion?: Slot<RawEnum>;
   levelType?: Slot<RawEnum>;
   notCountInTotal?: Slot<boolean>;
@@ -246,6 +255,28 @@ export interface RawRoguelikeTopic {
   zones: Record<string, { id: string; name: string }>;
   /** No zone or order field: normal nodes are `roN_n_<zone>_<i>`, emergencies `roN_e_…`. */
   stages: Record<string, RawRoguelikeStage>;
+  /** Effects of the theme's items (收藏品, 通寶, 密文板效果, 機制...), keyed by item id. */
+  relics: Record<string, RawRoguelikeRelic>;
+  /** Every item of the theme, keyed by item id; `relics` keys are among them. */
+  items: Record<string, RawRoguelikeItem>;
+}
+
+export interface RawRoguelikeRelic {
+  id: string;
+  /** e.g. `level_hidden_group_enable`, whose `key` entry names 隱藏組, "|"-separated. */
+  buffs: { key: string; blackboard: { key: string; valueStr: string | null }[] }[];
+}
+
+export interface RawRoguelikeItem {
+  id: string;
+  name: string;
+  /** "RELIC" | "COPPER_BUFF" | "TOTEM_EFFECT" | "FEATURE" | ... */
+  type: string;
+}
+
+/** The level ids `topic`'s stages use: each stage's own, then its 內容拓展 files. */
+export function topicLevelIds(topic: RawRoguelikeTopic): string[] {
+  return Object.values(topic.stages).flatMap((s) => [s.levelId, ...s.levelReplaceIds]);
 }
 
 /** 集成戰略: themes (主題) with their zones and stages. */

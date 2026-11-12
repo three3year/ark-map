@@ -1,6 +1,14 @@
 // 介面文字(繁中)。All user-facing text lives here.
-import type { AreaKind, KnownModifierKey, Server, StageEntry, VariantId } from "../level/index.ts";
+import type {
+  AreaKind,
+  HiddenGroupSourceKind,
+  KnownModifierKey,
+  Server,
+  StageEntry,
+  VariantId,
+} from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
+import type { EnemyAttributeKey } from "./panelContent.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
@@ -71,16 +79,31 @@ export const strings = {
     `${source ? `${source}・` : ""}第 ${fragment + 1} 段・組鍵 ${key}`,
   candidateWeight: (weight: number, share: number) => `權重 ${weight}(${Math.round(share * 100)}%)`,
   noSpawn: "不出兵",
+  /** Items of a list in running text, e.g. a 隱藏組's contents. */
+  list: (items: readonly string[]) => items.join("、"),
+  enemyCount: (enemy: string, count: number) => `${enemy} × ${count}`,
   device: (name: string) => `裝置 ${name}`,
   withdrawDevice: (name: string) => `撤走裝置 ${name}`,
-  hiddenGroupBadge: (name: string) => `隱藏組 ${name}`,
+  hiddenGroupBadge: (note: string | null) => (note ? `隱藏組・${note}` : "隱藏組"),
+  hiddenGroupSourceKinds: {
+    RELIC: "收藏品",
+    COPPER_BUFF: "通寶",
+    TOTEM_EFFECT: "密文板效果",
+    FEATURE: "機制",
+  } satisfies Record<HiddenGroupSourceKind, string>,
+  hiddenGroupSource: (kind: HiddenGroupSourceKind, name: string, opens: boolean) =>
+    `${strings.hiddenGroupSourceKinds[kind]}「${name}」${opens ? "開啟" : "關閉"}`,
+  hiddenGroupSources: (sources: string[]) => `由${sources.join("、")}`,
+  hiddenGroupNote: (parts: string[]) => parts.join(","),
+  onInVariants: (variants: string[]) => `${variants.join("、")}時開`,
+  onInEveryVariant: "各變體都開",
   conditional: "條件出兵",
   conditionalHint: "由機關或敵人技能觸發的出兵;預設關,打開後在指定秒數(波內)出生,沿額外路線走",
   triggerSecond: "觸發於",
   triggeredInWave: (wave: string, t: number) => `已在${wave}第 ${t} 秒觸發`,
   deviceOnly: "純機關(不出兵)",
   deviceOnlyHint: "只啟動裝置的條件出兵,不進快照",
-  conditionalBadge: (key: string) => `條件出兵 ${key}`,
+  conditionalSource: (device: string | null) => (device ? `條件出兵 ${device}` : "條件出兵"),
   pickCandidate: "切換",
   pickCandidateHint: "改選這個候選上場",
   harmless: "無害",
@@ -116,11 +139,20 @@ export const strings = {
   maxLifePoint: "生命值",
   initialCost: "初始費用",
   maxCost: "費用上限",
+  /** The 關卡資訊's numbers on one line, each by its label. */
+  levelNumbers: (numbers: readonly (readonly [label: string, value: number])[]) =>
+    numbers.map(([label, value]) => `${label} ${value}`).join(" · "),
   modifiers: (variant: string) => `難度修正(${variant})`,
   noModifiers: "這個變體沒有難度修正",
-  modifierMovesEnemies: "計入移速",
-  modifierMovesEnemiesHint: "這條修正的移速倍率已套進時間軸",
+  modifierMovesEnemies: "已套用到地圖上的移動",
   modifierUnknown: "未知修正",
+  /** A 啟用預設裝置 entry's state; `count` devices of one name share it. */
+  presetDeviceState: (count: number, on: boolean) =>
+    `${count > 1 ? `× ${count} ` : ""}${on ? "開" : "關"}`,
+  /** A 難度修正 value of the multiplying kind. */
+  multiplier: (value: number) => `×${value}`,
+  /** An 環境機制's mouse-over text: its key and its target. */
+  environmentHint: (key: string, target: string) => `${key} · ${target}`,
   /** 難度修正 names by key. */
   modifierKeys: {
     ebuff_attribute: "敵人屬性倍率",
@@ -212,20 +244,75 @@ export const strings = {
     value: "數值",
     scale: "倍率",
     key: "對象",
-    tile: "格",
+    tile: "地形",
     token_key: "裝置",
     skill: "技能序號",
+    location: "格",
+    duration: "持續時間",
+    ep_damage: "元素傷害",
+    damage_scale: "傷害倍率",
+    damage_resistance: "傷害減免",
+    max_cost: "費用上限",
+    max_cost_ceil: "費用上限的最大值",
+    cost: "費用",
+    damage: "傷害",
+    sp: "技力",
+    stun: "暈眩時間",
+    stun_duration: "暈眩時間",
+    hp_recovery_per_sec: "每秒生命回復",
+    hp_ratio: "生命比例",
+    ignite_duration: "燃燒時間",
+    extinct_duration: "熄滅時間",
+    cooldown_duration: "冷卻時間",
+    speed_scale: "速度倍率",
+    direction: "方向",
+    invincible_time: "無敵時間",
+    interval: "間隔",
+    reload_interval: "裝填間隔",
+    hit_interval: "攻擊間隔",
+    level: "等級",
+    ep_damage_ratio: "元素傷害倍率",
+    atk_scale: "攻擊倍率",
+    base_damage: "基礎傷害",
+    respawn_time: "再部署時間",
+    max_value: "最大值",
+    range_scale: "範圍倍率",
+    times: "次數",
   } as Partial<Record<string, string>>,
   legendDevice: { device: "裝置", blocker: "擋路裝置" },
   legendSwitchMark: { conditional: "條件出兵", hiddenGroup: "隱藏組", random: "隨機出兵組" },
   legendPath: "路徑",
   legendEffectCells: "作用範圍",
+  legendAttackRange: "攻擊範圍",
   legendTeleport: "傳送",
   waitSeconds: (seconds: number) => `等 ${seconds} 秒`,
   jumpToSpawn: "跳到出生時刻並選取",
   selected: (name: string, state: string) => `已選取:${name}(${state})`,
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   selectedDevice: (name: string) => `已選取:${name}`,
+  enemyAttributesLabel: "敵人屬性",
+  enemyAttributes: {
+    maxHp: "生命值",
+    atk: "攻擊",
+    def: "防禦",
+    magicResistance: "法術抗性",
+    baseAttackTime: "攻擊間隔",
+    attackSpeed: "攻速",
+    rangeRadius: "攻擊範圍",
+    moveSpeed: "移速",
+    massLevel: "重量",
+    lifePointReduce: "關卡生命",
+  } satisfies Record<EnemyAttributeKey, string>,
+  enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
+    key === "baseAttackTime" ? `${value}秒` : String(value),
+  attributeTooltip: (base: string, multiplier: number, addition: number) =>
+    [
+      `基礎 ${base}`,
+      multiplier !== 1 ? strings.multiplier(multiplier) : null,
+      addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
+    ]
+      .filter((part) => part !== null)
+      .join(" "),
   deselect: "取消選取",
   stow: "收起",
   show: "顯示",

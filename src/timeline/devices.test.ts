@@ -9,6 +9,7 @@ import {
   type Wave,
 } from "../level/index.ts";
 import { buildTimeline, levelGroups, type Timeline, type TimelineOptions } from "./index.ts";
+import { testEnemy } from "../../test-fixtures/enemy.ts";
 
 const road: Tile = {
   tileKey: "tile_road",
@@ -83,24 +84,12 @@ function field(waves: Wave[], device: Partial<Device> = {}): Level {
       },
     ],
     extraRoutes: [],
+    hiddenGroupSources: {},
     branches: [],
     devices: [{ ...stone, ...device }],
     waves,
     enemies: {
-      enemy_test: {
-        id: "enemy_test",
-        level: 0,
-        name: "測試",
-        code: null,
-        moveSpeed: 1,
-        motion: "WALK",
-        levelType: "NORMAL",
-        maxHp: 1,
-        atk: 0,
-        def: 0,
-        notCountInTotal: false,
-        avatar: null,
-      },
+      enemy_test: testEnemy(),
     },
   };
 }

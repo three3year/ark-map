@@ -35,6 +35,11 @@ import {
   type EffectTables,
   type UnknownRangeIdHandler,
 } from "./effectCells.ts";
+import {
+  levelHiddenGroupSources,
+  noHiddenGroupSources,
+  type HiddenGroupSourceCatalog,
+} from "./hiddenGroupSources.ts";
 import { plainText } from "./plainText.ts";
 import type {
   RawAction,
@@ -190,6 +195,13 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     maxHp: pick(attrs.maxHp, stats.maxHp),
     atk: pick(attrs.atk, stats.atk),
     def: pick(attrs.def, stats.def),
+    magicResistance: pick(attrs.magicResistance, stats.magicResistance),
+    baseAttackTime: pick(attrs.baseAttackTime, stats.baseAttackTime),
+    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed),
+    rangeRadius: pick(data.rangeRadius, stats.rangeRadius),
+    applyWay: pick(data.applyWay, stats.applyWay),
+    massLevel: pick(attrs.massLevel, stats.massLevel),
+    lifePointReduce: pick(data.lifePointReduce, stats.lifePointReduce),
     notCountInTotal: pick(data.notCountInTotal, stats.notCountInTotal),
   };
 }
@@ -202,6 +214,13 @@ const emptyStats: EnemyStats = {
   maxHp: 0,
   atk: 0,
   def: 0,
+  magicResistance: 0,
+  baseAttackTime: 0,
+  attackSpeed: 0,
+  rangeRadius: 0,
+  applyWay: "NONE",
+  massLevel: 0,
+  lifePointReduce: 0,
   notCountInTotal: false,
 };
 
@@ -424,8 +443,17 @@ function convertDevices(
   });
 }
 
+function hiddenGroupTags(raw: RawLevel): Set<string> {
+  const fragments = [
+    ...raw.waves.flatMap((w) => w.fragments),
+    ...Object.values(raw.branches ?? {}).flatMap((b) => b.phases ?? []),
+  ];
+  return new Set(fragments.flatMap((f) => f.actions.flatMap((a) => a.hiddenGroup ?? [])));
+}
+
 export interface ConvertOptions {
   devices?: DeviceCatalog;
+  hiddenGroupSources?: HiddenGroupSourceCatalog;
   onUnknownEnum?: UnknownEnumHandler;
   onUnknownDevice?: UnknownDeviceHandler;
   onUnknownRangeId?: UnknownRangeIdHandler;
@@ -438,6 +466,7 @@ export function convertLevel(
   catalog: EnemyCatalog,
   {
     devices = noDevices,
+    hiddenGroupSources = noHiddenGroupSources,
     onUnknownEnum = warnUnknownEnum,
     onUnknownDevice = warnUnknownDevice,
     onUnknownRangeId = warnUnknownRangeId,
@@ -482,13 +511,19 @@ export function convertLevel(
       [...refs, ...branchOnly].map((ref) => [ref.id, resolveEnemy(catalog, ref, decode)]),
     ),
     devices: convertDevices(raw, map, devices, decode, onUnknownDevice, onUnknownRangeId),
+    hiddenGroupSources: levelHiddenGroupSources(hiddenGroupSources, levelId, hiddenGroupTags(raw)),
   };
+}
+
+/** An enemy's 名稱表 name: the TW handbook's, else the CN database's level-0 name. */
+export function tableEnemyName(catalog: EnemyCatalog, id: string): string | null {
+  return catalog.twNames.get(id) ?? catalog.levels.get(id)?.get(0)?.name?.m_value ?? null;
 }
 
 /**
  * The level file the site ships: names the 名稱表 gives are left out. Adds the level's enemies to
- * `names` first, with the TW handbook name, else the CN database's level-0 name; a level-local
- * enemy (not in the database) gets no entry and keeps its name in the level file.
+ * `names` first, by `tableEnemyName`; a level-local enemy (not in the database) gets no entry and
+ * keeps its name in the level file. Also adds the level's devices and 隱藏組來源 items.
  */
 export function siteLevelFile(
   level: Level,
@@ -497,12 +532,15 @@ export function siteLevelFile(
   devices: DeviceCatalog = noDevices,
 ): LevelFile {
   for (const id of Object.keys(level.enemies)) {
-    const name = catalog.twNames.get(id) ?? catalog.levels.get(id)?.get(0)?.name?.m_value;
+    const name = tableEnemyName(catalog, id);
     if (name) names.enemies[id] = name;
   }
   for (const { key } of level.devices) {
     const info = devices.info.get(key);
     if (info) names.devices[key] = info;
+  }
+  for (const { item, name, kind } of Object.values(level.hiddenGroupSources).flat()) {
+    names.hiddenGroupSources[item] = { name, kind };
   }
   return withoutNames(level, names);
 }
