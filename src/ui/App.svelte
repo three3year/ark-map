@@ -188,10 +188,14 @@
   <div class="title-row">
     <h1><a href={formatHash({ page: "home" })}>{strings.siteTitle}</a></h1>
     {@render afterTitle?.()}
-    {#if expansionSwitch}
-      <ExpansionSwitch {...expansionSwitch} />
+    {#if expansionSwitch || atEnd}
+      <div class="title-controls">
+        {#if expansionSwitch}
+          <ExpansionSwitch {...expansionSwitch} />
+        {/if}
+        {@render atEnd?.()}
+      </div>
     {/if}
-    {@render atEnd?.()}
   </div>
 {/snippet}
 
@@ -270,6 +274,12 @@
     gap: 8px 16px;
     margin: 0 0 8px;
     padding-top: 12px;
+  }
+  .title-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
   }
   h1 {
     font-size: 1.1rem;

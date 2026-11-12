@@ -70,12 +70,13 @@ describe("隱藏組", () => {
     );
   });
 
-  it("on in every variant that shows the file: 各變體都開", () => {
+  it("a file shown by one variant only: no 變體說明, since 預設開 already says it", () => {
     const level = loadFixtureLevel("level_main_17-04");
     const text = hiddenGroupText(level, fixtureNameTable(), "raid", [
       { id: "sixStar", difficulty: "SIX_STAR" },
     ]);
-    expect(text.note).toBe("各變體都開");
+    expect(text.note).toBeNull();
+    expect(text.badge).toBe("隱藏組");
   });
 
   it("公害's calamity: no variant switches it on, so no 說明 and a bare badge", () => {
