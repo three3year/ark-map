@@ -120,7 +120,7 @@ export interface EnemyRef {
   rangeRadius: number;
   applyWay: ApplyWay;
   massLevel: number;
-  /** 關卡生命: life points lost when it gets through. */
+  /** 扣除生命: life points lost when it gets through. */
   lifePointReduce: number;
   notCountInTotal: boolean;
   /** TW handbook code, e.g. "B1"; shown in place of a missing avatar. */

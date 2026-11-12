@@ -91,7 +91,9 @@
             {#if text.note}
               <span class="note">{text.note}</span>
             {/if}
-            <span class="muted">{group.defaultOn ? strings.defaultOn : strings.defaultOff}</span>
+            {#if group.defaultOn}
+              <span class="muted">{strings.defaultOn}</span>
+            {/if}
           </label>
         {/each}
       </fieldset>

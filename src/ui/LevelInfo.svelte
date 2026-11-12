@@ -70,9 +70,9 @@
     margin: 0;
   }
   .modifiers {
-    list-style: none;
+    list-style: disc;
     margin: 0;
-    padding: 0;
+    padding-left: 1.5em;
     display: grid;
     gap: 4px;
     overflow-wrap: anywhere;

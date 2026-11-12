@@ -230,7 +230,7 @@ describe("敵人屬性", () => {
       ["攻擊範圍", "0"],
       ["移速", "2.2"],
       ["重量", "1"],
-      ["關卡生命", "1"],
+      ["扣除生命", "1"],
     ]);
     expect(attribute(attributes, "移速")).toMatchObject({ modified: true, tooltip: "基礎 1.1 ×2" });
     expect(attribute(attributes, "攻擊")).toMatchObject({ modified: false, tooltip: null });
