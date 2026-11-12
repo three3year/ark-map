@@ -70,7 +70,6 @@ export const strings = {
   hiddenGroups: "隱藏組",
   hiddenGroupsHint: "打開的組才出兵、啟動或撤走裝置;預設依本變體的難度修正",
   defaultOn: "預設開",
-  defaultOff: "預設關",
   randomGroups: "隨機出兵組",
   randomGroupsHint: "每組選一個候選上場;預設是權重最高的",
   randomGroup: (n: number) => `隨機出兵組 ${n + 1}`,
