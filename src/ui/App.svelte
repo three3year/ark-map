@@ -22,9 +22,10 @@
   import { levelView, sameView } from "./levelView.ts";
   import { ceilTenth, roundTenth } from "./playback.ts";
   import { formatHash, parseHash, type LevelRoute, type Route } from "./route.ts";
+  import { recordScroll, savedScroll } from "./scrollMemory.ts";
   import StageList from "./StageList.svelte";
   import { strings } from "./strings.ts";
-  import type { Snippet } from "svelte";
+  import { tick, type Snippet } from "svelte";
 
   let hash = $state(location.hash);
   const route = $derived(parseHash(hash));
@@ -59,14 +60,24 @@
 
   /** Write the URL, replacing the current history entry, and follow it. */
   function navigate(next: Route) {
-    history.replaceState(null, "", formatHash(next));
+    history.replaceState(history.state, "", formatHash(next));
     followHash(location.hash);
   }
 
   $effect(() => {
-    const onHashChange = () => followHash(location.hash);
+    const onHashChange = async () => {
+      followHash(location.hash);
+      const saved = savedScroll();
+      if (saved === undefined) return;
+      await tick();
+      scrollTo(0, saved);
+    };
+    addEventListener("scroll", recordScroll, { passive: true });
     addEventListener("hashchange", onHashChange);
-    return () => removeEventListener("hashchange", onHashChange);
+    return () => {
+      removeEventListener("scroll", recordScroll);
+      removeEventListener("hashchange", onHashChange);
+    };
   });
 
   async function fetchJson<T>(url: string): Promise<T> {
