@@ -348,7 +348,7 @@ describe("enemy resolution", () => {
     expect(crossbow({ applyWay: { m_defined: true, m_value: "MELEE" } }).applyWay).toBe("MELEE");
   });
 
-  it("level n takes the 敵人屬性 it leaves undefined from level 0, 攻擊範圍 and 關卡生命 too", () => {
+  it("level n takes the 敵人屬性 it leaves undefined from level 0, 攻擊範圍 and 扣除生命 too", () => {
     const crossbow = withRefs([
       { useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData: null },
     ]).enemies["enemy_1012_dcross"]!;
@@ -401,7 +401,7 @@ describe("enemy resolution", () => {
     });
   });
 
-  it("the level's overwrittenData overrides 攻擊範圍 and 關卡生命 too", () => {
+  it("the level's overwrittenData overrides 攻擊範圍 and 扣除生命 too", () => {
     const crossbow = withRefs([
       {
         useDb: true,

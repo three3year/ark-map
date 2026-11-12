@@ -301,7 +301,7 @@ export const strings = {
     rangeRadius: "攻擊範圍",
     moveSpeed: "移速",
     massLevel: "重量",
-    lifePointReduce: "關卡生命",
+    lifePointReduce: "扣除生命",
   } satisfies Record<EnemyAttributeKey, string>,
   enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
     key === "baseAttackTime" ? `${value}秒` : String(value),
