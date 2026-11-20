@@ -187,9 +187,15 @@ type EnemyStats = Omit<
   levelType: RawEnum;
 };
 
-function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
-  const pick = <T>(slot: Slot<T> | undefined, current: T, takeUndefined = base): T =>
-    slot && (takeUndefined || slot.m_defined) && slot.m_value !== null ? slot.m_value : current;
+type SlotReader = <T>(slot: Slot<T> | undefined, current: T) => T;
+
+const everySlot: SlotReader = (slot, current) =>
+  slot && slot.m_value !== null ? slot.m_value : current;
+
+const definedSlots: SlotReader = (slot, current) =>
+  slot?.m_defined ? everySlot(slot, current) : current;
+
+function overlay(stats: EnemyStats, data: RawEnemyData, pick: SlotReader): EnemyStats {
   const attrs = data.attributes ?? {};
   return {
     name: pick(data.name, stats.name) ?? stats.name,
@@ -201,7 +207,7 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     def: pick(attrs.def, stats.def),
     magicResistance: pick(attrs.magicResistance, stats.magicResistance),
     baseAttackTime: pick(attrs.baseAttackTime, stats.baseAttackTime),
-    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed, false),
+    attackSpeed: definedSlots(attrs.attackSpeed, stats.attackSpeed),
     rangeRadius: pick(data.rangeRadius, stats.rangeRadius),
     applyWay: pick(data.applyWay, stats.applyWay),
     massLevel: pick(attrs.massLevel, stats.massLevel),
@@ -209,6 +215,8 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     notCountInTotal: pick(data.notCountInTotal, stats.notCountInTotal),
   };
 }
+
+const undefinedAttackSpeed = 100;
 
 const emptyStats: EnemyStats = {
   name: "",
@@ -220,7 +228,7 @@ const emptyStats: EnemyStats = {
   def: 0,
   magicResistance: 0,
   baseAttackTime: 0,
-  attackSpeed: 100,
+  attackSpeed: undefinedAttackSpeed,
   rangeRadius: 0,
   applyWay: "NONE",
   massLevel: 0,
@@ -248,16 +256,16 @@ function layeredStats(
   ref: RawEnemyDbRef,
 ): { stats: EnemyStats; original: EnemyAttributeFields | null } {
   if (!ref.useDb && ref.overwrittenData) {
-    return { stats: overlay(emptyStats, ref.overwrittenData, true), original: null };
+    return { stats: overlay(emptyStats, ref.overwrittenData, everySlot), original: null };
   }
   const byLevel = catalog.levels.get(ref.id);
   const level0 = byLevel?.get(0);
   if (!byLevel || !level0) throw new Error(`敵人資料庫沒有 ${ref.id}`);
-  let stats = overlay(emptyStats, level0, true);
+  let stats = overlay(emptyStats, level0, everySlot);
   const levelN = ref.level === 0 ? undefined : byLevel.get(ref.level);
-  if (levelN) stats = overlay(stats, levelN);
+  if (levelN) stats = overlay(stats, levelN, definedSlots);
   const original = ref.useDb ? attributeFields(stats) : null;
-  if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData);
+  if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData, definedSlots);
   return { stats, original };
 }
 
