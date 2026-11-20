@@ -246,7 +246,7 @@ export interface EnemyAttribute {
   additions: number[];
   modified: boolean;
   text: string;
-  /** "基礎 420 ×1.2 +50" for a modified value; null otherwise. */
+  /** "關卡基礎: 420, 調整: ×1.2 +50" for a modified value; null otherwise. */
   tooltip: string | null;
 }
 

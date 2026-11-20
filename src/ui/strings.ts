@@ -306,8 +306,8 @@ export const strings = {
   enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
     key === "baseAttackTime" ? `${value}秒` : String(value),
   attributeTooltip: (base: string, multiplier: number, addition: number) =>
+    `關卡基礎: ${base}, 調整: ` +
     [
-      `基礎 ${base}`,
       multiplier !== 1 ? strings.multiplier(multiplier) : null,
       addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
     ]
