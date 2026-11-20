@@ -401,6 +401,30 @@ describe("enemy resolution", () => {
     });
   });
 
+  it("攻速 its database level 0 leaves undefined is 100, not the placeholder 0 (act17mini 3's sgbow)", () => {
+    const sgbow = loadFixtureLevel("level_act17mini_03").enemies["enemy_1278_sgbow"]!;
+    expect(sgbow).toMatchObject({ attackSpeed: 100, baseAttackTime: 2.8 });
+  });
+
+  it("攻速 a useDb-false enemy's overwrittenData leaves undefined is 100; other slots keep their value", () => {
+    const enemy = withRefs([
+      {
+        useDb: false,
+        id: "enemy_local",
+        level: 0,
+        overwrittenData: {
+          attributes: {
+            maxHp: { m_defined: true, m_value: 3200 },
+            baseAttackTime: { m_defined: true, m_value: 2 },
+            attackSpeed: { m_defined: false, m_value: 0 },
+            def: { m_defined: false, m_value: 7 },
+          },
+        },
+      },
+    ]).enemies["enemy_local"]!;
+    expect(enemy).toMatchObject({ maxHp: 3200, baseAttackTime: 2, attackSpeed: 100, def: 7 });
+  });
+
   it("the level's overwrittenData overrides 攻擊範圍 and 扣除生命 too", () => {
     const crossbow = withRefs([
       {

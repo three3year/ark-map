@@ -182,10 +182,14 @@ type EnemyStats = Omit<EnemyRef, "id" | "level" | "code" | "avatar" | "motion" |
   levelType: RawEnum;
 };
 
-/** Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value. */
+/**
+ * Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value, the
+ * placeholder of an undefined one too, except 攻速's: an undefined 攻速 keeps the 100 of
+ * `emptyStats`.
+ */
 function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
-  const pick = <T>(slot: Slot<T> | undefined, current: T): T =>
-    slot && (base || slot.m_defined) && slot.m_value !== null ? slot.m_value : current;
+  const pick = <T>(slot: Slot<T> | undefined, current: T, takeUndefined = base): T =>
+    slot && (takeUndefined || slot.m_defined) && slot.m_value !== null ? slot.m_value : current;
   const attrs = data.attributes ?? {};
   return {
     name: pick(data.name, stats.name) ?? stats.name,
@@ -197,7 +201,7 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     def: pick(attrs.def, stats.def),
     magicResistance: pick(attrs.magicResistance, stats.magicResistance),
     baseAttackTime: pick(attrs.baseAttackTime, stats.baseAttackTime),
-    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed),
+    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed, false),
     rangeRadius: pick(data.rangeRadius, stats.rangeRadius),
     applyWay: pick(data.applyWay, stats.applyWay),
     massLevel: pick(attrs.massLevel, stats.massLevel),
@@ -216,7 +220,7 @@ const emptyStats: EnemyStats = {
   def: 0,
   magicResistance: 0,
   baseAttackTime: 0,
-  attackSpeed: 0,
+  attackSpeed: 100,
   rangeRadius: 0,
   applyWay: "NONE",
   massLevel: 0,
