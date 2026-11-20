@@ -3,6 +3,7 @@ import {
   actionTypes,
   checkpointTypes,
   directions,
+  enemyAttributeFields,
   isSpawn,
   withoutNames,
   type ActionType,
@@ -260,18 +261,10 @@ function layeredStats(
   return { stats, original };
 }
 
-const attributeFields = (stats: EnemyStats): EnemyAttributeFields => ({
-  maxHp: stats.maxHp,
-  atk: stats.atk,
-  def: stats.def,
-  magicResistance: stats.magicResistance,
-  baseAttackTime: stats.baseAttackTime,
-  attackSpeed: stats.attackSpeed,
-  rangeRadius: stats.rangeRadius,
-  moveSpeed: stats.moveSpeed,
-  massLevel: stats.massLevel,
-  lifePointReduce: stats.lifePointReduce,
-});
+const attributeFields = (stats: EnemyStats) =>
+  Object.fromEntries(
+    enemyAttributeFields.map((field) => [field, stats[field]]),
+  ) as EnemyAttributeFields;
 
 function convertAction(raw: RawAction, decode: Decode): Action {
   return {

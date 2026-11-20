@@ -1,5 +1,6 @@
 // The level model: the site's level JSON, written by the data pipeline and read by the
 // browser. Vocabulary follows GLOSSARY.md.
+import type { EnemyAttributeFields } from "./enemyAttributes.ts";
 import type { ActionType, CheckpointType, Direction } from "./enums.ts";
 
 /** 格: row 0 is the bottom row, col 0 the left column. */
@@ -133,20 +134,6 @@ export interface EnemyRef {
   /** Site-relative avatar path, or null when no avatar was found. */
   avatar: string | null;
 }
-
-export type EnemyAttributeFields = Pick<
-  EnemyRef,
-  | "maxHp"
-  | "atk"
-  | "def"
-  | "magicResistance"
-  | "baseAttackTime"
-  | "attackSpeed"
-  | "rangeRadius"
-  | "moveSpeed"
-  | "massLevel"
-  | "lifePointReduce"
->;
 
 export interface Device {
   alias: string | null;
