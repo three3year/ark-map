@@ -749,7 +749,6 @@
   .enemy-attributes dt {
     color: var(--muted);
   }
-  /* Every value keeps the overwritten frame's room, so a frame moves nothing. */
   .enemy-attributes dd {
     margin: 0;
     padding: 0 3px;

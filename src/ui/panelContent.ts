@@ -144,10 +144,6 @@ export function hiddenGroupText(
 
 const unique = (texts: string[]) => [...new Set(texts)];
 
-/**
- * The 9 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. 攻擊間隔
- * shows the 實際攻擊間隔, so 攻速 is not one of them.
- */
 export const enemyAttributeKeys = [
   "maxHp",
   "atk",
@@ -162,7 +158,6 @@ export const enemyAttributeKeys = [
 
 export type EnemyAttributeKey = (typeof enemyAttributeKeys)[number];
 
-/** The `EnemyRef` fields 難度修正 change: no modifier changes 攻擊間隔 itself, only 攻速. */
 type ModifiedField = Exclude<EnemyAttributeKey, "baseAttackTime"> | "attackSpeed";
 
 const wholeAttributes: ReadonlySet<ModifiedField> = new Set([
@@ -238,37 +233,22 @@ function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
   });
 }
 
-/** A 敵人屬性's number, rounded; null is "-", a 攻擊間隔 whose 攻速 is 0 or below. */
 export type AttributeValue = number | null;
 
-/** A 原始數值: "none" (無) for an enemy the level does not take from the database. */
 export type OriginalValue = AttributeValue | "none";
 
 export interface EnemyAttribute {
   key: EnemyAttributeKey;
   label: string;
-  /** After the variant's 難度修正. */
   value: AttributeValue;
-  /** 原始數值: the 敵人資料庫's value at the enemy's level, without the level's overwrites. */
   original: OriginalValue;
-  /** 關卡基礎: the enemy's own value, its level with the level's overwrites. */
   base: AttributeValue;
-  /**
-   * Every multiplier the variant's 難度修正 give this enemy here, in modifier order; 攻擊間隔's
-   * are 攻速's.
-   */
   multipliers: number[];
   /** Every addition, in modifier order. */
   additions: number[];
-  /** The level's overwrites make 關卡基礎 differ from the 原始數值. */
   overwritten: boolean;
-  /** The variant's 難度修正 make the value differ from 關卡基礎. */
   modified: boolean;
   text: string;
-  /**
-   * "原始數值: 350, 關卡基礎: 420, 調整: ×1.2 +50", each part only when it applies; null when
-   * neither overwritten nor modified.
-   */
   tooltip: string | null;
 }
 
@@ -298,11 +278,9 @@ function adjustment(changes: AttributeChange[], field: ModifiedField): Adjustmen
 
 const digitsOf = (field: ModifiedField) => (wholeAttributes.has(field) ? 0 : 2);
 
-/** `base` × the product of the multipliers, rounded, plus the additions. */
 const adjusted = (base: number, field: ModifiedField, { product, sum }: Adjustment) =>
   round(round(base * product, digitsOf(field)) + sum, digitsOf(field));
 
-/** 實際攻擊間隔: 攻擊間隔 × 100 ÷ 攻速, to two decimals; "-" (null) when 攻速 is 0 or below. */
 const attackInterval = (time: number, speed: number): AttributeValue =>
   speed > 0 ? round((time * 100) / speed, 2) : null;
 
@@ -338,12 +316,6 @@ function enemyAttribute(
   };
 }
 
-/**
- * The 敵人屬性 of `enemy` under `modifiers` (the variant's 難度修正): base × the product of the
- * multipliers, rounded, plus the additions. 攻擊間隔 is the 實際攻擊間隔, its 攻速 so adjusted.
- * 移速 stays in the enemy data's unit (屬性移速), not multiplied by the level's move-speed
- * multiplier.
- */
 export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAttribute[] {
   const changes = modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? attributeChanges(m) : []));
   const { original } = enemy;

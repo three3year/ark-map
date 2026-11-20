@@ -11,7 +11,6 @@ const valueOf = (page: Page, label: string) =>
     .filter({ has: page.getByText(label, { exact: true }) })
     .locator("dd");
 
-/** Whether a value has a visible frame: a border wider than 0 in a colour that is not transparent. */
 const framed = (page: Page, label: string) =>
   valueOf(page, label).evaluate((el) => {
     const style = getComputedStyle(el);

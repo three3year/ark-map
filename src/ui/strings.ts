@@ -13,7 +13,6 @@ import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
 
-/** "攻速 ×1.5 +30": what it changes when not the 屬性 itself, then the factor, then the sum. */
 const adjustmentText = (adjustment: {
   multiplier: number;
   addition: number;
@@ -320,14 +319,9 @@ export const strings = {
     massLevel: "重量",
     lifePointReduce: "扣除生命",
   } satisfies Record<EnemyAttributeKey, string>,
-  /** What 攻擊間隔's 調整 changes. */
   attackSpeed: "攻速",
   enemyAttributeValue: (key: EnemyAttributeKey, value: AttributeValue) =>
     value === null ? "-" : key === "baseAttackTime" ? `${value}秒` : String(value),
-  /**
-   * "原始數值: X, 關卡基礎: Y, 調整: ×m +a", leaving out a null 原始數值 and 調整;
-   * `adjustedLabel`: what the 調整 changes, when not the 屬性 itself.
-   */
   attributeTooltip: (
     original: string | null,
     base: string,

@@ -186,11 +186,6 @@ type EnemyStats = Omit<
   levelType: RawEnum;
 };
 
-/**
- * Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value, the
- * placeholder of an undefined one too, except 攻速's: an undefined 攻速 keeps the 100 of
- * `emptyStats`.
- */
 function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
   const pick = <T>(slot: Slot<T> | undefined, current: T, takeUndefined = base): T =>
     slot && (takeUndefined || slot.m_defined) && slot.m_value !== null ? slot.m_value : current;
@@ -232,11 +227,6 @@ const emptyStats: EnemyStats = {
   notCountInTotal: false,
 };
 
-/**
- * Level 0 is the base; level n overrides the slots it defines, giving the 原始數值; the level's
- * `overwrittenData` overrides again. A level-local enemy (`useDb` false) is wholly its
- * `overwrittenData`, with no 原始數值. The TW handbook name wins over the CN name.
- */
 function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef, decode: Decode): EnemyRef {
   const { stats, original } = layeredStats(catalog, ref);
   return {

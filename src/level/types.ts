@@ -134,7 +134,6 @@ export interface EnemyRef {
   avatar: string | null;
 }
 
-/** The `EnemyRef` fields of the 9 敵人屬性 and 攻速. */
 export type EnemyAttributeFields = Pick<
   EnemyRef,
   | "maxHp"
