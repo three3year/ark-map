@@ -22,6 +22,7 @@ export function testEnemy(overrides: Partial<EnemyRef> = {}): EnemyRef {
     massLevel: 0,
     lifePointReduce: 1,
     notCountInTotal: false,
+    original: null,
     avatar: null,
     ...overrides,
   };

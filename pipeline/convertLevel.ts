@@ -18,6 +18,7 @@ import type {
   Branch,
   Device,
   Difficulty,
+  EnemyAttributeFields,
   EnemyRef,
   Fragment,
   Level,
@@ -177,7 +178,10 @@ const warnUnknownEnum: UnknownEnumHandler = (field, value) =>
   console.warn(`未知的數字列舉 ${field} = ${value}`);
 
 /** Enemy fields as layered from the raw slots; `motion` and `levelType` still undecoded. */
-type EnemyStats = Omit<EnemyRef, "id" | "level" | "code" | "avatar" | "motion" | "levelType"> & {
+type EnemyStats = Omit<
+  EnemyRef,
+  "id" | "level" | "code" | "avatar" | "motion" | "levelType" | "original"
+> & {
   motion: RawEnum;
   levelType: RawEnum;
 };
@@ -229,12 +233,12 @@ const emptyStats: EnemyStats = {
 };
 
 /**
- * Level 0 is the base; level n overrides the slots it defines; the level's
+ * Level 0 is the base; level n overrides the slots it defines, giving the 原始數值; the level's
  * `overwrittenData` overrides again. A level-local enemy (`useDb` false) is wholly its
- * `overwrittenData`. The TW handbook name wins over the CN name.
+ * `overwrittenData`, with no 原始數值. The TW handbook name wins over the CN name.
  */
 function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef, decode: Decode): EnemyRef {
-  const stats = layeredStats(catalog, ref);
+  const { stats, original } = layeredStats(catalog, ref);
   return {
     id: ref.id,
     level: ref.level,
@@ -242,22 +246,42 @@ function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef, decode: Decode)
     name: catalog.twNames.get(ref.id) ?? stats.name,
     motion: decode("enemyMotion", stats.motion),
     levelType: decode("enemyLevelType", stats.levelType),
+    original,
     code: catalog.twCodes.get(ref.id) ?? null,
     avatar: null,
   };
 }
 
-function layeredStats(catalog: EnemyCatalog, ref: RawEnemyDbRef): EnemyStats {
-  if (!ref.useDb && ref.overwrittenData) return overlay(emptyStats, ref.overwrittenData, true);
+function layeredStats(
+  catalog: EnemyCatalog,
+  ref: RawEnemyDbRef,
+): { stats: EnemyStats; original: EnemyAttributeFields | null } {
+  if (!ref.useDb && ref.overwrittenData) {
+    return { stats: overlay(emptyStats, ref.overwrittenData, true), original: null };
+  }
   const byLevel = catalog.levels.get(ref.id);
   const level0 = byLevel?.get(0);
   if (!byLevel || !level0) throw new Error(`敵人資料庫沒有 ${ref.id}`);
   let stats = overlay(emptyStats, level0, true);
   const levelN = ref.level === 0 ? undefined : byLevel.get(ref.level);
   if (levelN) stats = overlay(stats, levelN);
+  const original = ref.useDb ? attributeFields(stats) : null;
   if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData);
-  return stats;
+  return { stats, original };
 }
+
+const attributeFields = (stats: EnemyStats): EnemyAttributeFields => ({
+  maxHp: stats.maxHp,
+  atk: stats.atk,
+  def: stats.def,
+  magicResistance: stats.magicResistance,
+  baseAttackTime: stats.baseAttackTime,
+  attackSpeed: stats.attackSpeed,
+  rangeRadius: stats.rangeRadius,
+  moveSpeed: stats.moveSpeed,
+  massLevel: stats.massLevel,
+  lifePointReduce: stats.lifePointReduce,
+});
 
 function convertAction(raw: RawAction, decode: Decode): Action {
   return {

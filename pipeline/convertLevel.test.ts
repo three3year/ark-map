@@ -290,6 +290,7 @@ describe("enemy resolution", () => {
     expect(worm.moveSpeed).toBe(0.6);
     expect(worm.maxHp).toBe(2050);
     expect(worm.name).toBe("源石蟲");
+    expect(worm.original).toMatchObject({ moveSpeed: 1, maxHp: 2050 });
   });
 
   it("takes an enemy not in the database (useDb false) wholly from overwrittenData", () => {
@@ -310,15 +311,29 @@ describe("enemy resolution", () => {
       },
     ]).enemies["enemy_1122_sphond_0"]!;
     expect(enemy).toMatchObject({ name: "“小躁”", maxHp: 3200, moveSpeed: 1.9, motion: "WALK" });
+    expect(enemy.original).toBeNull();
   });
 
-  it("4-4: the level's overwrittenData raises the soldier's HP to 2200", () => {
+  it("4-4: the level's overwrittenData raises the soldier's HP to 2200, from its 原始數值 1650", () => {
     const level = loadFixtureLevel("level_main_04-04");
     expect(level.enemies["enemy_1002_nsabr"]!.maxHp).toBe(2200);
+    expect(level.enemies["enemy_1002_nsabr"]!.original!.maxHp).toBe(1650);
   });
 
-  it("4-4: the soldier carries the 10 敵人屬性, HP still the overwritten 2200", () => {
+  it("4-4: the soldier carries the 10 敵人屬性, HP still the overwritten 2200, and their 原始數值", () => {
     const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    expect(soldier.original).toEqual({
+      maxHp: 1650,
+      atk: 200,
+      def: 100,
+      magicResistance: 0,
+      baseAttackTime: 2,
+      attackSpeed: 100,
+      rangeRadius: 0,
+      moveSpeed: 1.1,
+      massLevel: 1,
+      lifePointReduce: 1,
+    });
     expect(soldier).toMatchObject({
       maxHp: 2200,
       atk: 200,
@@ -352,7 +367,7 @@ describe("enemy resolution", () => {
     const crossbow = withRefs([
       { useDb: true, id: "enemy_1012_dcross", level: 1, overwrittenData: null },
     ]).enemies["enemy_1012_dcross"]!;
-    expect(crossbow).toMatchObject({
+    const merged = {
       maxHp: 6700,
       magicResistance: 50,
       baseAttackTime: 3,
@@ -360,7 +375,9 @@ describe("enemy resolution", () => {
       rangeRadius: 2.2,
       massLevel: 2,
       lifePointReduce: 1,
-    });
+    };
+    expect(crossbow).toMatchObject(merged);
+    expect(crossbow.original).toMatchObject(merged);
   });
 
   it("takes every 敵人屬性 of an enemy not in the database from overwrittenData", () => {
@@ -399,11 +416,26 @@ describe("enemy resolution", () => {
       massLevel: 3,
       lifePointReduce: 2,
     });
+    expect(enemy.original).toBeNull();
   });
 
   it("攻速 its database level 0 leaves undefined is 100, not the placeholder 0 (act17mini 3's sgbow)", () => {
     const sgbow = loadFixtureLevel("level_act17mini_03").enemies["enemy_1278_sgbow"]!;
     expect(sgbow).toMatchObject({ attackSpeed: 100, baseAttackTime: 2.8 });
+    expect(sgbow.original).toMatchObject({ attackSpeed: 100, baseAttackTime: 2.8 });
+  });
+
+  it("an enemy the level takes not from the database (useDb false) has no 原始數值, though the database has it", () => {
+    const soldier = withRefs([
+      {
+        useDb: false,
+        id: "enemy_1002_nsabr",
+        level: 0,
+        overwrittenData: { attributes: { maxHp: { m_defined: true, m_value: 3000 } } },
+      },
+    ]).enemies["enemy_1002_nsabr"]!;
+    expect(soldier.maxHp).toBe(3000);
+    expect(soldier.original).toBeNull();
   });
 
   it("攻速 a useDb-false enemy's overwrittenData leaves undefined is 100; other slots keep their value", () => {
@@ -438,6 +470,7 @@ describe("enemy resolution", () => {
       },
     ]).enemies["enemy_1012_dcross"]!;
     expect(crossbow).toMatchObject({ rangeRadius: 3, lifePointReduce: 5, maxHp: 6000 });
+    expect(crossbow.original).toMatchObject({ rangeRadius: 2.2, lifePointReduce: 1, maxHp: 6000 });
   });
 
   it("carries the TW handbook code, shown when an enemy has no avatar", () => {
