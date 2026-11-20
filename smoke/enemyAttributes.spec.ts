@@ -14,11 +14,9 @@ const valueOf = (page: Page, label: string) =>
 const framed = (page: Page, label: string) =>
   valueOf(page, label).evaluate((el) => {
     const style = getComputedStyle(el);
-    const width = parseFloat(style.borderTopWidth);
-    const alpha = style.borderTopColor.match(/^rgba\(.*,\s*([\d.]+)\)$/)?.[1];
-    return (
-      width > 0 && style.borderTopStyle !== "none" && (alpha === undefined || Number(alpha) > 0)
-    );
+    const width = parseFloat(style.outlineWidth);
+    const alpha = style.outlineColor.match(/^rgba\(.*,\s*([\d.]+)\)$/)?.[1];
+    return width > 0 && style.outlineStyle !== "none" && (alpha === undefined || Number(alpha) > 0);
   });
 
 test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移速 stands out with its base, the overwritten 生命值 is framed", async ({

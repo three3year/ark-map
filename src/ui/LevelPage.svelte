@@ -751,13 +751,12 @@
   }
   .enemy-attributes dd {
     margin: 0;
-    padding: 0 3px;
-    border: 1px solid transparent;
-    border-radius: 3px;
     font-variant-numeric: tabular-nums;
   }
   .enemy-attributes dd.overwritten {
-    border-color: var(--border);
+    outline: 1px solid var(--border);
+    outline-offset: 1px;
+    border-radius: 3px;
   }
   .enemy-attributes dd.modified {
     color: var(--attribute-modified);
