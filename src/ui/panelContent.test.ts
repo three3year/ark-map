@@ -301,6 +301,16 @@ describe("敵人屬性", () => {
     };
     expect(attribute(enemyAttributes(soldier, [slow]), "移速").text).toBe("1.36");
   });
+
+  it("a 關卡基礎 that only differs from the shown value before rounding is not modified", () => {
+    const level = loadFixtureLevel("level_main_04-04");
+    const soldier = { ...level.enemies["enemy_1002_nsabr"]!, moveSpeed: 1.234 };
+    expect(attribute(enemyAttributes(soldier, []), "移速")).toMatchObject({
+      text: "1.23",
+      modified: false,
+      tooltip: null,
+    });
+  });
 });
 
 describe("難度修正 lines", () => {

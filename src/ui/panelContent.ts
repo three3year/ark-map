@@ -272,7 +272,7 @@ export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAt
     const sum = additions.reduce((s, a) => s + a, 0);
     const base = enemy[key];
     const value = round(round(base * product, digits) + sum, digits);
-    const modified = value !== base;
+    const modified = value !== round(base, digits);
     return {
       key,
       label: strings.enemyAttributes[key],
