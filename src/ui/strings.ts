@@ -8,7 +8,7 @@ import type {
   VariantId,
 } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
-import type { EnemyAttributeKey } from "./panelContent.ts";
+import type { AttributeValue, EnemyAttributeKey } from "./panelContent.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
@@ -297,17 +297,25 @@ export const strings = {
     def: "防禦",
     magicResistance: "法術抗性",
     baseAttackTime: "攻擊間隔",
-    attackSpeed: "攻速",
     rangeRadius: "攻擊範圍",
     moveSpeed: "移速",
     massLevel: "重量",
     lifePointReduce: "扣除生命",
   } satisfies Record<EnemyAttributeKey, string>,
-  enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
-    key === "baseAttackTime" ? `${value}秒` : String(value),
-  attributeTooltip: (base: string, multiplier: number, addition: number) =>
+  /** What 攻擊間隔's 調整 changes. */
+  attackSpeed: "攻速",
+  enemyAttributeValue: (key: EnemyAttributeKey, value: AttributeValue) =>
+    value === null ? "-" : key === "baseAttackTime" ? `${value}秒` : String(value),
+  /** `adjusted`: what the 調整 changes, when not the 屬性 itself. */
+  attributeTooltip: (
+    base: string,
+    multiplier: number,
+    addition: number,
+    adjusted: string | null = null,
+  ) =>
     `關卡基礎: ${base}, 調整: ` +
     [
+      adjusted,
       multiplier !== 1 ? strings.multiplier(multiplier) : null,
       addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
     ]

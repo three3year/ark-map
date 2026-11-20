@@ -144,14 +144,16 @@ export function hiddenGroupText(
 
 const unique = (texts: string[]) => [...new Set(texts)];
 
-/** The 10 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. */
+/**
+ * The 9 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. 攻擊間隔
+ * shows the 實際攻擊間隔, so 攻速 is not one of them.
+ */
 export const enemyAttributeKeys = [
   "maxHp",
   "atk",
   "def",
   "magicResistance",
   "baseAttackTime",
-  "attackSpeed",
   "rangeRadius",
   "moveSpeed",
   "massLevel",
@@ -160,14 +162,17 @@ export const enemyAttributeKeys = [
 
 export type EnemyAttributeKey = (typeof enemyAttributeKeys)[number];
 
-const wholeAttributes: ReadonlySet<EnemyAttributeKey> = new Set([
+/** The `EnemyRef` fields 難度修正 change: no modifier changes 攻擊間隔 itself, only 攻速. */
+type ModifiedField = Exclude<EnemyAttributeKey, "baseAttackTime"> | "attackSpeed";
+
+const wholeAttributes: ReadonlySet<ModifiedField> = new Set([
   "maxHp",
   "atk",
   "def",
   "lifePointReduce",
 ]);
 
-const blackboardAttributes: Record<string, EnemyAttributeKey> = {
+const blackboardAttributes: Record<string, ModifiedField> = {
   max_hp: "maxHp",
   hp_max: "maxHp",
   atk: "atk",
@@ -201,7 +206,7 @@ function modifierKind(modifierKey: string): ModifierKind | null {
 }
 
 /** The 敵人屬性 a modifier's blackboard entry changes, by the modifier's key. */
-function changedAttribute(modifierKey: string, entryKey: string): EnemyAttributeKey | undefined {
+function changedAttribute(modifierKey: string, entryKey: string): ModifiedField | undefined {
   switch (modifierKey) {
     case "ebuff_attribute":
     case "enemy_attribute_mul":
@@ -219,7 +224,7 @@ function changedAttribute(modifierKey: string, entryKey: string): EnemyAttribute
 }
 
 interface AttributeChange {
-  attribute: EnemyAttributeKey;
+  attribute: ModifiedField;
   kind: ModifierKind;
   value: number;
 }
@@ -233,14 +238,20 @@ function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
   });
 }
 
+/** A 敵人屬性's number, rounded; null is "-", a 攻擊間隔 whose 攻速 is 0 or below. */
+export type AttributeValue = number | null;
+
 export interface EnemyAttribute {
   key: EnemyAttributeKey;
   label: string;
-  /** After the variant's 難度修正, rounded. */
-  value: number;
-  /** The enemy's own value: its level, with the level's overwrites. */
-  base: number;
-  /** Every multiplier the variant's 難度修正 give this enemy here, in modifier order. */
+  /** After the variant's 難度修正. */
+  value: AttributeValue;
+  /** 關卡基礎: the enemy's own value, its level with the level's overwrites. */
+  base: AttributeValue;
+  /**
+   * Every multiplier the variant's 難度修正 give this enemy here, in modifier order; 攻擊間隔's
+   * are 攻速's.
+   */
   multipliers: number[];
   /** Every addition, in modifier order. */
   additions: number[];
@@ -255,35 +266,87 @@ const round = (value: number, digits: number) => {
   return Math.round(value * scale) / scale;
 };
 
+interface Adjustment {
+  multipliers: number[];
+  additions: number[];
+  product: number;
+  sum: number;
+}
+
+function adjustment(changes: AttributeChange[], field: ModifiedField): Adjustment {
+  const own = changes.filter((c) => c.attribute === field);
+  const multipliers = own.filter((c) => c.kind === "multiply").map((c) => c.value);
+  const additions = own.filter((c) => c.kind === "add").map((c) => c.value);
+  return {
+    multipliers,
+    additions,
+    product: multipliers.reduce((p, m) => p * m, 1),
+    sum: additions.reduce((s, a) => s + a, 0),
+  };
+}
+
+const digitsOf = (field: ModifiedField) => (wholeAttributes.has(field) ? 0 : 2);
+
+/** `base` × the product of the multipliers, rounded, plus the additions. */
+const adjusted = (base: number, field: ModifiedField, { product, sum }: Adjustment) =>
+  round(round(base * product, digitsOf(field)) + sum, digitsOf(field));
+
+/** 實際攻擊間隔: 攻擊間隔 × 100 ÷ 攻速, to two decimals; "-" (null) when 攻速 is 0 or below. */
+const attackInterval = (time: number, speed: number): AttributeValue =>
+  speed > 0 ? round((time * 100) / speed, 2) : null;
+
+function enemyAttribute(
+  key: EnemyAttributeKey,
+  base: AttributeValue,
+  value: AttributeValue,
+  adjustment: Adjustment,
+  adjustedLabel: string | null,
+): EnemyAttribute {
+  const format = (n: AttributeValue) => strings.enemyAttributeValue(key, n);
+  const modified = value !== base;
+  const { multipliers, additions, product, sum } = adjustment;
+  return {
+    key,
+    label: strings.enemyAttributes[key],
+    value,
+    base,
+    multipliers,
+    additions,
+    modified,
+    text: format(value),
+    tooltip: modified
+      ? strings.attributeTooltip(format(base), round(product, 4), sum, adjustedLabel)
+      : null,
+  };
+}
+
 /**
  * The 敵人屬性 of `enemy` under `modifiers` (the variant's 難度修正): base × the product of the
- * multipliers, rounded, plus the additions. 移速 stays in the enemy data's unit (屬性移速), not
- * multiplied by the level's move-speed multiplier.
+ * multipliers, rounded, plus the additions. 攻擊間隔 is the 實際攻擊間隔, its 攻速 so adjusted.
+ * 移速 stays in the enemy data's unit (屬性移速), not multiplied by the level's move-speed
+ * multiplier.
  */
 export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAttribute[] {
   const changes = modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? attributeChanges(m) : []));
   return enemyAttributeKeys.map((key) => {
-    const digits = wholeAttributes.has(key) ? 0 : 2;
-    const format = (n: number) => strings.enemyAttributeValue(key, round(n, digits));
-    const own = changes.filter((c) => c.attribute === key);
-    const multipliers = own.filter((c) => c.kind === "multiply").map((c) => c.value);
-    const additions = own.filter((c) => c.kind === "add").map((c) => c.value);
-    const product = multipliers.reduce((p, m) => p * m, 1);
-    const sum = additions.reduce((s, a) => s + a, 0);
-    const base = enemy[key];
-    const value = round(round(base * product, digits) + sum, digits);
-    const modified = value !== round(base, digits);
-    return {
+    if (key === "baseAttackTime") {
+      const speed = adjustment(changes, "attackSpeed");
+      return enemyAttribute(
+        key,
+        attackInterval(enemy.baseAttackTime, enemy.attackSpeed),
+        attackInterval(enemy.baseAttackTime, adjusted(enemy.attackSpeed, "attackSpeed", speed)),
+        speed,
+        strings.attackSpeed,
+      );
+    }
+    const own = adjustment(changes, key);
+    return enemyAttribute(
       key,
-      label: strings.enemyAttributes[key],
-      value,
-      base,
-      multipliers,
-      additions,
-      modified,
-      text: format(value),
-      tooltip: modified ? strings.attributeTooltip(format(base), round(product, 4), sum) : null,
-    };
+      round(enemy[key], digitsOf(key)),
+      adjusted(enemy[key], key, own),
+      own,
+      null,
+    );
   });
 }
 
@@ -295,7 +358,7 @@ export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAt
 export function attackRadius(enemy: EnemyRef, modifiers: Modifier[]): number | null {
   if (enemy.applyWay !== "RANGED" && enemy.applyWay !== "ALL") return null;
   const radius = enemyAttributes(enemy, modifiers).find((a) => a.key === "rangeRadius")!.value;
-  return radius > 0 ? radius : null;
+  return radius !== null && radius > 0 ? radius : null;
 }
 
 export interface ModifierParam {

@@ -11,7 +11,7 @@ const valueOf = (page: Page, label: string) =>
     .filter({ has: page.getByText(label, { exact: true }) })
     .locator("dd");
 
-test("4-4 突襲: a selected soldier shows 10 屬性; the modified 移速 stands out with its base", async ({
+test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移速 stands out with its base", async ({
   page,
 }) => {
   const row = spawnTable(siteLevel("main_04-04"), { difficulty: "FOUR_STAR" }).find(
@@ -20,7 +20,7 @@ test("4-4 突襲: a selected soldier shows 10 屬性; the modified 移速 stands
   await page.goto("#/level/main_04-04?v=challenge");
   await orderCell(rowOf(page, row)).click();
 
-  await expect(attributes(page).locator("dt")).toHaveCount(10);
+  await expect(attributes(page).locator("dt")).toHaveCount(9);
   await expect(valueOf(page, "移速")).toHaveText("2.2");
   await expect(valueOf(page, "移速")).toHaveAttribute("title", "關卡基礎: 1.1, 調整: ×2");
   const color = (label: string) =>

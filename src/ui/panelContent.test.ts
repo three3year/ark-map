@@ -226,7 +226,7 @@ describe("敵人屬性", () => {
     });
   });
 
-  it("4-4 突襲: the soldier's 10 屬性 in order; 移速 ×2 is modified, 攻擊 ×1 is not", () => {
+  it("4-4 突襲: the soldier's 9 屬性 in order, no 攻速; 移速 ×2 is modified, 攻擊 ×1 is not", () => {
     const attributes = challengeAttributes("level_main_04-04", "enemy_1002_nsabr");
     expect(attributes.map((a) => [a.label, a.text])).toEqual([
       ["生命值", "2200"],
@@ -234,7 +234,6 @@ describe("敵人屬性", () => {
       ["防禦", "100"],
       ["法術抗性", "0"],
       ["攻擊間隔", "2秒"],
-      ["攻速", "100"],
       ["攻擊範圍", "0"],
       ["移速", "2.2"],
       ["重量", "1"],
@@ -245,6 +244,52 @@ describe("敵人屬性", () => {
       tooltip: "關卡基礎: 1.1, 調整: ×2",
     });
     expect(attribute(attributes, "攻擊")).toMatchObject({ modified: false, tooltip: null });
+  });
+
+  it("act11mini 4 突襲: 攻速 ×1.5 shortens 攻擊間隔 from 3 to 2 秒, modified through 攻速", () => {
+    const flasrt = challengeAttributes("level_act11mini_04", "enemy_1182_flasrt_3");
+    expect(attribute(flasrt, "攻擊間隔")).toMatchObject({
+      text: "2秒",
+      modified: true,
+      tooltip: "關卡基礎: 3秒, 調整: 攻速 ×1.5",
+    });
+  });
+
+  it("act17mini 3: the sgbow, whose 攻速 the database leaves undefined, attacks every 2.8 秒", () => {
+    const level = loadFixtureLevel("level_act17mini_03");
+    const sgbow = enemyAttributes(level.enemies["enemy_1278_sgbow"]!, []);
+    expect(attribute(sgbow, "攻擊間隔")).toMatchObject({ text: "2.8秒", modified: false });
+  });
+
+  it("攻速 +30 makes the 4-4 soldier's 攻擊間隔 1.54 秒; −150 leaves it no attack, '-'", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const faster = (value: number) => ({
+      key: "enemy_attribute_add",
+      difficulties: [],
+      blackboard: [{ key: "attack_speed", value, valueStr: null }],
+    });
+    expect(attribute(enemyAttributes(soldier, [faster(30)]), "攻擊間隔")).toMatchObject({
+      text: "1.54秒",
+      modified: true,
+      tooltip: "關卡基礎: 2秒, 調整: 攻速 +30",
+    });
+    expect(attribute(enemyAttributes(soldier, [faster(-150)]), "攻擊間隔")).toMatchObject({
+      text: "-",
+      modified: true,
+      tooltip: "關卡基礎: 2秒, 調整: 攻速 -150",
+    });
+  });
+
+  it("攻速 ×1.5 and +30 together read 攻速 ×1.5 +30", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const both = ["enemy_attribute_mul", "enemy_attribute_add"].map((key, i) => ({
+      key,
+      difficulties: [],
+      blackboard: [{ key: "attack_speed", value: [1.5, 30][i]!, valueStr: null }],
+    }));
+    expect(attribute(enemyAttributes(soldier, both), "攻擊間隔").tooltip).toBe(
+      "關卡基礎: 2秒, 調整: 攻速 ×1.5 +30",
+    );
   });
 
   it("act20side EX-1 突襲: the enemy the multiplier excludes keeps its base", () => {
