@@ -1,5 +1,6 @@
 // The level model: the site's level JSON, written by the data pipeline and read by the
 // browser. Vocabulary follows GLOSSARY.md.
+import type { EnemyAttributeFields } from "./enemyAttributes.ts";
 import type { ActionType, CheckpointType, Direction } from "./enums.ts";
 
 /** 格: row 0 is the bottom row, col 0 the left column. */
@@ -123,6 +124,11 @@ export interface EnemyRef {
   /** 扣除生命: life points lost when it gets through. */
   lifePointReduce: number;
   notCountInTotal: boolean;
+  /**
+   * 原始數值: the 敵人資料庫's numbers at its level, without the level's overwrites; null when
+   * the level does not take it from the database (`useDb` false).
+   */
+  original: EnemyAttributeFields | null;
   /** TW handbook code, e.g. "B1"; shown in place of a missing avatar. */
   code: string | null;
   /** Site-relative avatar path, or null when no avatar was found. */

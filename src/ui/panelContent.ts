@@ -1,6 +1,7 @@
 import {
   affectsMovement,
   deviceActionKind,
+  enemyAttributeFields,
   hiddenGroupSwitch,
   isKnownModifierKey,
   isSpawn,
@@ -8,6 +9,8 @@ import {
   type BlackboardEntry,
   type Branch,
   type Difficulty,
+  type EnemyAttributeField,
+  type EnemyAttributeFields,
   type EnemyRef,
   type Level,
   type LevelOptions,
@@ -144,30 +147,28 @@ export function hiddenGroupText(
 
 const unique = (texts: string[]) => [...new Set(texts)];
 
-/** The 10 敵人屬性, as `EnemyRef` fields, in the order the selection card lists them. */
 export const enemyAttributeKeys = [
   "maxHp",
   "atk",
   "def",
   "magicResistance",
-  "baseAttackTime",
-  "attackSpeed",
+  "attackInterval",
   "rangeRadius",
   "moveSpeed",
   "massLevel",
   "lifePointReduce",
-] as const satisfies readonly (keyof EnemyRef)[];
+] as const;
 
 export type EnemyAttributeKey = (typeof enemyAttributeKeys)[number];
 
-const wholeAttributes: ReadonlySet<EnemyAttributeKey> = new Set([
+const wholeFields: ReadonlySet<EnemyAttributeField> = new Set([
   "maxHp",
   "atk",
   "def",
   "lifePointReduce",
 ]);
 
-const blackboardAttributes: Record<string, EnemyAttributeKey> = {
+const blackboardFields: Record<string, EnemyAttributeField> = {
   max_hp: "maxHp",
   hp_max: "maxHp",
   atk: "atk",
@@ -200,13 +201,13 @@ function modifierKind(modifierKey: string): ModifierKind | null {
   return null;
 }
 
-/** The 敵人屬性 a modifier's blackboard entry changes, by the modifier's key. */
-function changedAttribute(modifierKey: string, entryKey: string): EnemyAttributeKey | undefined {
+/** The enemy number a modifier's blackboard entry changes, by the modifier's key. */
+function changedField(modifierKey: string, entryKey: string): EnemyAttributeField | undefined {
   switch (modifierKey) {
     case "ebuff_attribute":
     case "enemy_attribute_mul":
     case "enemy_attribute_add":
-      return blackboardAttributes[entryKey.toLowerCase()];
+      return blackboardFields[entryKey.toLowerCase()];
     case "enemy_attackradius_mul":
     case "ebuff_attack_radius":
       return entryKey === "scale" || entryKey === "range_scale" ? "rangeRadius" : undefined;
@@ -218,35 +219,44 @@ function changedAttribute(modifierKey: string, entryKey: string): EnemyAttribute
   }
 }
 
-interface AttributeChange {
-  attribute: EnemyAttributeKey;
+interface FieldChange {
+  field: EnemyAttributeField;
   kind: ModifierKind;
   value: number;
 }
 
-function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
+function fieldChanges({ key, blackboard }: Modifier): FieldChange[] {
   const kind = modifierKind(key);
   if (kind === null) return [];
-  return blackboard.flatMap(({ key: entryKey, value, valueStr }): AttributeChange[] => {
-    const attribute = valueStr === null ? changedAttribute(key, entryKey) : undefined;
-    return attribute ? [{ attribute, kind, value }] : [];
+  return blackboard.flatMap(({ key: entryKey, value, valueStr }): FieldChange[] => {
+    const field = valueStr === null ? changedField(key, entryKey) : undefined;
+    return field ? [{ field, kind, value }] : [];
   });
+}
+
+/** A 敵人屬性's number, or no attack at all: an 攻擊間隔 at 攻速 0 or below. */
+export type AttributeValue = number | "noAttack";
+
+/** The 難度修正 on one of the enemy's numbers: × the multipliers' product, + the additions' sum. */
+export interface Adjustment {
+  field: EnemyAttributeField;
+  multiplier: number;
+  addition: number;
+}
+
+export interface AttributeTooltip {
+  original?: AttributeValue;
+  base: AttributeValue;
+  adjustment?: Adjustment;
 }
 
 export interface EnemyAttribute {
   key: EnemyAttributeKey;
   label: string;
-  /** After the variant's 難度修正, rounded. */
-  value: number;
-  /** The enemy's own value: its level, with the level's overwrites. */
-  base: number;
-  /** Every multiplier the variant's 難度修正 give this enemy here, in modifier order. */
-  multipliers: number[];
-  /** Every addition, in modifier order. */
-  additions: number[];
+  value: AttributeValue;
+  overwritten: boolean;
   modified: boolean;
   text: string;
-  /** "基礎 420 ×1.2 +50" for a modified value; null otherwise. */
   tooltip: string | null;
 }
 
@@ -255,34 +265,84 @@ const round = (value: number, digits: number) => {
   return Math.round(value * scale) / scale;
 };
 
-/**
- * The 敵人屬性 of `enemy` under `modifiers` (the variant's 難度修正): base × the product of the
- * multipliers, rounded, plus the additions. 移速 stays in the enemy data's unit (屬性移速), not
- * multiplied by the level's move-speed multiplier.
- */
+const digitsOf = (field: EnemyAttributeField) => (wholeFields.has(field) ? 0 : 2);
+
+interface AttributeReading {
+  read: (layer: EnemyAttributeFields) => AttributeValue;
+  adjustedField: EnemyAttributeField;
+}
+
+const fieldReading = (field: EnemyAttributeField): AttributeReading => ({
+  read: (layer) => round(layer[field], digitsOf(field)),
+  adjustedField: field,
+});
+
+const attributeReadings: Record<EnemyAttributeKey, AttributeReading> = {
+  maxHp: fieldReading("maxHp"),
+  atk: fieldReading("atk"),
+  def: fieldReading("def"),
+  magicResistance: fieldReading("magicResistance"),
+  attackInterval: {
+    read: ({ baseAttackTime, attackSpeed }) =>
+      attackSpeed > 0 ? round((baseAttackTime * 100) / attackSpeed, 2) : "noAttack",
+    adjustedField: "attackSpeed",
+  },
+  rangeRadius: fieldReading("rangeRadius"),
+  moveSpeed: fieldReading("moveSpeed"),
+  massLevel: fieldReading("massLevel"),
+  lifePointReduce: fieldReading("lifePointReduce"),
+};
+
+function adjustments(changes: FieldChange[]): Map<EnemyAttributeField, Adjustment> {
+  const byField = new Map<EnemyAttributeField, Adjustment>();
+  for (const { field, kind, value } of changes) {
+    const adjustment = byField.get(field) ?? { field, multiplier: 1, addition: 0 };
+    if (kind === "multiply") adjustment.multiplier *= value;
+    else adjustment.addition += value;
+    byField.set(field, adjustment);
+  }
+  return byField;
+}
+
+const adjusted = (value: number, { field, multiplier, addition }: Adjustment) =>
+  round(round(value * multiplier, digitsOf(field)) + addition, digitsOf(field));
+
 export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAttribute[] {
-  const changes = modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? attributeChanges(m) : []));
+  const byField = adjustments(
+    modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? fieldChanges(m) : [])),
+  );
+  const shown = Object.fromEntries(
+    enemyAttributeFields.map((field) => {
+      const adjustment = byField.get(field);
+      return [field, adjustment ? adjusted(enemy[field], adjustment) : enemy[field]];
+    }),
+  ) as EnemyAttributeFields;
   return enemyAttributeKeys.map((key) => {
-    const digits = wholeAttributes.has(key) ? 0 : 2;
-    const format = (n: number) => strings.enemyAttributeValue(key, round(n, digits));
-    const own = changes.filter((c) => c.attribute === key);
-    const multipliers = own.filter((c) => c.kind === "multiply").map((c) => c.value);
-    const additions = own.filter((c) => c.kind === "add").map((c) => c.value);
-    const product = multipliers.reduce((p, m) => p * m, 1);
-    const sum = additions.reduce((s, a) => s + a, 0);
-    const base = enemy[key];
-    const value = round(round(base * product, digits) + sum, digits);
+    const { read, adjustedField } = attributeReadings[key];
+    const original = enemy.original ? read(enemy.original) : undefined;
+    const base = read(enemy);
+    const value = read(shown);
+    const overwritten = original !== undefined && original !== base;
     const modified = value !== base;
+    const adjustment = byField.get(adjustedField);
     return {
       key,
       label: strings.enemyAttributes[key],
       value,
-      base,
-      multipliers,
-      additions,
+      overwritten,
       modified,
-      text: format(value),
-      tooltip: modified ? strings.attributeTooltip(format(base), round(product, 4), sum) : null,
+      text: strings.enemyAttributeValue(key, value),
+      tooltip:
+        overwritten || modified
+          ? strings.attributeTooltip(key, {
+              original: overwritten ? original : undefined,
+              base,
+              adjustment:
+                modified && adjustment
+                  ? { ...adjustment, multiplier: round(adjustment.multiplier, 4) }
+                  : undefined,
+            })
+          : null,
     };
   });
 }
@@ -295,7 +355,7 @@ export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAt
 export function attackRadius(enemy: EnemyRef, modifiers: Modifier[]): number | null {
   if (enemy.applyWay !== "RANGED" && enemy.applyWay !== "ALL") return null;
   const radius = enemyAttributes(enemy, modifiers).find((a) => a.key === "rangeRadius")!.value;
-  return radius > 0 ? radius : null;
+  return radius !== "noAttack" && radius > 0 ? radius : null;
 }
 
 export interface ModifierParam {

@@ -463,7 +463,11 @@
         {#each enemyAttributes(selected.enemy, modifiers) as attribute (attribute.key)}
           <div data-attribute={attribute.key}>
             <dt>{attribute.label}</dt>
-            <dd class:modified={attribute.modified} title={attribute.tooltip ?? undefined}>
+            <dd
+              class:overwritten={attribute.overwritten}
+              class:modified={attribute.modified}
+              title={attribute.tooltip ?? undefined}
+            >
               {attribute.text}
             </dd>
           </div>
@@ -749,9 +753,16 @@
     margin: 0;
     font-variant-numeric: tabular-nums;
   }
+  .enemy-attributes dd.overwritten {
+    outline: 1px solid var(--border);
+    outline-offset: 1px;
+    border-radius: 3px;
+  }
   .enemy-attributes dd.modified {
     color: var(--attribute-modified);
     font-weight: 600;
+  }
+  .enemy-attributes dd[title] {
     cursor: help;
   }
   .device-about {

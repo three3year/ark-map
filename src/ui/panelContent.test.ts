@@ -210,15 +210,23 @@ describe("敵人屬性", () => {
       challengeAttributes("level_act10mini_04", "enemy_1045_hammer_2"),
       "生命值",
     );
-    expect(leader).toMatchObject({ text: "44000", modified: true, tooltip: "基礎 20000 ×2.2" });
+    expect(leader).toMatchObject({
+      text: "44000",
+      modified: true,
+      tooltip: "關卡基礎: 20000, 調整: ×2.2",
+    });
     const member = attribute(
       challengeAttributes("level_act10mini_04", "enemy_1045_hammer"),
       "生命值",
     );
-    expect(member).toMatchObject({ text: "11000", modified: true, tooltip: "基礎 10000 ×1.1" });
+    expect(member).toMatchObject({
+      text: "11000",
+      modified: true,
+      tooltip: "關卡基礎: 10000, 調整: ×1.1",
+    });
   });
 
-  it("4-4 突襲: the soldier's 10 屬性 in order; 移速 ×2 is modified, 攻擊 ×1 is not", () => {
+  it("4-4 突襲: the soldier's 9 屬性 in order, no 攻速; 移速 ×2 is modified, 攻擊 ×1 is not", () => {
     const attributes = challengeAttributes("level_main_04-04", "enemy_1002_nsabr");
     expect(attributes.map((a) => [a.label, a.text])).toEqual([
       ["生命值", "2200"],
@@ -226,14 +234,133 @@ describe("敵人屬性", () => {
       ["防禦", "100"],
       ["法術抗性", "0"],
       ["攻擊間隔", "2秒"],
-      ["攻速", "100"],
       ["攻擊範圍", "0"],
       ["移速", "2.2"],
       ["重量", "1"],
       ["扣除生命", "1"],
     ]);
-    expect(attribute(attributes, "移速")).toMatchObject({ modified: true, tooltip: "基礎 1.1 ×2" });
-    expect(attribute(attributes, "攻擊")).toMatchObject({ modified: false, tooltip: null });
+    expect(attribute(attributes, "移速")).toMatchObject({
+      overwritten: false,
+      modified: true,
+      tooltip: "關卡基礎: 1.1, 調整: ×2",
+    });
+    expect(attribute(attributes, "攻擊")).toMatchObject({
+      overwritten: false,
+      modified: false,
+      tooltip: null,
+    });
+  });
+
+  it("4-4 突襲: the level overwrites the soldier's 生命值 from 1650 to 2200; overwritten, not modified", () => {
+    const attributes = challengeAttributes("level_main_04-04", "enemy_1002_nsabr");
+    expect(attribute(attributes, "生命值")).toMatchObject({
+      text: "2200",
+      overwritten: true,
+      modified: false,
+      tooltip: "原始數值: 1650, 關卡基礎: 2200",
+    });
+  });
+
+  it("an overwritten and modified 屬性's tooltip reads all three: 原始數值, 關卡基礎, 調整", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const tougher = {
+      key: "enemy_attribute_mul",
+      difficulties: [],
+      blackboard: [{ key: "max_hp", value: 1.1, valueStr: null }],
+    };
+    expect(attribute(enemyAttributes(soldier, [tougher]), "生命值")).toMatchObject({
+      text: "2420",
+      overwritten: true,
+      modified: true,
+      tooltip: "原始數值: 1650, 關卡基礎: 2200, 調整: ×1.1",
+    });
+  });
+
+  it("act13mini 6 突襲: the enemy the level takes not from the database is never overwritten, its tooltip has no 原始數值", () => {
+    const attributes = challengeAttributes("level_act13mini_06", "enemy_1123_spsbr_2_a");
+    expect(attributes.filter((a) => a.overwritten)).toEqual([]);
+    expect(attribute(attributes, "生命值")).toMatchObject({
+      text: "9600",
+      modified: true,
+      tooltip: "關卡基礎: 4000, 調整: ×2.4",
+    });
+  });
+
+  it("act11mini 4 突襲: 攻速 ×1.5 shortens 攻擊間隔 from 3 to 2 秒, modified through 攻速", () => {
+    const flasrt = challengeAttributes("level_act11mini_04", "enemy_1182_flasrt_3");
+    expect(attribute(flasrt, "攻擊間隔")).toMatchObject({
+      text: "2秒",
+      modified: true,
+      tooltip: "關卡基礎: 3秒, 調整: 攻速 ×1.5",
+    });
+  });
+
+  it("act17mini 3: the sgbow, whose 攻速 the database leaves undefined, attacks every 2.8 秒", () => {
+    const level = loadFixtureLevel("level_act17mini_03");
+    const sgbow = enemyAttributes(level.enemies["enemy_1278_sgbow"]!, []);
+    expect(attribute(sgbow, "攻擊間隔")).toMatchObject({ text: "2.8秒", modified: false });
+  });
+
+  it("act27side SP-3: the level slows the fyshp's 攻擊間隔 from 3.5 to 10 秒, overwritten", () => {
+    const level = loadFixtureLevel("level_act27side_sp03");
+    const fyshp = enemyAttributes(level.enemies["enemy_1347_fyshp"]!, []);
+    expect(attribute(fyshp, "攻擊間隔")).toMatchObject({
+      text: "10秒",
+      overwritten: true,
+      modified: false,
+      tooltip: "原始數值: 3.5秒, 關卡基礎: 10秒",
+    });
+  });
+
+  it("rogue6 b-7: the level's 攻速 200 halves the sgass's 攻擊間隔 from 2 to 1 秒, overwritten", () => {
+    const level = loadFixtureLevel("level_rogue6_b-7");
+    const sgass = enemyAttributes(level.enemies["enemy_10017_sgass_2"]!, []);
+    expect(attribute(sgass, "攻擊間隔")).toMatchObject({
+      text: "1秒",
+      overwritten: true,
+      tooltip: "原始數值: 2秒, 關卡基礎: 1秒",
+    });
+  });
+
+  it("a 原始數值 攻速 of 0 the level overwrites to 100 reads 原始數值: -", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const starts = { ...soldier, original: { ...soldier.original!, attackSpeed: 0 } };
+    expect(attribute(enemyAttributes(starts, []), "攻擊間隔")).toMatchObject({
+      text: "2秒",
+      overwritten: true,
+      tooltip: "原始數值: -, 關卡基礎: 2秒",
+    });
+  });
+
+  it("攻速 +30 makes the 4-4 soldier's 攻擊間隔 1.54 秒; −150 leaves it no attack, '-'", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const faster = (value: number) => ({
+      key: "enemy_attribute_add",
+      difficulties: [],
+      blackboard: [{ key: "attack_speed", value, valueStr: null }],
+    });
+    expect(attribute(enemyAttributes(soldier, [faster(30)]), "攻擊間隔")).toMatchObject({
+      text: "1.54秒",
+      modified: true,
+      tooltip: "關卡基礎: 2秒, 調整: 攻速 +30",
+    });
+    expect(attribute(enemyAttributes(soldier, [faster(-150)]), "攻擊間隔")).toMatchObject({
+      text: "-",
+      modified: true,
+      tooltip: "關卡基礎: 2秒, 調整: 攻速 -150",
+    });
+  });
+
+  it("攻速 ×1.5 and +30 together read 攻速 ×1.5 +30", () => {
+    const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
+    const both = ["enemy_attribute_mul", "enemy_attribute_add"].map((key, i) => ({
+      key,
+      difficulties: [],
+      blackboard: [{ key: "attack_speed", value: [1.5, 30][i]!, valueStr: null }],
+    }));
+    expect(attribute(enemyAttributes(soldier, both), "攻擊間隔").tooltip).toBe(
+      "關卡基礎: 2秒, 調整: 攻速 ×1.5 +30",
+    );
   });
 
   it("act20side EX-1 突襲: the enemy the multiplier excludes keeps its base", () => {
@@ -247,17 +374,21 @@ describe("敵人屬性", () => {
     const scorpion = challengeAttributes("level_act16mini_03", "enemy_1100_scorpn");
     expect(attribute(scorpion, "攻擊")).toMatchObject({
       text: "756",
-      multipliers: [1.2],
-      additions: [300],
-      tooltip: "基礎 380 ×1.2 +300",
+      tooltip: "關卡基礎: 380, 調整: ×1.2 +300",
     });
     const warrior = challengeAttributes("level_act16mini_03", "enemy_1093_ccsbr");
-    expect(attribute(warrior, "攻擊")).toMatchObject({ text: "348", tooltip: "基礎 290 ×1.2" });
+    expect(attribute(warrior, "攻擊")).toMatchObject({
+      text: "348",
+      tooltip: "關卡基礎: 290, 調整: ×1.2",
+    });
   });
 
   it("act50side EX-1 突襲: hp_max counts as 生命值", () => {
     const boss = challengeAttributes("level_act50side_ex01", "enemy_10132_pyceat_2");
-    expect(attribute(boss, "生命值")).toMatchObject({ text: "26100", tooltip: "基礎 14500 ×1.8" });
+    expect(attribute(boss, "生命值")).toMatchObject({
+      text: "26100",
+      tooltip: "關卡基礎: 14500, 調整: ×1.8",
+    });
   });
 
   it("重量 additions: act25side 10's −5 for all, 2-8 突襲's ebuff_weight +2", () => {
@@ -266,9 +397,12 @@ describe("敵人屬性", () => {
       level.enemies["enemy_1325_cbgpro"]!,
       variantModifiers(level.modifiers, "NORMAL"),
     );
-    expect(attribute(dog, "重量")).toMatchObject({ text: "-4", tooltip: "基礎 1 -5" });
+    expect(attribute(dog, "重量")).toMatchObject({ text: "-4", tooltip: "關卡基礎: 1, 調整: -5" });
     const soldier = challengeAttributes("level_main_02-08", "enemy_1002_nsabr");
-    expect(attribute(soldier, "重量")).toMatchObject({ text: "3", tooltip: "基礎 1 +2" });
+    expect(attribute(soldier, "重量")).toMatchObject({
+      text: "3",
+      tooltip: "關卡基礎: 1, 調整: +2",
+    });
   });
 
   it("rounds the two-decimal 屬性 and drops trailing zeros", () => {
@@ -280,6 +414,22 @@ describe("敵人屬性", () => {
       blackboard: [{ key: "move_speed", value: 1.234, valueStr: null }],
     };
     expect(attribute(enemyAttributes(soldier, [slow]), "移速").text).toBe("1.36");
+  });
+
+  it("a 關卡基礎 that only differs from the shown value or the 原始數值 before rounding is neither modified nor overwritten", () => {
+    const level = loadFixtureLevel("level_main_04-04");
+    const enemy = level.enemies["enemy_1002_nsabr"]!;
+    const soldier = {
+      ...enemy,
+      moveSpeed: 1.234,
+      original: { ...enemy.original!, moveSpeed: 1.231 },
+    };
+    expect(attribute(enemyAttributes(soldier, []), "移速")).toMatchObject({
+      text: "1.23",
+      overwritten: false,
+      modified: false,
+      tooltip: null,
+    });
   });
 });
 

@@ -1,6 +1,7 @@
 // 介面文字(繁中)。All user-facing text lives here.
 import type {
   AreaKind,
+  EnemyAttributeField,
   HiddenGroupSourceKind,
   KnownModifierKey,
   Server,
@@ -8,10 +9,36 @@ import type {
   VariantId,
 } from "../level/index.ts";
 import type { EndpointKind, EndpointPlace } from "../timeline/index.ts";
-import type { EnemyAttributeKey } from "./panelContent.ts";
+import type {
+  Adjustment,
+  AttributeTooltip,
+  AttributeValue,
+  EnemyAttributeKey,
+} from "./panelContent.ts";
 import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
+
+const adjustmentText = (key: EnemyAttributeKey, { field, multiplier, addition }: Adjustment) =>
+  [
+    field !== key ? strings.enemyAttributeFields[field] : null,
+    multiplier !== 1 ? strings.multiplier(multiplier) : null,
+    addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
+  ]
+    .filter((part) => part !== null)
+    .join(" ");
+
+const enemyAttributes = {
+  maxHp: "生命值",
+  atk: "攻擊",
+  def: "防禦",
+  magicResistance: "法術抗性",
+  attackInterval: "攻擊間隔",
+  rangeRadius: "攻擊範圍",
+  moveSpeed: "移速",
+  massLevel: "重量",
+  lifePointReduce: "扣除生命",
+} satisfies Record<EnemyAttributeKey, string>;
 
 export const strings = {
   siteTitle: "明日方舟地圖",
@@ -291,28 +318,22 @@ export const strings = {
   stateLabel: { pending: "未出現", onField: "在場", leaked: "已進點" },
   selectedDevice: (name: string) => `已選取:${name}`,
   enemyAttributesLabel: "敵人屬性",
-  enemyAttributes: {
-    maxHp: "生命值",
-    atk: "攻擊",
-    def: "防禦",
-    magicResistance: "法術抗性",
+  enemyAttributes,
+  enemyAttributeFields: {
+    ...enemyAttributes,
     baseAttackTime: "攻擊間隔",
     attackSpeed: "攻速",
-    rangeRadius: "攻擊範圍",
-    moveSpeed: "移速",
-    massLevel: "重量",
-    lifePointReduce: "扣除生命",
-  } satisfies Record<EnemyAttributeKey, string>,
-  enemyAttributeValue: (key: EnemyAttributeKey, value: number) =>
-    key === "baseAttackTime" ? `${value}秒` : String(value),
-  attributeTooltip: (base: string, multiplier: number, addition: number) =>
+  } satisfies Record<EnemyAttributeField, string>,
+  enemyAttributeValue: (key: EnemyAttributeKey, value: AttributeValue) =>
+    value === "noAttack" ? "-" : key === "attackInterval" ? `${value}秒` : String(value),
+  attributeTooltip: (key: EnemyAttributeKey, { original, base, adjustment }: AttributeTooltip) =>
     [
-      `基礎 ${base}`,
-      multiplier !== 1 ? strings.multiplier(multiplier) : null,
-      addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
+      original !== undefined ? `原始數值: ${strings.enemyAttributeValue(key, original)}` : null,
+      `關卡基礎: ${strings.enemyAttributeValue(key, base)}`,
+      adjustment ? `調整: ${adjustmentText(key, adjustment)}` : null,
     ]
       .filter((part) => part !== null)
-      .join(" "),
+      .join(", "),
   deselect: "取消選取",
   stow: "收起",
   show: "顯示",

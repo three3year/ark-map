@@ -3,6 +3,7 @@ import {
   actionTypes,
   checkpointTypes,
   directions,
+  enemyAttributeFields,
   isSpawn,
   withoutNames,
   type ActionType,
@@ -18,6 +19,7 @@ import type {
   Branch,
   Device,
   Difficulty,
+  EnemyAttributeFields,
   EnemyRef,
   Fragment,
   Level,
@@ -177,15 +179,23 @@ const warnUnknownEnum: UnknownEnumHandler = (field, value) =>
   console.warn(`未知的數字列舉 ${field} = ${value}`);
 
 /** Enemy fields as layered from the raw slots; `motion` and `levelType` still undecoded. */
-type EnemyStats = Omit<EnemyRef, "id" | "level" | "code" | "avatar" | "motion" | "levelType"> & {
+type EnemyStats = Omit<
+  EnemyRef,
+  "id" | "level" | "code" | "avatar" | "motion" | "levelType" | "original"
+> & {
   motion: RawEnum;
   levelType: RawEnum;
 };
 
-/** Overlay the slots a layer defines onto `stats`. With `base`, take every slot's value. */
-function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStats {
-  const pick = <T>(slot: Slot<T> | undefined, current: T): T =>
-    slot && (base || slot.m_defined) && slot.m_value !== null ? slot.m_value : current;
+type SlotReader = <T>(slot: Slot<T> | undefined, current: T) => T;
+
+const everySlot: SlotReader = (slot, current) =>
+  slot && slot.m_value !== null ? slot.m_value : current;
+
+const definedSlots: SlotReader = (slot, current) =>
+  slot?.m_defined ? everySlot(slot, current) : current;
+
+function overlay(stats: EnemyStats, data: RawEnemyData, pick: SlotReader): EnemyStats {
   const attrs = data.attributes ?? {};
   return {
     name: pick(data.name, stats.name) ?? stats.name,
@@ -197,7 +207,7 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     def: pick(attrs.def, stats.def),
     magicResistance: pick(attrs.magicResistance, stats.magicResistance),
     baseAttackTime: pick(attrs.baseAttackTime, stats.baseAttackTime),
-    attackSpeed: pick(attrs.attackSpeed, stats.attackSpeed),
+    attackSpeed: definedSlots(attrs.attackSpeed, stats.attackSpeed),
     rangeRadius: pick(data.rangeRadius, stats.rangeRadius),
     applyWay: pick(data.applyWay, stats.applyWay),
     massLevel: pick(attrs.massLevel, stats.massLevel),
@@ -205,6 +215,8 @@ function overlay(stats: EnemyStats, data: RawEnemyData, base = false): EnemyStat
     notCountInTotal: pick(data.notCountInTotal, stats.notCountInTotal),
   };
 }
+
+const undefinedAttackSpeed = 100;
 
 const emptyStats: EnemyStats = {
   name: "",
@@ -216,7 +228,7 @@ const emptyStats: EnemyStats = {
   def: 0,
   magicResistance: 0,
   baseAttackTime: 0,
-  attackSpeed: 0,
+  attackSpeed: undefinedAttackSpeed,
   rangeRadius: 0,
   applyWay: "NONE",
   massLevel: 0,
@@ -224,13 +236,8 @@ const emptyStats: EnemyStats = {
   notCountInTotal: false,
 };
 
-/**
- * Level 0 is the base; level n overrides the slots it defines; the level's
- * `overwrittenData` overrides again. A level-local enemy (`useDb` false) is wholly its
- * `overwrittenData`. The TW handbook name wins over the CN name.
- */
 function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef, decode: Decode): EnemyRef {
-  const stats = layeredStats(catalog, ref);
+  const { stats, original } = layeredStats(catalog, ref);
   return {
     id: ref.id,
     level: ref.level,
@@ -238,22 +245,34 @@ function resolveEnemy(catalog: EnemyCatalog, ref: RawEnemyDbRef, decode: Decode)
     name: catalog.twNames.get(ref.id) ?? stats.name,
     motion: decode("enemyMotion", stats.motion),
     levelType: decode("enemyLevelType", stats.levelType),
+    original,
     code: catalog.twCodes.get(ref.id) ?? null,
     avatar: null,
   };
 }
 
-function layeredStats(catalog: EnemyCatalog, ref: RawEnemyDbRef): EnemyStats {
-  if (!ref.useDb && ref.overwrittenData) return overlay(emptyStats, ref.overwrittenData, true);
+function layeredStats(
+  catalog: EnemyCatalog,
+  ref: RawEnemyDbRef,
+): { stats: EnemyStats; original: EnemyAttributeFields | null } {
+  if (!ref.useDb && ref.overwrittenData) {
+    return { stats: overlay(emptyStats, ref.overwrittenData, everySlot), original: null };
+  }
   const byLevel = catalog.levels.get(ref.id);
   const level0 = byLevel?.get(0);
   if (!byLevel || !level0) throw new Error(`敵人資料庫沒有 ${ref.id}`);
-  let stats = overlay(emptyStats, level0, true);
+  let stats = overlay(emptyStats, level0, everySlot);
   const levelN = ref.level === 0 ? undefined : byLevel.get(ref.level);
-  if (levelN) stats = overlay(stats, levelN);
-  if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData);
-  return stats;
+  if (levelN) stats = overlay(stats, levelN, definedSlots);
+  const original = ref.useDb ? attributeFields(stats) : null;
+  if (ref.overwrittenData) stats = overlay(stats, ref.overwrittenData, definedSlots);
+  return { stats, original };
 }
+
+const attributeFields = (stats: EnemyStats) =>
+  Object.fromEntries(
+    enemyAttributeFields.map((field) => [field, stats[field]]),
+  ) as EnemyAttributeFields;
 
 function convertAction(raw: RawAction, decode: Decode): Action {
   return {

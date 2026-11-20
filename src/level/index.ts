@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 export type * from "./types.ts";
+export * from "./enemyAttributes.ts";
 export * from "./enums.ts";
 export * from "./expansion.ts";
 export * from "./modifiers.ts";
