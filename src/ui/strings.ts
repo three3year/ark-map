@@ -13,6 +13,24 @@ import type { TerrainIcon } from "./terrain.ts";
 
 const endpointKinds = { spawn: "出生點", exit: "消失點" } satisfies Record<EndpointKind, string>;
 
+/** "攻速 ×1.5 +30": what it changes when not the 屬性 itself, then the factor, then the sum. */
+const adjustmentText = (adjustment: {
+  multiplier: number;
+  addition: number;
+  adjustedLabel: string | null;
+}) =>
+  [
+    adjustment.adjustedLabel,
+    adjustment.multiplier !== 1 ? strings.multiplier(adjustment.multiplier) : null,
+    adjustment.addition !== 0
+      ? adjustment.addition > 0
+        ? `+${adjustment.addition}`
+        : String(adjustment.addition)
+      : null,
+  ]
+    .filter((part) => part !== null)
+    .join(" ");
+
 export const strings = {
   siteTitle: "明日方舟地圖",
   loading: "載入中…",
@@ -306,21 +324,22 @@ export const strings = {
   attackSpeed: "攻速",
   enemyAttributeValue: (key: EnemyAttributeKey, value: AttributeValue) =>
     value === null ? "-" : key === "baseAttackTime" ? `${value}秒` : String(value),
-  /** `adjusted`: what the 調整 changes, when not the 屬性 itself. */
+  /**
+   * "原始數值: X, 關卡基礎: Y, 調整: ×m +a", leaving out a null 原始數值 and 調整;
+   * `adjustedLabel`: what the 調整 changes, when not the 屬性 itself.
+   */
   attributeTooltip: (
+    original: string | null,
     base: string,
-    multiplier: number,
-    addition: number,
-    adjusted: string | null = null,
+    adjustment: { multiplier: number; addition: number; adjustedLabel: string | null } | null,
   ) =>
-    `關卡基礎: ${base}, 調整: ` +
     [
-      adjusted,
-      multiplier !== 1 ? strings.multiplier(multiplier) : null,
-      addition !== 0 ? (addition > 0 ? `+${addition}` : String(addition)) : null,
+      original !== null ? `原始數值: ${original}` : null,
+      `關卡基礎: ${base}`,
+      adjustment !== null ? `調整: ${adjustmentText(adjustment)}` : null,
     ]
       .filter((part) => part !== null)
-      .join(" "),
+      .join(", "),
   deselect: "取消選取",
   stow: "收起",
   show: "顯示",

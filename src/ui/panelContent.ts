@@ -241,11 +241,16 @@ function attributeChanges({ key, blackboard }: Modifier): AttributeChange[] {
 /** A 敵人屬性's number, rounded; null is "-", a 攻擊間隔 whose 攻速 is 0 or below. */
 export type AttributeValue = number | null;
 
+/** A 原始數值: "none" (無) for an enemy the level does not take from the database. */
+export type OriginalValue = AttributeValue | "none";
+
 export interface EnemyAttribute {
   key: EnemyAttributeKey;
   label: string;
   /** After the variant's 難度修正. */
   value: AttributeValue;
+  /** 原始數值: the 敵人資料庫's value at the enemy's level, without the level's overwrites. */
+  original: OriginalValue;
   /** 關卡基礎: the enemy's own value, its level with the level's overwrites. */
   base: AttributeValue;
   /**
@@ -255,9 +260,15 @@ export interface EnemyAttribute {
   multipliers: number[];
   /** Every addition, in modifier order. */
   additions: number[];
+  /** The level's overwrites make 關卡基礎 differ from the 原始數值. */
+  overwritten: boolean;
+  /** The variant's 難度修正 make the value differ from 關卡基礎. */
   modified: boolean;
   text: string;
-  /** "關卡基礎: 420, 調整: ×1.2 +50" for a modified value; null otherwise. */
+  /**
+   * "原始數值: 350, 關卡基礎: 420, 調整: ×1.2 +50", each part only when it applies; null when
+   * neither overwritten nor modified.
+   */
   tooltip: string | null;
 }
 
@@ -297,26 +308,33 @@ const attackInterval = (time: number, speed: number): AttributeValue =>
 
 function enemyAttribute(
   key: EnemyAttributeKey,
-  base: AttributeValue,
-  value: AttributeValue,
+  [original, base, value]: [OriginalValue, AttributeValue, AttributeValue],
   adjustment: Adjustment,
   adjustedLabel: string | null,
 ): EnemyAttribute {
   const format = (n: AttributeValue) => strings.enemyAttributeValue(key, n);
+  const overwritten = original !== "none" && original !== base;
   const modified = value !== base;
   const { multipliers, additions, product, sum } = adjustment;
   return {
     key,
     label: strings.enemyAttributes[key],
     value,
+    original,
     base,
     multipliers,
     additions,
+    overwritten,
     modified,
     text: format(value),
-    tooltip: modified
-      ? strings.attributeTooltip(format(base), round(product, 4), sum, adjustedLabel)
-      : null,
+    tooltip:
+      overwritten || modified
+        ? strings.attributeTooltip(
+            overwritten ? format(original) : null,
+            format(base),
+            modified ? { multiplier: round(product, 4), addition: sum, adjustedLabel } : null,
+          )
+        : null,
   };
 }
 
@@ -328,13 +346,17 @@ function enemyAttribute(
  */
 export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAttribute[] {
   const changes = modifiers.flatMap((m) => (targetsEnemy(m, enemy.id) ? attributeChanges(m) : []));
+  const { original } = enemy;
   return enemyAttributeKeys.map((key) => {
     if (key === "baseAttackTime") {
       const speed = adjustment(changes, "attackSpeed");
       return enemyAttribute(
         key,
-        attackInterval(enemy.baseAttackTime, enemy.attackSpeed),
-        attackInterval(enemy.baseAttackTime, adjusted(enemy.attackSpeed, "attackSpeed", speed)),
+        [
+          original ? attackInterval(original.baseAttackTime, original.attackSpeed) : "none",
+          attackInterval(enemy.baseAttackTime, enemy.attackSpeed),
+          attackInterval(enemy.baseAttackTime, adjusted(enemy.attackSpeed, "attackSpeed", speed)),
+        ],
         speed,
         strings.attackSpeed,
       );
@@ -342,8 +364,11 @@ export function enemyAttributes(enemy: EnemyRef, modifiers: Modifier[]): EnemyAt
     const own = adjustment(changes, key);
     return enemyAttribute(
       key,
-      round(enemy[key], digitsOf(key)),
-      adjusted(enemy[key], key, own),
+      [
+        original ? round(original[key], digitsOf(key)) : "none",
+        round(enemy[key], digitsOf(key)),
+        adjusted(enemy[key], key, own),
+      ],
       own,
       null,
     );
