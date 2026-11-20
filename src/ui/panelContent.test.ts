@@ -374,8 +374,6 @@ describe("敵人屬性", () => {
     const scorpion = challengeAttributes("level_act16mini_03", "enemy_1100_scorpn");
     expect(attribute(scorpion, "攻擊")).toMatchObject({
       text: "756",
-      multipliers: [1.2],
-      additions: [300],
       tooltip: "關卡基礎: 380, 調整: ×1.2 +300",
     });
     const warrior = challengeAttributes("level_act16mini_03", "enemy_1093_ccsbr");
