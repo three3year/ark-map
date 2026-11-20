@@ -11,7 +11,18 @@ const valueOf = (page: Page, label: string) =>
     .filter({ has: page.getByText(label, { exact: true }) })
     .locator("dd");
 
-test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移速 stands out with its base", async ({
+/** Whether a value has a visible frame: a border wider than 0 in a colour that is not transparent. */
+const framed = (page: Page, label: string) =>
+  valueOf(page, label).evaluate((el) => {
+    const style = getComputedStyle(el);
+    const width = parseFloat(style.borderTopWidth);
+    const alpha = style.borderTopColor.match(/^rgba\(.*,\s*([\d.]+)\)$/)?.[1];
+    return (
+      width > 0 && style.borderTopStyle !== "none" && (alpha === undefined || Number(alpha) > 0)
+    );
+  });
+
+test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移速 stands out with its base, the overwritten 生命值 is framed", async ({
   page,
 }) => {
   const row = spawnTable(siteLevel("main_04-04"), { difficulty: "FOUR_STAR" }).find(
@@ -26,9 +37,13 @@ test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移
   const color = (label: string) =>
     valueOf(page, label).evaluate((el) => getComputedStyle(el).color);
   expect(await color("移速")).not.toBe(await color("攻擊"));
+  expect(await framed(page, "生命值")).toBe(true);
+  expect(await framed(page, "攻擊")).toBe(false);
+  await expect(valueOf(page, "生命值")).toHaveAttribute("title", "原始數值: 1650, 關卡基礎: 2200");
 
   await page.locator('[data-variant="normal"]').click();
 
   await expect(valueOf(page, "移速")).toHaveText("1.1");
   await expect(valueOf(page, "移速")).not.toHaveAttribute("title");
+  expect(await framed(page, "生命值")).toBe(true);
 });
