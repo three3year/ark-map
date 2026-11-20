@@ -320,7 +320,7 @@ describe("enemy resolution", () => {
     expect(level.enemies["enemy_1002_nsabr"]!.original!.maxHp).toBe(1650);
   });
 
-  it("4-4: the soldier carries the 10 敵人屬性, HP still the overwritten 2200, and their 原始數值", () => {
+  it("4-4: the soldier carries the 9 敵人屬性 and 攻速, HP still the overwritten 2200, and their 原始數值", () => {
     const soldier = loadFixtureLevel("level_main_04-04").enemies["enemy_1002_nsabr"]!;
     expect(soldier.original).toEqual({
       maxHp: 1650,
