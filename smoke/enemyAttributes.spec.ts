@@ -44,5 +44,6 @@ test("4-4 突襲: a selected soldier shows 9 屬性, no 攻速; the modified 移
 
   await expect(valueOf(page, "移速")).toHaveText("1.1");
   await expect(valueOf(page, "移速")).not.toHaveAttribute("title");
+  expect(await color("移速")).toBe(await color("攻擊"));
   expect(await framed(page, "生命值")).toBe(true);
 });
